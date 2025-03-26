@@ -423,7 +423,7 @@ function handleProfileSubmit(e) {
             // Show success message
             const successMsg = document.createElement('div');
             successMsg.className = 'profile-success-message';
-            successMsg.textContent = 'Profile updated successfully!';
+            successMsg.textContent = 'Perfil atualizado com sucesso!';
             
             // Add success message after form
             profileForm.after(successMsg);
@@ -467,9 +467,9 @@ function showSection(section) {
         } else if (plans.length === 0) {
             content.innerHTML = `
                 <div class="content-section">
-                    <h2 class="content-title">Travel Plans</h2>
+                    <h2 class="content-title">Planos de Viagem</h2>
                     <div class="empty-state">
-                        <p>You don't have any travel plans yet. Start a conversation to create one!</p>
+                        <p>Você ainda não tem planos de viagem. Inicie uma conversa para criar um!</p>
                     </div>
                 </div>
             `;
@@ -523,22 +523,22 @@ function searchFlights(params) {
     return Promise.resolve({
         results: [
             {
-                airline: "Air France",
-                flight_number: "AF1234",
+                airline: "LATAM",
+                flight_number: "LA3456",
                 departure: params.origin,
                 arrival: params.destination,
                 departure_time: "08:30",
                 arrival_time: "20:15",
-                price: "€450"
+                price: "R$2.450"
             },
             {
-                airline: "Delta",
-                flight_number: "DL5678",
+                airline: "Gol",
+                flight_number: "G35678",
                 departure: params.origin,
                 arrival: params.destination,
                 departure_time: "18:00",
                 arrival_time: "07:45 (+1)",
-                price: "€520"
+                price: "R$2.820"
             }
         ]
     });
@@ -557,17 +557,17 @@ function searchHotels(params) {
     return Promise.resolve({
         results: [
             {
-                name: `Grand Hotel ${params.city}`,
+                name: `Grande Hotel ${params.city}`,
                 stars: 4,
-                location: `Central ${params.city}`,
-                price_per_night: "€180",
+                location: `${params.city} Central`,
+                price_per_night: "R$980",
                 available: true
             },
             {
-                name: `${params.city} View Resort`,
+                name: `${params.city} Vista Resort`,
                 stars: 3,
-                location: `Downtown ${params.city}`,
-                price_per_night: "€135",
+                location: `Centro de ${params.city}`,
+                price_per_night: "R$740",
                 available: true
             }
         ]
