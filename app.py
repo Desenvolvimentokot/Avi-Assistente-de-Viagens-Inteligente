@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///flai.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
@@ -37,64 +37,255 @@ def load_user(user_id):
 amadeus_service = AmadeusService()
 openai_service = OpenAIService()
 
-# Cria as tabelas do banco de dados
-with app.app_context():
-    db.create_all()
-    
-    # Criar um usuário padrão se não existir nenhum
-    if User.query.count() == 0:
-        default_user = User(
-            name="João Silva",
-            email="joao.silva@exemplo.com",
-            phone="+55 11 98765-4321",
-            preferred_destinations="Praia, Montanha",
-            accommodation_type="Hotel",
-            budget="Médio"
-        )
-        default_user.set_password("senha123")
-        db.session.add(default_user)
-        
-        # Adicionar uma conversa inicial
-        conv = Conversation(
-            user=default_user,
-            title="Viagem para Paris",
-            last_updated=datetime.utcnow()
-        )
-        db.session.add(conv)
-        
-        # Adicionar mensagens à conversa
-        msg1 = Message(
-            conversation=conv,
-            is_user=True,
-            content="Olá, estou planejando uma viagem para Paris.",
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(msg1)
-        
-        msg2 = Message(
-            conversation=conv,
-            is_user=False,
-            content="Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?",
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(msg2)
-        
-        # Adicionar um plano de viagem
-        plan = TravelPlan(
-            user=default_user,
-            title="Final de semana em Barcelona",
-            destination="Barcelona, Espanha",
-            start_date=datetime.strptime("2023-12-15", "%Y-%m-%d").date(),
-            end_date=datetime.strptime("2023-12-17", "%Y-%m-%d").date(),
-            details="Um fim de semana para explorar a arquitetura e a culinária de Barcelona."
-        )
-        db.session.add(plan)
-        
-        db.session.commit()
-
+# Rota principal
 @app.route('/')
 def index():
     return render_template('index.html')
+
+# API para chat
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    data = request.json
+    user_message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
+
+    # Obter histórico da conversa, se existir
+    messages_history = []
+    conversation = None
+
+    if conversation_id:
+        try:
+            conversation = Conversation.query.filter_by(id=conversation_id).first()
+            if not conversation:
+                return jsonify({"error": "Conversa não encontrada"}), 404
+
+            # Buscar mensagens da conversa
+            messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
+            for msg in messages:
+                messages_history.append({
+                    "is_user": msg.is_user,
+                    "content": msg.content,
+                    "timestamp": msg.timestamp.isoformat()
+                })
+        except Exception as e:
+            logging.error(f"Erro ao buscar conversa: {str(e)}")
+
+    try:
+        # Chamar a API da OpenAI através do nosso serviço
+        result = openai_service.travel_assistant(user_message, messages_history)
+
+        if 'error' in result:
+            logging.error(f"Erro na API do OpenAI: {result['error']}")
+            return jsonify({
+                "response": "Desculpe, estou enfrentando problemas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.",
+                "error": result['error']
+            }), 500
+
+        # Se for uma nova conversa, criar uma nova entrada no banco de dados
+        if not conversation_id:
+            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
+            try:
+                conversation = Conversation(
+                    title=title,
+                    user_id=1,  # Usuário fixo para testes
+                    created_at=datetime.now()
+                )
+                db.session.add(conversation)
+                db.session.commit()
+                conversation_id = conversation.id
+            except Exception as e:
+                logging.error(f"Erro ao criar conversa: {str(e)}")
+                # Continue mesmo com erro (modo degradado)
+
+        # Salvar mensagem do usuário e resposta do assistente, se tiver conversa
+        if conversation_id:
+            try:
+                # Mensagem do usuário
+                user_msg = Message(
+                    conversation_id=conversation_id,
+                    content=user_message,
+                    is_user=True,
+                    timestamp=datetime.now()
+                )
+                db.session.add(user_msg)
+
+                # Resposta do assistente
+                assistant_msg = Message(
+                    conversation_id=conversation_id,
+                    content=result['response'],
+                    is_user=False,
+                    timestamp=datetime.now()
+                )
+                db.session.add(assistant_msg)
+                db.session.commit()
+            except Exception as e:
+                logging.error(f"Erro ao salvar mensagens: {str(e)}")
+                # Continue mesmo com erro (modo degradado)
+
+        # Retornar a resposta e o ID da conversa
+        return jsonify({
+            "response": result['response'],
+            "conversation_id": conversation_id
+        })
+
+    except Exception as e:
+        logging.error(f"Erro no processamento do chat: {str(e)}")
+        return jsonify({
+            "response": "Desculpe, ocorreu um erro interno. Por favor, tente novamente mais tarde.",
+            "error": str(e)
+        }), 500
+
+# API para busca
+@app.route('/api/search', methods=['POST'])
+def search():
+    data = request.json
+    search_type = data.get('type', '')
+    search_params = data.get('params', {})
+
+    try:
+        if search_type == 'flights':
+            # Adicionar parâmetros padrão se não estiverem presentes
+            if 'currencyCode' not in search_params:
+                search_params['currencyCode'] = 'BRL'
+            if 'max' not in search_params:
+                search_params['max'] = 10
+
+            # Chamar a API da Amadeus
+            result = amadeus_service.search_flights(search_params)
+
+            if 'error' in result:
+                logging.error(f"Erro na busca de voos: {result['error']}")
+                return jsonify({
+                    "error": "Não foi possível buscar voos no momento",
+                    "details": result['error']
+                }), 500
+
+            # Formatar os resultados da API para um formato mais amigável
+            flights = []
+            if 'data' in result:
+                for offer in result['data']:
+                    try:
+                        itinerary = offer['itineraries'][0]
+                        first_segment = itinerary['segments'][0]
+                        last_segment = itinerary['segments'][-1]
+                        price = offer['price']['total']
+                        currency = offer['price']['currency']
+
+                        flight = {
+                            "id": offer['id'],
+                            "price": f"{currency} {price}",
+                            "departure": {
+                                "airport": first_segment['departure']['iataCode'],
+                                "time": first_segment['departure']['at']
+                            },
+                            "arrival": {
+                                "airport": last_segment['arrival']['iataCode'],
+                                "time": last_segment['arrival']['at']
+                            },
+                            "duration": itinerary['duration'],
+                            "segments": len(itinerary['segments'])
+                        }
+                        flights.append(flight)
+                    except (KeyError, IndexError) as e:
+                        logging.error(f"Erro ao processar oferta de voo: {str(e)}")
+
+            return jsonify({"flights": flights})
+
+        elif search_type == 'hotels':
+            # Chamar a API da Amadeus
+            result = amadeus_service.search_hotels(search_params)
+
+            if 'error' in result:
+                logging.error(f"Erro na busca de hotéis: {result['error']}")
+                return jsonify({
+                    "error": "Não foi possível buscar hotéis no momento",
+                    "details": result['error']
+                }), 500
+
+            # Formatar os resultados da API
+            hotels = []
+            if 'data' in result:
+                for hotel in result['data']:
+                    try:
+                        hotel_info = {
+                            "id": hotel['hotelId'],
+                            "name": hotel['name'],
+                            "address": hotel.get('address', {}).get('lines', ["Endereço não disponível"])[0],
+                            "city": hotel.get('address', {}).get('cityName', ""),
+                            "country": hotel.get('address', {}).get('countryCode', "")
+                        }
+                        hotels.append(hotel_info)
+                    except KeyError as e:
+                        logging.error(f"Erro ao processar hotel: {str(e)}")
+
+            return jsonify({"hotels": hotels})
+
+        else:
+            return jsonify({"error": "Tipo de busca não suportado"}), 400
+
+    except Exception as e:
+        logging.error(f"Erro na API de busca: {str(e)}")
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+# Rota para criar banco de dados (setup inicial)
+@app.route('/setup', methods=['GET'])
+def setup():
+    try:
+        db.create_all()
+        return jsonify({"message": "Banco de dados inicializado com sucesso"})
+    except Exception as e:
+        return jsonify({"error": f"Erro ao inicializar banco de dados: {str(e)}"}), 500
+
+# Rotas para API de conversas
+@app.route('/api/conversations', methods=['GET'])
+def get_conversations():
+    try:
+        # Para testes, usar ID fixo de usuário
+        user_id = 1
+        conversations = Conversation.query.filter_by(user_id=user_id).order_by(Conversation.created_at.desc()).all()
+
+        result = []
+        for conv in conversations:
+            result.append({
+                "id": conv.id,
+                "title": conv.title,
+                "created_at": conv.created_at.isoformat()
+            })
+
+        return jsonify({"conversations": result})
+    except Exception as e:
+        logging.error(f"Erro ao buscar conversas: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Rota para obter uma conversa específica
+@app.route('/api/conversations/<int:conversation_id>', methods=['GET'])
+def get_conversation(conversation_id):
+    try:
+        conversation = Conversation.query.get(conversation_id)
+
+        if not conversation:
+            return jsonify({"error": "Conversa não encontrada"}), 404
+
+        messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
+
+        messages_list = []
+        for msg in messages:
+            messages_list.append({
+                "id": msg.id,
+                "content": msg.content,
+                "is_user": msg.is_user,
+                "timestamp": msg.timestamp.isoformat()
+            })
+
+        return jsonify({
+            "id": conversation.id,
+            "title": conversation.title,
+            "created_at": conversation.created_at.isoformat(),
+            "messages": messages_list
+        })
+    except Exception as e:
+        logging.error(f"Erro ao buscar conversa: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -127,7 +318,7 @@ def logout():
 
 @app.route('/api/conversations')
 @login_required
-def get_conversations():
+def get_conversations_login_required():
     user_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
     
     result = []
@@ -159,6 +350,7 @@ def get_conversation_messages(conversation_id):
         })
     
     return jsonify(result)
+
 
 @app.route('/api/plans')
 @login_required
@@ -286,256 +478,6 @@ def update_profile():
         }
     })
 
-@app.route('/api/chat', methods=['POST'])
-@login_required
-def chat():
-    data = request.json
-    user_message = data.get('message', '')
-    conversation_id = data.get('conversation_id')
-    
-    # Obter histórico da conversa, se existir
-    messages_history = []
-    
-    if conversation_id:
-        conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
-        if not conversation:
-            return jsonify({"error": "Conversa não encontrada"}), 404
-            
-        # Buscar mensagens da conversa
-        messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
-        for msg in messages:
-            messages_history.append({
-                "is_user": msg.is_user,
-                "content": msg.content,
-                "timestamp": msg.timestamp.isoformat()
-            })
-    
-    try:
-        # Chamar a API da OpenAI através do nosso serviço
-        result = openai_service.travel_assistant(user_message, messages_history)
-        
-        if 'error' in result:
-            logging.error(f"Erro na API do OpenAI: {result['error']}")
-            return jsonify({
-                "response": "Desculpe, estou enfrentando problemas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.",
-                "error": result['error']
-            }), 500
-        
-        # Se for uma nova conversa, criar uma nova entrada no banco de dados
-        if not conversation_id:
-            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
-            new_conversation = Conversation(
-                user_id=current_user.id,
-                title=title,
-                created_at=datetime.utcnow(),
-                last_updated=datetime.utcnow()
-            )
-            db.session.add(new_conversation)
-            db.session.flush()  # Para obter o ID da nova conversa
-            conversation_id = new_conversation.id
-            conversation = new_conversation
-        else:
-            # Atualizar o timestamp da conversa existente
-            conversation.last_updated = datetime.utcnow()
-        
-        # Adicionar mensagem do usuário ao banco de dados
-        user_msg = Message(
-            conversation_id=conversation_id,
-            is_user=True,
-            content=user_message,
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(user_msg)
-        
-        # Adicionar resposta do assistente ao banco de dados
-        assistant_response = result['response']
-        assistant_msg = Message(
-            conversation_id=conversation_id,
-            is_user=False,
-            content=assistant_response,
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(assistant_msg)
-        
-        # Commit das alterações
-        db.session.commit()
-        
-        return jsonify({
-            "response": assistant_response,
-            "conversation_id": conversation_id
-        })
-    
-    except Exception as e:
-        logging.error(f"Erro ao processar mensagem do chat: {str(e)}")
-        return jsonify({
-            "response": "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde.",
-            "error": str(e)
-        }), 500
-
-@app.route('/api/search', methods=['POST'])
-def search():
-    data = request.json
-    search_type = data.get('type', '')
-    search_params = data.get('params', {})
-    
-    try:
-        if search_type == 'flights':
-            # Adicionar parâmetros padrão se não estiverem presentes
-            if 'currencyCode' not in search_params:
-                search_params['currencyCode'] = 'BRL'
-            if 'max' not in search_params:
-                search_params['max'] = 10
-                
-            # Chamar a API da Amadeus
-            result = amadeus_service.search_flights(search_params)
-            
-            if 'error' in result:
-                logging.error(f"Erro na busca de voos: {result['error']}")
-                return jsonify({
-                    "error": "Não foi possível buscar voos no momento",
-                    "details": result['error']
-                }), 500
-            
-            # Formatar os resultados da API para um formato mais amigável
-            flights = []
-            if 'data' in result:
-                for offer in result['data']:
-                    try:
-                        itinerary = offer['itineraries'][0]
-                        first_segment = itinerary['segments'][0]
-                        last_segment = itinerary['segments'][-1]
-                        price = offer['price']['total']
-                        currency = offer['price']['currency']
-                        
-                        flight = {
-                            "id": offer['id'],
-                            "offer_data": offer,  # Guardar os dados completos para uso futuro
-                            "airline": first_segment['carrierCode'],
-                            "flight_number": first_segment['number'],
-                            "departure": f"{first_segment['departure']['iataCode']}",
-                            "arrival": f"{last_segment['arrival']['iataCode']}",
-                            "departure_time": first_segment['departure']['at'],
-                            "arrival_time": last_segment['arrival']['at'],
-                            "stops": len(itinerary['segments']) - 1,
-                            "duration": itinerary['duration'],
-                            "price": f"{price} {currency}"
-                        }
-                        flights.append(flight)
-                    except (KeyError, IndexError) as e:
-                        logging.warning(f"Erro ao processar oferta de voo: {str(e)}")
-                        continue
-            
-            return jsonify({
-                "results": flights,
-                "raw_data": result if 'meta' in result else None
-            })
-            
-        elif search_type == 'hotels':
-            # Buscar hotéis usando a API da Amadeus
-            if 'cityCode' not in search_params:
-                return jsonify({
-                    "error": "O código da cidade (cityCode) é obrigatório para busca de hotéis"
-                }), 400
-                
-            # Fazer a busca de hotéis por cidade
-            hotel_result = amadeus_service.search_hotels(search_params)
-            
-            if 'error' in hotel_result:
-                logging.error(f"Erro na busca de hotéis: {hotel_result['error']}")
-                return jsonify({
-                    "error": "Não foi possível buscar hotéis no momento",
-                    "details": hotel_result['error']
-                }), 500
-            
-            # Extrair IDs dos hotéis para buscar ofertas
-            hotel_ids = []
-            hotels_info = {}
-            
-            if 'data' in hotel_result:
-                for hotel in hotel_result['data']:
-                    hotel_id = hotel['hotelId']
-                    hotel_ids.append(hotel_id)
-                    hotels_info[hotel_id] = {
-                        "name": hotel.get('name', 'Hotel sem nome'),
-                        "cityCode": hotel.get('cityCode', ''),
-                        "address": hotel.get('address', {}).get('lines', [''])[0] if 'address' in hotel and 'lines' in hotel['address'] else '',
-                    }
-            
-            # Se não houver hotéis, retornar lista vazia
-            if not hotel_ids:
-                return jsonify({
-                    "results": [],
-                    "message": "Nenhum hotel encontrado para os parâmetros informados"
-                })
-            
-            # Buscar ofertas para os hotéis encontrados
-            offers_params = {
-                'hotelIds': ','.join(hotel_ids[:20]),  # Limitar a 20 hotéis por consulta
-                'adults': search_params.get('adults', 1),
-                'currency': search_params.get('currency', 'BRL')
-            }
-            
-            # Adicionar datas se fornecidas
-            if 'checkInDate' in search_params:
-                offers_params['checkInDate'] = search_params['checkInDate']
-            if 'checkOutDate' in search_params:
-                offers_params['checkOutDate'] = search_params['checkOutDate']
-            
-            offers_result = amadeus_service.search_hotel_offers(offers_params)
-            
-            if 'error' in offers_result:
-                logging.error(f"Erro na busca de ofertas de hotéis: {offers_result['error']}")
-                return jsonify({
-                    "error": "Não foi possível buscar ofertas de hotéis no momento",
-                    "details": offers_result['error']
-                }), 500
-            
-            # Formatar os resultados
-            hotels = []
-            
-            if 'data' in offers_result:
-                for offer in offers_result['data']:
-                    try:
-                        hotel_id = offer['hotel']['hotelId']
-                        hotel_info = hotels_info.get(hotel_id, {})
-                        
-                        # Pegar a primeira oferta disponível
-                        if 'offers' in offer and offer['offers']:
-                            price_offer = offer['offers'][0]
-                            price = price_offer['price']['total']
-                            currency = price_offer['price']['currency']
-                            
-                            hotel = {
-                                "id": hotel_id,
-                                "offer_id": price_offer['id'],
-                                "name": hotel_info.get('name', 'Hotel sem nome'),
-                                "location": hotel_info.get('address', 'Localização não disponível'),
-                                "stars": offer['hotel'].get('rating', 0),
-                                "price_per_night": f"{price} {currency}",
-                                "available": True,
-                                "offer_data": price_offer  # Guardar os dados completos para uso futuro
-                            }
-                            hotels.append(hotel)
-                    except (KeyError, IndexError) as e:
-                        logging.warning(f"Erro ao processar oferta de hotel: {str(e)}")
-                        continue
-            
-            return jsonify({
-                "results": hotels,
-                "raw_data": offers_result if 'meta' in offers_result else None
-            })
-            
-        else:
-            return jsonify({
-                "error": "Tipo de pesquisa inválido. Use 'flights' ou 'hotels'."
-            }), 400
-            
-    except Exception as e:
-        logging.error(f"Erro ao processar pesquisa: {str(e)}")
-        return jsonify({
-            "error": "Ocorreu um erro ao processar sua pesquisa",
-            "details": str(e)
-        }), 500
 
 @app.route('/api/price-monitor', methods=['GET'])
 @login_required
@@ -925,3 +867,6 @@ def mark_alerts_read():
             "error": "Ocorreu um erro ao marcar os alertas como lidos",
             "details": str(e)
         }), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
