@@ -6,221 +6,73 @@
     <title>Flai - Seu Assistente de Viagem</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
 </head>
 <body>
-    <header class="header">
-        <div class="logo">
-            <span class="logo-text">Flai</span>
-        </div>
-        <div class="header-actions">
-            <button id="login-button" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> Entrar</button>
-            <button id="signup-button" class="btn btn-primary"><i class="fas fa-user-plus"></i> Cadastrar</button>
-        </div>
-    </header>
-
     <div class="container">
-        <div id="sidebar" class="sidebar">
-            <button id="sidebar-toggle" class="sidebar-toggle">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <div class="sidebar-nav">
-                <div class="sidebar-nav-item active" data-section="chat">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-paper-plane"></i>
+                <span>Flai</span>
+            </div>
+            <div class="nav-items">
+                <div class="nav-item active">
                     <i class="fas fa-comment"></i>
                     <span>Chat</span>
                 </div>
-                <div class="sidebar-nav-item" data-section="plans">
+                <div class="nav-item">
                     <i class="fas fa-map-marked-alt"></i>
                     <span>Planos</span>
                 </div>
-                <div class="sidebar-nav-item" data-section="profile">
+                <div class="nav-item">
                     <i class="fas fa-user"></i>
                     <span>Perfil</span>
                 </div>
             </div>
-            <div class="sidebar-content">
-                <div id="conversations-section" class="sidebar-section active">
-                    <div class="sidebar-section-header">
-                        <h3>Conversas</h3>
-                        <button id="new-conversation" class="btn btn-icon">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                    <div id="conversations-list" class="sidebar-list">
-                        <!-- Conversas serão carregadas aqui -->
-                    </div>
+            <div class="conversations">
+                <div class="conversation active">
+                    <div class="conversation-title">Nova conversa</div>
+                    <div class="conversation-date">Hoje</div>
                 </div>
-                <div id="plans-section" class="sidebar-section">
-                    <div class="sidebar-section-header">
-                        <h3>Planos de Viagem</h3>
-                        <button id="new-plan" class="btn btn-icon">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                    <div id="plans-list" class="sidebar-list">
-                        <!-- Planos serão carregados aqui -->
-                    </div>
-                </div>
+            </div>
+            <div class="add-conversation">
+                <i class="fas fa-plus"></i> Nova conversa
             </div>
         </div>
 
-        <div id="content" class="content">
-            <div id="chat-section" class="content-section active">
-                <h2 class="content-title">Chat com Flai</h2>
-                <div class="chat-mode-selector">
-                    <button id="quick-search-mode" class="chat-mode-btn active">Busca Rápida</button>
-                    <button id="full-planning-mode" class="chat-mode-btn">Planejamento Completo</button>
-                </div>
-                <div class="chat-container">
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="message assistant" id="welcome-message">
-                            <div class="message-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="message-content">
-                                <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
-                                <p>Escolha uma das modalidades acima:</p>
-                                <ul>
-                                    <li><strong>Busca Rápida</strong>: Para encontrar os melhores voos rapidamente.</li>
-                                    <li><strong>Planejamento Completo</strong>: Para criar um itinerário detalhado com voos, hotéis e atrações.</li>
-                                </ul>
-                            </div>
-                        </div>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="chat-title">Chat com Flai</div>
+                <div class="header-actions">
+                    <div class="header-action">
+                        <i class="fas fa-bell"></i>
                     </div>
-                    <form id="chat-form" class="chat-input">
-                        <textarea id="message-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
-                        <button type="submit" onclick="sendMessage()"><i class="fas fa-paper-plane"></i> Enviar</button>
-                    </form>
+                    <div class="header-action">
+                        <i class="fas fa-cog"></i>
+                    </div>
                 </div>
             </div>
 
-            <div id="plans-detail-section" class="content-section">
-                <h2 class="content-title">Planos de Viagem</h2>
-                <div id="plan-details" class="plan-details">
-                    <!-- Detalhes do plano serão carregados aqui -->
+            <div class="chat-modes">
+                <div class="mode-button active" data-mode="quick-search">Busca Rápida</div>
+                <div class="mode-button" data-mode="full-planning">Planejamento Completo</div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages">
+                    <!-- Mensagens serão adicionadas pelo JavaScript -->
                 </div>
             </div>
 
-            <div id="profile-section" class="content-section">
-                <h2 class="content-title">Perfil do Usuário</h2>
-                <form id="profile-form" class="profile-form">
-                    <div class="form-group">
-                        <label for="profile-name">Nome</label>
-                        <input type="text" id="profile-name" name="name" placeholder="Seu nome completo">
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-email">Email</label>
-                        <input type="email" id="profile-email" name="email" placeholder="seu.email@exemplo.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-phone">Telefone</label>
-                        <input type="tel" id="profile-phone" name="phone" placeholder="(11) 98765-4321">
-                    </div>
-                    <h3 class="section-subtitle">Preferências de Viagem</h3>
-                    <div class="form-group">
-                        <label for="profile-preferred-destinations">Destinos Preferidos</label>
-                        <input type="text" id="profile-preferred-destinations" name="preferred_destinations" placeholder="Praia, Montanha, Cidade...">
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-accommodation-type">Tipo de Acomodação</label>
-                        <select id="profile-accommodation-type" name="accommodation_type">
-                            <option value="">Selecione...</option>
-                            <option value="Hotel">Hotel</option>
-                            <option value="Hostel">Hostel</option>
-                            <option value="Apartamento">Apartamento</option>
-                            <option value="Casa">Casa</option>
-                            <option value="Resort">Resort</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="profile-budget">Orçamento</label>
-                        <select id="profile-budget" name="budget">
-                            <option value="">Selecione...</option>
-                            <option value="Econômico">Econômico</option>
-                            <option value="Médio">Médio</option>
-                            <option value="Premium">Premium</option>
-                            <option value="Luxo">Luxo</option>
-                        </select>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                    </div>
-                </form>
+            <div class="message-input-container">
+                <textarea class="message-input" placeholder="Digite sua mensagem..."></textarea>
+                <button class="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
             </div>
         </div>
     </div>
-
-    <!-- Templates para itens dinâmicos -->
-    <template id="conversation-item-template">
-        <div class="sidebar-item" data-id="">
-            <div class="sidebar-item-content">
-                <h4 class="sidebar-item-title"></h4>
-                <p class="sidebar-item-subtitle"></p>
-            </div>
-        </div>
-    </template>
-
-    <template id="plan-item-template">
-        <div class="sidebar-item" data-id="">
-            <div class="sidebar-item-content">
-                <h4 class="sidebar-item-title"></h4>
-                <p class="sidebar-item-subtitle"></p>
-            </div>
-        </div>
-    </template>
-
-    <!-- Modals -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Entrar</h3>
-                <button class="close-modal"><i class="fas fa-times"></i></button>
-            </div>
-            <form id="login-form" class="modal-form">
-                <div class="form-group">
-                    <label for="login-email">Email</label>
-                    <input type="email" id="login-email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Senha</label>
-                    <input type="password" id="login-password" name="password" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Entrar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="signup-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Criar Conta</h3>
-                <button class="close-modal"><i class="fas fa-times"></i></button>
-            </div>
-            <form id="signup-form" class="modal-form">
-                <div class="form-group">
-                    <label for="signup-name">Nome</label>
-                    <input type="text" id="signup-name" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="signup-email">Email</label>
-                    <input type="email" id="signup-email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="signup-password">Senha</label>
-                    <input type="password" id="signup-password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label for="signup-password-confirm">Confirmar Senha</label>
-                    <input type="password" id="signup-password-confirm" name="password_confirm" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Criar Conta</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
