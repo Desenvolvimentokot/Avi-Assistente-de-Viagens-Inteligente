@@ -374,7 +374,7 @@ function renderChatMessages() {
     
     if (chatHistory.length === 0) {
         // Add welcome message
-        addMessageToChat('assistant', 'Hello! I\'m your Flai travel assistant. Tell me about your travel plans, and I\'ll help you organize the perfect trip. Where would you like to go?');
+        addMessageToChat('assistant', 'Olá! Eu sou o Flai, seu assistente de planejamento de viagens. Conte-me sobre seus planos de viagem e eu vou ajudar a organizar a viagem perfeita. Para onde você gostaria de ir?');
     } else {
         // Add all messages from history
         chatHistory.forEach(msg => {
@@ -486,14 +486,14 @@ function showSection(section) {
 function renderConversationUI() {
     content.innerHTML = `
         <div class="content-section">
-            <h2 class="content-title">Chat with Flai</h2>
+            <h2 class="content-title">Converse com Flai</h2>
             <div class="chat-container">
                 <div id="chat-messages" class="chat-messages"></div>
                 
                 <form id="chat-form" class="chat-input">
-                    <input id="message-input" type="text" placeholder="Type your message..." autocomplete="off">
+                    <input id="message-input" type="text" placeholder="Digite sua mensagem..." autocomplete="off">
                     <button type="submit">
-                        <i class="fas fa-paper-plane"></i> Send
+                        <i class="fas fa-paper-plane"></i> Enviar
                     </button>
                 </form>
             </div>
