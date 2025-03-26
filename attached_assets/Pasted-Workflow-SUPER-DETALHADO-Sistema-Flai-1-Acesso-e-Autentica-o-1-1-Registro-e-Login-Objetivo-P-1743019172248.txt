@@ -1,0 +1,238 @@
+Workflow SUPER DETALHADO – Sistema Flai
+1. Acesso e Autenticação
+1.1. Registro e Login:
+
+Objetivo: Permitir que o usuário crie uma conta e acesse o sistema.
+
+Funcionalidades:
+
+Tela de registro onde o usuário insere nome, email, senha e, opcionalmente, preferências iniciais de viagem.
+
+Tela de login para autenticação com email/senha.
+
+Tecnologia: Node.js/Express com JWT para autenticação ou integração com Auth0.
+
+Observação: As credenciais dos usuários e dados de sessão devem ser armazenados de forma segura (ex.: banco de dados ou sistema de gerenciamento de sessões).
+
+2. Interface Principal
+2.1. Layout Geral:
+
+Header: Exibe o logotipo "Flai", ícones de notificações e acesso rápido ao perfil.
+
+Sidebar (Menu Lateral): Contém abas para:
+
+Conversas: Exibição do histórico de interações com o Flai.
+
+Meus Planejamentos: Lista dos itinerários salvos.
+
+Perfil: Página para visualização e edição de informações pessoais.
+
+Área Principal: Mostra o conteúdo dinâmico, que pode ser o chat, o resumo de um planejamento ou a página de perfil.
+
+2.2. Uso de Variáveis de Ambiente:
+
+Todas as credenciais (Amadeus, OpenAI, etc.) devem ser armazenadas via variáveis de ambiente (Secrets no Replit) e acessadas via process.env.
+
+3. Modalidades de Chat
+O sistema terá duas modalidades de chat que se comportam de maneira distinta, mas integradas ao fluxo geral.
+
+3.A. Chat de Busca Rápida de Passagens
+Objetivo: Oferecer respostas rápidas para usuários que desejam informações básicas sobre passagens.
+
+Fluxo de Interação:
+
+Início do Chat: O usuário escolhe o modo "Busca Rápida".
+
+Perguntas Simples:
+
+"Quando você deseja viajar?" (Data de ida)
+
+"Quando deseja voltar?" (Data de volta)
+
+"De onde você irá sair e para onde deseja ir?" (Origem e destino)
+
+Processamento:
+
+Captura dos dados e criação de um perfil básico de busca.
+
+Chamada à API da Amadeus (usando token obtido via OAuth 2.0) para buscar voos que correspondam aos parâmetros.
+
+Filtragem:
+
+Filtrar os resultados para exibir apenas ofertas dos programas de afiliados.
+
+Resposta ao Usuário:
+
+Exibir a melhor oferta encontrada com detalhes: datas, preço, companhia e link de afiliado.
+
+Sugerir uma alternativa se houver variação de datas que ofereça um desconto (exemplo: "Caso você mude um pouco a data, encontramos outra opção por um preço significativamente menor.").
+
+Integração Técnica:
+
+Módulo de Busca: Função para processar dados do usuário e realizar requisições à Amadeus.
+
+Módulo de Resposta: Função para formatar a resposta e gerar links de afiliados.
+
+Validação: Garantir que os dados de entrada estão corretos antes de chamar a API.
+
+3.B. Chat de Planejamento Completo de Viagens
+Objetivo: Oferecer um planejamento completo e detalhado para usuários que buscam uma solução abrangente (voos, hotéis e passeios).
+
+Fluxo de Interação:
+
+Início do Chat: O usuário escolhe o modo "Planejamento Completo".
+
+Coleta Detalhada de Informações:
+
+Pergunta 1: "Qual é o destino principal da sua viagem e há outros lugares que deseja visitar?"
+
+Pergunta 2: "Qual a data de início e qual a duração aproximada da sua viagem?"
+
+Pergunta 3: "Quantas pessoas estarão viajando e há alguma preferência específica (classe de voo, tipo de hospedagem)?"
+
+Pergunta 4: "Você possui um orçamento definido ou deseja encontrar as melhores ofertas disponíveis?"
+
+Pergunta 5: "Você deseja incluir passeios ou experiências especiais? Se sim, quais atividades lhe interessam?"
+
+Processamento do Perfil Completo:
+
+Agregar todas as respostas para formar um perfil detalhado do planejamento.
+
+Salvar esse planejamento para futura consulta na seção "Meus Planejamentos".
+
+Busca Avançada:
+
+Utilizar o perfil completo para chamar a API da Amadeus e buscar voos, hotéis e (simulados) passeios.
+
+Filtrar os resultados conforme as preferências e gerar links de afiliados.
+
+Geração do Resumo:
+
+Criar um resumo interativo do planejamento com todas as informações coletadas e as ofertas encontradas.
+
+Permitir que o usuário revise e confirme ou ajuste os dados.
+
+Geração do PDF:
+
+Após confirmação, gerar um PDF com o resumo do planejamento:
+
+Versão Gratuita: PDF básico com texto.
+
+Versão Premium: PDF com layout personalizado (integração futura com Gamma.ai pode ser simulada agora).
+
+Integração Técnica:
+
+Módulo de Coleta de Dados: Função para gerenciar o fluxo de perguntas e armazenar respostas.
+
+Módulo de Processamento: Função para consolidar os dados e montar o perfil do planejamento.
+
+Módulo de Busca Avançada: Função para chamar a API da Amadeus com os parâmetros detalhados.
+
+Módulo de Geração de PDF: Função para criar o documento final (usar bibliotecas de geração de PDF em Node.js, como pdfkit, para a versão básica).
+
+4. Integração com APIs
+4.1. Amadeus API:
+
+Autenticação:
+
+Utilizar as variáveis de ambiente AMADEUS_API_KEY e AMADEUS_API_SECRET.
+
+Realizar uma requisição POST para https://test.api.amadeus.com/v1/security/oauth2/token e obter o token.
+
+Busca de Ofertas:
+
+Utilizar o token para fazer chamadas aos endpoints de busca (ex.: /v2/shopping/flight-offers).
+
+Filtragem e Mapeamento:
+
+Mapear as ofertas para links de afiliados.
+
+4.2. OpenAI API:
+
+Definição da Persona:
+
+Definir um system prompt para que o Flai atue como especialista em viagens.
+
+Manter o histórico da conversa para respostas contextuais.
+
+Requisições:
+
+Usar a variável CHATGPT_SECRET_KEY para autorizar as chamadas.
+
+Chamar o endpoint de chat completions com o modelo "gpt-3.5-turbo" para a versão gratuita.
+
+4.3. Geração de PDF:
+
+PDF Básico:
+
+Usar uma biblioteca Node.js (ex.: pdfkit) para gerar um documento simples com o resumo do planejamento.
+
+PDF Premium (Simulado):
+
+Incluir comentários e estrutura para futura integração com a API da Gamma.ai, que geraria um PDF com layout personalizado.
+
+5. Monitoramento de Preços e Notificações
+Monitoramento:
+
+Processo:
+
+Após o planejamento ser salvo, o sistema armazena os preços atuais de voos e hotéis.
+
+Utilizar um agendador (node-cron ou setInterval) para verificar a cada X minutos se os preços caíram.
+
+Notificações:
+
+Se uma redução de preço for detectada, disparar uma notificação:
+
+In-App: Exibir alerta na interface.
+
+Email: Usar um módulo (ex.: Nodemailer ou SendGrid) para enviar um email ao usuário.
+
+O alerta deve conter informações sobre a nova oferta e incluir o link de afiliado correspondente.
+
+6. Armazenamento e Gerenciamento de Dados
+Dados do Usuário:
+
+Armazenar informações pessoais, histórico de conversas e planejamentos.
+
+Dados dos Planejamentos:
+
+Salvar cada planejamento completo para futuras consultas na seção "Meus Planejamentos".
+
+Logs e Monitoramento:
+
+Registrar as requisições às APIs e as respostas para depuração e análise do fluxo.
+
+7. Fluxo de Reengajamento
+Após a Geração do Planejamento:
+
+O usuário revisa o resumo e confirma o planejamento.
+
+Se houver alterações ou oportunidades de economia (preços caindo), o sistema envia notificações para incentivar a finalização da compra.
+
+Resumo do Workflow
+Autenticação:
+
+Usuário faz login ou registro → Dados salvos no perfil.
+
+Escolha do Modo de Chat:
+
+Busca Rápida: Perguntas básicas → Busca na Amadeus → Exibição de ofertas com links de afiliados.
+
+Planejamento Completo: Série de perguntas detalhadas → Criação do perfil do planejamento → Busca avançada na Amadeus → Geração de resumo interativo → Geração de PDF (gratuito ou premium).
+
+Integração de APIs:
+
+Amadeus API: Autenticação, busca de ofertas, mapeamento de links.
+
+OpenAI API: Respostas do chat com system prompt que define a persona do Flai.
+
+PDF Generation: Geração de documento via pdfkit (básico) e preparação para integração futura com Gamma.ai (premium).
+
+Monitoramento e Notificações:
+
+Monitoramento contínuo de preços → Disparo de notificações (in-app/email) se houver mudanças.
+
+Reengajamento:
+
+Resumo final enviado para o usuário revisar e confirmar → O sistema sugere oportunidades de economia e reengaja o cliente para a finalização da compra.
