@@ -74,9 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show conversations section by default
     showSection('conversations');
     
-    // Add event listeners
-    chatForm.addEventListener('submit', handleChatSubmit);
-    profileForm.addEventListener('submit', handleProfileSubmit);
+    // Os event listeners do chat e do perfil serão adicionados quando os elementos forem renderizados
+    // pois esses elementos são criados dinamicamente
     
     // Add event listeners to sidebar links
     document.querySelectorAll('.sidebar-nav-item').forEach(item => {
@@ -809,6 +808,14 @@ function renderConversationUI() {
     chatForm = document.getElementById('chat-form');
     chatMessages = document.getElementById('chat-messages');
     
+    // Certificar-se de que o event listener do formulário é adicionado
+    if (chatForm) {
+        // Remover listeners antigos para evitar duplicação
+        chatForm.removeEventListener('submit', handleChatSubmit);
+        // Adicionar o listener
+        chatForm.addEventListener('submit', handleChatSubmit);
+    }
+    
     // Re-attach fullscreen toggle listener
     const fullscreenBtn = document.getElementById('fullscreen-toggle');
     if (fullscreenBtn) {
@@ -822,10 +829,12 @@ function renderConversationUI() {
             // Se pressionou Enter sem Shift, envia o formulário
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault(); // Impede a quebra de linha
-                chatForm.dispatchEvent(new Event('submit', {
-                    bubbles: true,
-                    cancelable: true
-                }));
+                if (chatForm) {
+                    chatForm.dispatchEvent(new Event('submit', {
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                }
             }
             // Shift+Enter permite quebra de linha normal
         });
@@ -839,7 +848,6 @@ function renderConversationUI() {
             fullscreenBtn.querySelector('i').classList.add('fa-compress');
         }
     }
-    chatForm.addEventListener('submit', handleChatSubmit);
     
     // Render messages
     renderChatMessages();
