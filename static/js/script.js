@@ -1349,3 +1349,925 @@ function toggleNotifications() {
         }, 10);
     }
 }
+/**
+ * Flai - Travel Planning Assistant
+ * Main JavaScript file
+ */
+
+// DOM elements
+const sidebar = document.getElementById('sidebar');
+const content = document.getElementById('content');
+const conversationsList = document.getElementById('conversations-list');
+const plansList = document.getElementById('plans-list');
+const conversationsSection = document.getElementById('conversations-section');
+const plansSection = document.getElementById('plans-section');
+const profileSection = document.getElementById('profile-section');
+const chatInput = document.getElementById('chat-input');
+const chatForm = document.getElementById('chat-form');
+const chatMessages = document.getElementById('chat-messages');
+const profileForm = document.getElementById('profile-form');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const messageInput = document.getElementById('message-input');
+const loginButton = document.getElementById('login-button');
+const signupButton = document.getElementById('signup-button');
+const loginModal = document.getElementById('login-modal');
+const signupModal = document.getElementById('signup-modal');
+const closeButtons = document.querySelectorAll('.close-modal');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+const newConversationButton = document.getElementById('new-conversation');
+
+// State variables
+let isSidebarCollapsed = false;
+let currentConversationId = null;
+let isFullscreenChat = false;
+let userLoggedIn = false;
+let userProfile = {};
+let activePriceMonitorTab = 'flights';
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize app
+    setupEventListeners();
+    checkLoginStatus();
+    
+    // Auto-resize textarea
+    if (messageInput) {
+        messageInput.addEventListener('input', autoResizeTextarea);
+    }
+});
+
+function setupEventListeners() {
+    // Sidebar toggle
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    // Sidebar navigation
+    const navItems = document.querySelectorAll('.sidebar-nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const sectionName = item.getAttribute('data-section');
+            activateSection(sectionName);
+        });
+    });
+    
+    // Chat form submission
+    if (chatForm) {
+        chatForm.addEventListener('submit', handleChatSubmit);
+    }
+    
+    // Profile form submission
+    if (profileForm) {
+        profileForm.addEventListener('submit', handleProfileSubmit);
+    }
+    
+    // Modal triggers
+    if (loginButton) {
+        loginButton.addEventListener('click', () => openModal(loginModal));
+    }
+    
+    if (signupButton) {
+        signupButton.addEventListener('click', () => openModal(signupModal));
+    }
+    
+    // Close modals
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const modal = button.closest('.modal');
+            closeModal(modal);
+        });
+    });
+    
+    // Login form submission
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLoginSubmit);
+    }
+    
+    // Signup form submission
+    if (signupForm) {
+        signupForm.addEventListener('submit', handleSignupSubmit);
+    }
+    
+    // New conversation button
+    if (newConversationButton) {
+        newConversationButton.addEventListener('click', startNewConversation);
+    }
+    
+    // Price monitor tabs
+    const tabs = document.querySelectorAll('.price-monitor-tabs .tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.getAttribute('data-tab');
+            activatePriceMonitorTab(tabName);
+        });
+    });
+}
+
+// Authentication functions
+function checkLoginStatus() {
+    fetch('/api/profile')
+        .then(response => {
+            if (response.ok) {
+                return response.json().then(data => {
+                    userLoggedIn = true;
+                    userProfile = data;
+                    updateUIForLoggedInUser();
+                });
+            } else {
+                userLoggedIn = false;
+                updateUIForLoggedOutUser();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading profile:', error);
+            userLoggedIn = false;
+            updateUIForLoggedOutUser();
+        });
+}
+
+function updateUIForLoggedInUser() {
+    // Update header buttons
+    if (loginButton) {
+        loginButton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Sair';
+        loginButton.removeEventListener('click', () => openModal(loginModal));
+        loginButton.addEventListener('click', handleLogout);
+    }
+    
+    if (signupButton) {
+        signupButton.style.display = 'none';
+    }
+    
+    // Render user info
+    renderProfile();
+    
+    // Load conversations and plans
+    loadConversations();
+    loadPlans();
+    
+    // Load price monitors
+    loadPriceMonitors();
+}
+
+function updateUIForLoggedOutUser() {
+    // Update header buttons
+    if (loginButton) {
+        loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+        loginButton.removeEventListener('click', handleLogout);
+        loginButton.addEventListener('click', () => openModal(loginModal));
+    }
+    
+    if (signupButton) {
+        signupButton.style.display = 'block';
+    }
+    
+    // Clear conversations and plans
+    if (conversationsList) {
+        conversationsList.innerHTML = '<div class="empty-state">Faça login para ver suas conversas</div>';
+    }
+    
+    if (plansList) {
+        plansList.innerHTML = '<div class="empty-state">Faça login para ver seus planos</div>';
+    }
+}
+
+function handleLogout() {
+    fetch('/logout')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                userLoggedIn = false;
+                userProfile = {};
+                updateUIForLoggedOutUser();
+            }
+        })
+        .catch(error => console.error('Error logging out:', error));
+}
+
+function handleLoginSubmit(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal(loginModal);
+            userLoggedIn = true;
+            userProfile = data.user;
+            updateUIForLoggedInUser();
+        } else {
+            alert(data.error || 'Erro ao fazer login');
+        }
+    })
+    .catch(error => {
+        console.error('Error logging in:', error);
+        alert('Erro ao fazer login. Por favor, tente novamente.');
+    });
+}
+
+function handleSignupSubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('signup-name').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const passwordConfirm = document.getElementById('signup-password-confirm').value;
+    
+    if (password !== passwordConfirm) {
+        alert('As senhas não coincidem');
+        return;
+    }
+    
+    fetch('/api/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal(signupModal);
+            alert('Conta criada com sucesso! Por favor, faça login.');
+            openModal(loginModal);
+        } else {
+            alert(data.error || 'Erro ao criar conta');
+        }
+    })
+    .catch(error => {
+        console.error('Error signing up:', error);
+        alert('Erro ao criar conta. Por favor, tente novamente.');
+    });
+}
+
+// UI functions
+function toggleSidebar() {
+    isSidebarCollapsed = !isSidebarCollapsed;
+    
+    sidebar.classList.toggle('collapsed', isSidebarCollapsed);
+    content.classList.toggle('expanded', isSidebarCollapsed);
+    
+    const icon = sidebarToggle.querySelector('i');
+    if (isSidebarCollapsed) {
+        icon.classList.remove('fa-chevron-left');
+        icon.classList.add('fa-chevron-right');
+    } else {
+        icon.classList.remove('fa-chevron-right');
+        icon.classList.add('fa-chevron-left');
+    }
+}
+
+function activateSection(sectionName) {
+    // Update sidebar nav
+    const navItems = document.querySelectorAll('.sidebar-nav-item');
+    navItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-section') === sectionName);
+    });
+    
+    // Show/hide sidebar sections
+    if (sectionName === 'chat' || sectionName === 'plans') {
+        const sections = document.querySelectorAll('.sidebar-section');
+        sections.forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        if (sectionName === 'chat') {
+            conversationsSection.classList.add('active');
+        } else if (sectionName === 'plans') {
+            plansSection.classList.add('active');
+        }
+    }
+    
+    // Show/hide content sections
+    const contentSections = document.querySelectorAll('.content-section');
+    contentSections.forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    const activeSection = document.getElementById(`${sectionName}-section`);
+    if (activeSection) {
+        activeSection.classList.add('active');
+    }
+}
+
+function openModal(modal) {
+    modal.classList.add('active');
+}
+
+function closeModal(modal) {
+    modal.classList.remove('active');
+}
+
+function autoResizeTextarea() {
+    messageInput.style.height = 'auto';
+    messageInput.style.height = (messageInput.scrollHeight) + 'px';
+}
+
+// Chat functions
+function addMessageToChat(sender, content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', sender);
+    
+    const avatar = document.createElement('div');
+    avatar.classList.add('message-avatar');
+    
+    const icon = document.createElement('i');
+    icon.classList.add(sender === 'user' ? 'fas' : 'fas', sender === 'user' ? 'fa-user' : 'fa-robot');
+    avatar.appendChild(icon);
+    
+    const messageContent = document.createElement('div');
+    messageContent.classList.add('message-content');
+    messageContent.innerHTML = content;
+    
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(messageContent);
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    return messageDiv;
+}
+
+function handleChatSubmit(e) {
+    e.preventDefault();
+    
+    const message = messageInput.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message to chat
+    addMessageToChat('user', message);
+    
+    // Clear input and reset height
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    
+    // Show loading indicator
+    const loadingMsg = addMessageToChat('assistant', '<div class="loading-dots"><span></span><span></span><span></span></div>');
+    
+    // Prepare data for API call
+    const data = {
+        message: message
+    };
+    
+    // Add conversation ID if we're in an existing conversation
+    if (currentConversationId) {
+        data.conversation_id = currentConversationId;
+    }
+    
+    // Call API
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove loading message
+        loadingMsg.remove();
+        
+        if (data.error) {
+            // Show error message
+            addMessageToChat('assistant', `Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.`);
+            console.error('Error getting chat response:', data.error);
+        } else {
+            // Add assistant response
+            addMessageToChat('assistant', data.response);
+            
+            // Update conversation ID if this was a new conversation
+            if (data.conversation_id && !currentConversationId) {
+                currentConversationId = data.conversation_id;
+                loadConversations(); // Refresh the list
+            }
+        }
+    })
+    .catch(error => {
+        // Remove loading message
+        loadingMsg.remove();
+        
+        // Show error message
+        addMessageToChat('assistant', `Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.`);
+        console.error('Error getting chat response:', error);
+    });
+}
+
+function startNewConversation() {
+    // Clear current conversation
+    currentConversationId = null;
+    
+    // Clear chat messages except for the welcome message
+    chatMessages.innerHTML = '';
+    addMessageToChat('assistant', 'Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?');
+    
+    // Switch to chat section
+    activateSection('chat');
+}
+
+function loadConversation(conversationId) {
+    currentConversationId = conversationId;
+    
+    // Clear chat messages
+    chatMessages.innerHTML = '';
+    
+    // Show loading message
+    const loadingMsg = addMessageToChat('assistant', '<div class="loading-dots"><span></span><span></span><span></span></div>');
+    
+    // Load messages for this conversation
+    fetch(`/api/conversation/${conversationId}/messages`)
+        .then(response => response.json())
+        .then(messages => {
+            // Remove loading message
+            loadingMsg.remove();
+            
+            // Add messages to chat
+            messages.forEach(msg => {
+                addMessageToChat(msg.is_user ? 'user' : 'assistant', msg.content);
+            });
+            
+            // Switch to chat section
+            activateSection('chat');
+        })
+        .catch(error => {
+            console.error('Error loading conversation:', error);
+            
+            // Remove loading message
+            loadingMsg.remove();
+            
+            // Show error message
+            addMessageToChat('assistant', 'Desculpe, não foi possível carregar esta conversa. Por favor, tente novamente.');
+        });
+}
+
+// Data loading functions
+function loadConversations() {
+    if (!userLoggedIn || !conversationsList) return;
+    
+    fetch('/api/conversations')
+        .then(response => response.json())
+        .then(conversations => {
+            conversationsList.innerHTML = '';
+            
+            if (conversations.length === 0) {
+                conversationsList.innerHTML = '<div class="empty-state">Nenhuma conversa encontrada</div>';
+                return;
+            }
+            
+            // Get the template
+            const template = document.getElementById('conversation-item-template');
+            
+            conversations.forEach(conv => {
+                // Clone the template
+                const item = template.content.cloneNode(true);
+                const container = item.querySelector('.sidebar-item');
+                const title = item.querySelector('.sidebar-item-title');
+                const subtitle = item.querySelector('.sidebar-item-subtitle');
+                
+                // Set data
+                container.setAttribute('data-id', conv.id);
+                title.textContent = conv.title;
+                subtitle.textContent = conv.last_updated;
+                
+                // Add click event
+                container.addEventListener('click', () => loadConversation(conv.id));
+                
+                // Add to list
+                conversationsList.appendChild(item);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading conversations:', error);
+            conversationsList.innerHTML = '<div class="empty-state">Erro ao carregar conversas</div>';
+        });
+}
+
+function loadPlans() {
+    if (!userLoggedIn || !plansList) return;
+    
+    fetch('/api/plans')
+        .then(response => response.json())
+        .then(plans => {
+            plansList.innerHTML = '';
+            
+            if (plans.length === 0) {
+                plansList.innerHTML = '<div class="empty-state">Nenhum plano encontrado</div>';
+                return;
+            }
+            
+            // Get the template
+            const template = document.getElementById('plan-item-template');
+            
+            plans.forEach(plan => {
+                // Clone the template
+                const item = template.content.cloneNode(true);
+                const container = item.querySelector('.sidebar-item');
+                const title = item.querySelector('.sidebar-item-title');
+                const subtitle = item.querySelector('.sidebar-item-subtitle');
+                
+                // Set data
+                container.setAttribute('data-id', plan.id);
+                title.textContent = plan.title;
+                subtitle.textContent = plan.destination;
+                
+                // Add click event
+                container.addEventListener('click', () => loadPlanDetails(plan.id));
+                
+                // Add to list
+                plansList.appendChild(item);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading plans:', error);
+            plansList.innerHTML = '<div class="empty-state">Erro ao carregar planos</div>';
+        });
+}
+
+function loadPlanDetails(planId) {
+    const planDetails = document.getElementById('plan-details');
+    
+    if (!planDetails) return;
+    
+    // Show loading state
+    planDetails.innerHTML = '<div class="loading">Carregando detalhes do plano...</div>';
+    
+    // Activate plans section in content
+    activateSection('plans');
+    
+    // Load plan details
+    fetch(`/api/plan/${planId}`)
+        .then(response => response.json())
+        .then(plan => {
+            // Build plan HTML
+            let html = `
+                <div class="plan-header">
+                    <h3 class="plan-title">${plan.title}</h3>
+                    <p class="plan-dates">
+                        ${plan.start_date ? plan.start_date : 'Data não definida'} 
+                        ${plan.end_date ? ` até ${plan.end_date}` : ''}
+                    </p>
+                </div>
+                
+                <div class="plan-section">
+                    <h4 class="plan-section-title">Destino</h4>
+                    <p>${plan.destination || 'Destino não definido'}</p>
+                </div>
+                
+                ${plan.details ? `
+                <div class="plan-section">
+                    <h4 class="plan-section-title">Detalhes</h4>
+                    <p>${plan.details}</p>
+                </div>
+                ` : ''}
+            `;
+            
+            // Add flights section if there are flights
+            if (plan.flights && plan.flights.length > 0) {
+                html += `
+                    <div class="plan-section">
+                        <h4 class="plan-section-title">Voos</h4>
+                        <div class="plan-items">
+                `;
+                
+                plan.flights.forEach(flight => {
+                    html += `
+                        <div class="plan-item">
+                            <div class="plan-item-header">
+                                <span class="plan-item-title">${flight.airline} ${flight.flight_number}</span>
+                                <span class="plan-item-price">${flight.price} ${flight.currency}</span>
+                            </div>
+                            <div class="plan-item-details">
+                                <p>${flight.departure_location} → ${flight.arrival_location}</p>
+                                <p>Partida: ${new Date(flight.departure_time).toLocaleString()}</p>
+                                <p>Chegada: ${new Date(flight.arrival_time).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Add accommodations section if there are accommodations
+            if (plan.accommodations && plan.accommodations.length > 0) {
+                html += `
+                    <div class="plan-section">
+                        <h4 class="plan-section-title">Acomodações</h4>
+                        <div class="plan-items">
+                `;
+                
+                plan.accommodations.forEach(acc => {
+                    html += `
+                        <div class="plan-item">
+                            <div class="plan-item-header">
+                                <span class="plan-item-title">${acc.name} ${acc.stars ? '⭐'.repeat(acc.stars) : ''}</span>
+                                <span class="plan-item-price">${acc.price_per_night} ${acc.currency} / noite</span>
+                            </div>
+                            <div class="plan-item-details">
+                                <p>${acc.location}</p>
+                                <p>Check-in: ${acc.check_in}</p>
+                                <p>Check-out: ${acc.check_out}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Add actions
+            html += `
+                <div class="plan-actions">
+                    <button class="btn btn-outline"><i class="fas fa-edit"></i> Editar Plano</button>
+                    <button class="btn btn-primary"><i class="fas fa-share"></i> Compartilhar</button>
+                </div>
+            `;
+            
+            // Set HTML
+            planDetails.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading plan details:', error);
+            planDetails.innerHTML = '<div class="error-state">Erro ao carregar detalhes do plano</div>';
+        });
+}
+
+function loadPriceMonitors() {
+    fetch('/api/price-monitor')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Carregados:', data.flights.length + data.hotels.length, 'ofertas e', data.alerts.length, 'alertas');
+            
+            // Render flights
+            renderMonitoredItems('flights-list', data.flights);
+            
+            // Render hotels
+            renderMonitoredItems('hotels-list', data.hotels);
+            
+            // Render alerts
+            renderAlerts('alerts-list', data.alerts);
+        })
+        .catch(error => console.error('Error loading monitored items:', error));
+}
+
+function renderMonitoredItems(containerId, items) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhuma oferta monitorada</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    items.forEach(item => {
+        const itemElement = document.createElement('div');
+        itemElement.classList.add('monitor-item');
+        
+        // Calculate price difference
+        const priceDifference = ((item.current_price - item.original_price) / item.original_price) * 100;
+        const formattedPriceDifference = priceDifference.toFixed(1);
+        const priceDirection = priceDifference < 0 ? 'down' : 'up';
+        
+        itemElement.innerHTML = `
+            <div class="monitor-item-header">
+                <div class="monitor-item-title">${item.name}</div>
+                <div class="monitor-item-actions">
+                    <button class="btn btn-icon check-price" data-id="${item.id}"><i class="fas fa-sync-alt"></i></button>
+                    <button class="btn btn-icon remove-monitor" data-id="${item.id}"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="monitor-item-description">${item.description}</div>
+            <div class="monitor-item-price">
+                <div class="price-box original">Original: ${item.original_price.toFixed(2)} ${item.currency}</div>
+                <div class="price-box current">Atual: ${item.current_price.toFixed(2)} ${item.currency}
+                    <span class="price-change ${priceDirection}">
+                        <i class="fas fa-chevron-${priceDirection}"></i> ${Math.abs(formattedPriceDifference)}%
+                    </span>
+                </div>
+                <div class="price-box lowest">Menor: ${item.lowest_price.toFixed(2)} ${item.currency}</div>
+            </div>
+        `;
+        
+        // Add event listeners
+        const checkButton = itemElement.querySelector('.check-price');
+        if (checkButton) {
+            checkButton.addEventListener('click', () => checkPrice(item.id));
+        }
+        
+        const removeButton = itemElement.querySelector('.remove-monitor');
+        if (removeButton) {
+            removeButton.addEventListener('click', () => removeMonitor(item.id));
+        }
+        
+        container.appendChild(itemElement);
+    });
+}
+
+function renderAlerts(containerId, alerts) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (alerts.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhum alerta de preço</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    alerts.forEach(alert => {
+        const alertElement = document.createElement('div');
+        alertElement.classList.add('alert-item');
+        if (!alert.read) {
+            alertElement.classList.add('unread');
+        }
+        
+        // Calculate price difference
+        const priceDifference = ((alert.new_price - alert.old_price) / alert.old_price) * 100;
+        const formattedPriceDifference = priceDifference.toFixed(1);
+        
+        alertElement.innerHTML = `
+            <div class="alert-header">
+                <div class="alert-title">${alert.name}</div>
+                <div class="alert-time">${new Date(alert.date).toLocaleDateString()}</div>
+            </div>
+            <div class="alert-description">${alert.description}</div>
+            <div class="alert-content">
+                <div class="alert-price">
+                    <div class="alert-price-old">${alert.old_price.toFixed(2)} ${alert.currency}</div>
+                    <i class="fas fa-arrow-right"></i>
+                    <div class="alert-price-new">${alert.new_price.toFixed(2)} ${alert.currency}</div>
+                    <div class="price-change down">
+                        <i class="fas fa-chevron-down"></i> ${Math.abs(formattedPriceDifference)}%
+                    </div>
+                </div>
+                <div class="alert-icon">
+                    <i class="fas fa-tag"></i>
+                </div>
+            </div>
+        `;
+        
+        // Mark as read when clicked
+        alertElement.addEventListener('click', () => {
+            if (!alert.read) {
+                markAlertAsRead(alert.id);
+                alertElement.classList.remove('unread');
+            }
+        });
+        
+        container.appendChild(alertElement);
+    });
+}
+
+function checkMonitoredPrices() {
+    console.log('Verificando preços para', document.querySelectorAll('.monitor-item').length, 'ofertas monitoradas');
+    
+    fetch('/api/price-monitor/check', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Erro ao verificar preços:', data.error);
+            return;
+        }
+        
+        // Reload monitors to get updated prices
+        loadPriceMonitors();
+        
+        // Show alert if there were price changes
+        if (data.alerts && data.alerts.length > 0) {
+            alert(`Encontramos ${data.alerts.length} mudanças de preço significativas!`);
+        }
+    })
+    .catch(error => console.error('Error checking prices:', error));
+}
+
+function checkPrice(monitorId) {
+    // Individual price check not implemented yet
+    checkMonitoredPrices();
+}
+
+function removeMonitor(monitorId) {
+    if (!confirm('Tem certeza que deseja remover esta oferta do monitoramento?')) {
+        return;
+    }
+    
+    fetch(`/api/price-monitor/${monitorId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload monitors
+            loadPriceMonitors();
+        } else {
+            alert('Erro ao remover oferta: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => console.error('Error removing monitor:', error));
+}
+
+function markAlertAsRead(alertId) {
+    fetch('/api/price-alerts/mark-read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            alert_ids: [alertId]
+        })
+    })
+    .catch(error => console.error('Error marking alert as read:', error));
+}
+
+function activatePriceMonitorTab(tabName) {
+    // Update active tab
+    activePriceMonitorTab = tabName;
+    
+    // Update tab UI
+    const tabs = document.querySelectorAll('.price-monitor-tabs .tab');
+    tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
+    });
+    
+    // Update content UI
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}-tab`);
+    });
+}
+
+// Function to render user profile
+function renderProfile() {
+    // Populate profile form with user data
+    document.getElementById('profile-name').value = userProfile.name || '';
+    document.getElementById('profile-email').value = userProfile.email || '';
+    document.getElementById('profile-phone').value = userProfile.phone || '';
+    document.getElementById('profile-preferred-destinations').value = userProfile.preferences?.preferred_destinations || '';
+    document.getElementById('profile-accommodation-type').value = userProfile.preferences?.accommodation_type || '';
+    document.getElementById('profile-budget').value = userProfile.preferences?.budget || '';
+    
+    console.log('Profile rendered:', userProfile);
+}
+
+// Function to handle profile form submission
+function handleProfileSubmit(e) {
+    e.preventDefault();
+    
+    const profileData = {
+        name: document.getElementById('profile-name').value,
+        email: document.getElementById('profile-email').value,
+        phone: document.getElementById('profile-phone').value,
+        preferences: {
+            preferred_destinations: document.getElementById('profile-preferred-destinations').value,
+            accommodation_type: document.getElementById('profile-accommodation-type').value,
+            budget: document.getElementById('profile-budget').value
+        }
+    };
+    
+    fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profileData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            userProfile = data.profile;
+            alert('Perfil atualizado com sucesso!');
+        } else {
+            alert('Erro ao atualizar perfil: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Error updating profile:', error);
+        alert('Erro ao atualizar perfil. Por favor, tente novamente.');
+    });
+}
+
+// Set up automatic price checking on the price monitor tab
+setInterval(() => {
+    if (activePriceMonitorTab && document.querySelector('#price-monitor-section.active')) {
+        checkMonitoredPrices();
+    }
+}, 60000); // Check every minute

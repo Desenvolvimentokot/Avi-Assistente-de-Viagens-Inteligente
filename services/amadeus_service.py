@@ -217,3 +217,298 @@ class AmadeusService:
 #     'currencyCode': 'BRL'
 # }
 # result = amadeus.search_flights(params)
+import os
+import logging
+import requests
+import json
+
+class AmadeusService:
+    def __init__(self):
+        self.api_key = os.environ.get('AMADEUS_API_KEY')
+        self.api_secret = os.environ.get('AMADEUS_API_SECRET')
+        self.token = None
+        self.token_expiry = None
+        
+        # Em ambiente de desenvolvimento, usar dados simulados
+        self.use_mock_data = not self.api_key or not self.api_secret
+        
+    def get_token(self):
+        """Obtém um token de autenticação da API Amadeus"""
+        if self.use_mock_data:
+            return "MOCK_TOKEN"
+            
+        url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self.api_key,
+            "client_secret": self.api_secret
+        }
+        
+        try:
+            response = requests.post(url, data=payload)
+            response.raise_for_status()
+            
+            data = response.json()
+            self.token = data["access_token"]
+            
+            return self.token
+        except Exception as e:
+            logging.error(f"Erro ao obter token do Amadeus: {str(e)}")
+            return None
+    
+    def search_flights(self, params):
+        """
+        Busca voos baseado nos parâmetros fornecidos
+        
+        Params:
+        - originLocationCode: código IATA da origem (exemplo: "GRU")
+        - destinationLocationCode: código IATA do destino (exemplo: "CDG")
+        - departureDate: data de partida (formato YYYY-MM-DD)
+        - returnDate: data de retorno (opcional, formato YYYY-MM-DD)
+        - adults: número de adultos (default: 1)
+        - currencyCode: moeda (default: "BRL")
+        """
+        if self.use_mock_data:
+            return self._get_mock_flights(params)
+            
+        url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+        
+        # Preparar cabeçalhos com o token de autenticação
+        token = self.get_token()
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            return response.json()
+        except Exception as e:
+            logging.error(f"Erro ao buscar voos: {str(e)}")
+            
+            # Se ocorrer um erro, retorna o erro formatado
+            return {"error": str(e)}
+    
+    def search_hotels(self, params):
+        """
+        Busca hotéis baseado nos parâmetros fornecidos
+        
+        Params:
+        - cityCode: código da cidade (exemplo: "PAR" para Paris)
+        - radius: raio em KM (opcional)
+        - radiusUnit: unidade do raio (KM ou MILE, opcional)
+        """
+        if self.use_mock_data:
+            return self._get_mock_hotels(params)
+            
+        url = "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city"
+        
+        # Preparar cabeçalhos com o token de autenticação
+        token = self.get_token()
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            return response.json()
+        except Exception as e:
+            logging.error(f"Erro ao buscar hotéis: {str(e)}")
+            
+            # Se ocorrer um erro, retorna o erro formatado
+            return {"error": str(e)}
+    
+    def search_hotel_offers(self, params):
+        """
+        Busca ofertas de hotéis baseado nos parâmetros fornecidos
+        
+        Params:
+        - hotelIds: lista de IDs de hotéis separados por vírgula
+        - adults: número de adultos (default: 1)
+        - checkInDate: data de check-in (formato YYYY-MM-DD)
+        - checkOutDate: data de check-out (formato YYYY-MM-DD)
+        - currency: moeda (default: "BRL")
+        """
+        if self.use_mock_data:
+            return self._get_mock_hotel_offers(params)
+            
+        url = "https://test.api.amadeus.com/v3/shopping/hotel-offers"
+        
+        # Preparar cabeçalhos com o token de autenticação
+        token = self.get_token()
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            return response.json()
+        except Exception as e:
+            logging.error(f"Erro ao buscar ofertas de hotéis: {str(e)}")
+            
+            # Se ocorrer um erro, retorna o erro formatado
+            return {"error": str(e)}
+    
+    def _get_mock_flights(self, params):
+        """Retorna dados simulados de voos para desenvolvimento"""
+        origin = params.get('originLocationCode', 'GRU')
+        destination = params.get('destinationLocationCode', 'CDG')
+        departure_date = params.get('departureDate', '2024-12-10')
+        
+        mock_data = {
+            "meta": {
+                "count": 2
+            },
+            "data": [
+                {
+                    "id": "1",
+                    "type": "flight-offer",
+                    "price": {
+                        "total": "3250.42",
+                        "currency": "BRL"
+                    },
+                    "itineraries": [
+                        {
+                            "duration": "PT14H20M",
+                            "segments": [
+                                {
+                                    "carrierCode": "AF",
+                                    "number": "401",
+                                    "departure": {
+                                        "iataCode": origin,
+                                        "at": f"{departure_date}T23:35:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": destination,
+                                        "at": f"{departure_date}T15:55:00"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "2",
+                    "type": "flight-offer",
+                    "price": {
+                        "total": "4120.18",
+                        "currency": "BRL"
+                    },
+                    "itineraries": [
+                        {
+                            "duration": "PT13H15M",
+                            "segments": [
+                                {
+                                    "carrierCode": "LH",
+                                    "number": "507",
+                                    "departure": {
+                                        "iataCode": origin,
+                                        "at": f"{departure_date}T18:15:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "FRA",
+                                        "at": f"{departure_date}T10:30:00"
+                                    }
+                                },
+                                {
+                                    "carrierCode": "LH",
+                                    "number": "1040",
+                                    "departure": {
+                                        "iataCode": "FRA",
+                                        "at": f"{departure_date}T12:45:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": destination,
+                                        "at": f"{departure_date}T14:00:00"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        return mock_data
+    
+    def _get_mock_hotels(self, params):
+        """Retorna dados simulados de hotéis para desenvolvimento"""
+        city_code = params.get('cityCode', 'PAR')
+        
+        mock_data = {
+            "meta": {
+                "count": 2
+            },
+            "data": [
+                {
+                    "hotelId": "HLLOR123",
+                    "name": "Le Grand Hotel Paris",
+                    "cityCode": city_code,
+                    "address": {
+                        "lines": ["15 Avenue des Champs-Élysées"],
+                        "postalCode": "75008",
+                        "cityName": "Paris",
+                        "countryCode": "FR"
+                    }
+                },
+                {
+                    "hotelId": "HLMON456",
+                    "name": "Montmartre Residence",
+                    "cityCode": city_code,
+                    "address": {
+                        "lines": ["8 Rue des Abbesses"],
+                        "postalCode": "75018",
+                        "cityName": "Paris",
+                        "countryCode": "FR"
+                    }
+                }
+            ]
+        }
+        
+        return mock_data
+    
+    def _get_mock_hotel_offers(self, params):
+        """Retorna dados simulados de ofertas de hotéis para desenvolvimento"""
+        hotel_ids = params.get('hotelIds', 'HLLOR123,HLMON456').split(',')
+        
+        mock_data = {
+            "meta": {
+                "count": len(hotel_ids)
+            },
+            "data": []
+        }
+        
+        for i, hotel_id in enumerate(hotel_ids):
+            hotel_name = "Hotel Desconhecido"
+            if hotel_id == "HLLOR123":
+                hotel_name = "Le Grand Hotel Paris"
+            elif hotel_id == "HLMON456":
+                hotel_name = "Montmartre Residence"
+                
+            price = 350 + (i * 100)
+            
+            hotel_offer = {
+                "hotel": {
+                    "hotelId": hotel_id,
+                    "name": hotel_name,
+                    "rating": "4"
+                },
+                "offers": [
+                    {
+                        "id": f"offer_{i+1}",
+                        "price": {
+                            "total": str(price),
+                            "currency": "BRL"
+                        }
+                    }
+                ]
+            }
+            
+            mock_data["data"].append(hotel_offer)
+        
+        return mock_data
