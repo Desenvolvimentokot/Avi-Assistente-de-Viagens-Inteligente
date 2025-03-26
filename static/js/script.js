@@ -669,3 +669,73 @@ function toggleFullscreenChat() {
         toggleSidebar();
     }
 }
+
+// Toggle notifications panel
+function toggleNotifications() {
+    // Check if notifications panel exists
+    let notificationsPanel = document.getElementById('notifications-panel');
+    
+    // If panel doesn't exist, create it
+    if (!notificationsPanel) {
+        notificationsPanel = document.createElement('div');
+        notificationsPanel.id = 'notifications-panel';
+        notificationsPanel.className = 'notifications-panel';
+        
+        // Add some mock notifications
+        notificationsPanel.innerHTML = `
+            <div class="notifications-header">
+                <h3>Notificações</h3>
+                <button id="close-notifications" class="notifications-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="notifications-list">
+                <div class="notification-item">
+                    <div class="notification-icon">
+                        <i class="fas fa-plane"></i>
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-title">Sua viagem para Barcelona começa em 5 dias!</div>
+                        <div class="notification-time">Hoje, 10:30</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <div class="notification-icon">
+                        <i class="fas fa-hotel"></i>
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-title">Confirmação de reserva recebida do Hotel Barcelona Central</div>
+                        <div class="notification-time">Ontem, 14:15</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <div class="notification-icon">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-title">Promoção de última hora: 15% de desconto em voos para Lisboa</div>
+                        <div class="notification-time">2 dias atrás</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add to document
+        document.body.appendChild(notificationsPanel);
+        
+        // Add close button event listener
+        document.getElementById('close-notifications').addEventListener('click', () => {
+            notificationsPanel.classList.remove('active');
+        });
+    } else {
+        // Toggle active class
+        notificationsPanel.classList.toggle('active');
+    }
+    
+    // If panel was just created, add active class after a brief delay
+    if (!notificationsPanel.classList.contains('active')) {
+        setTimeout(() => {
+            notificationsPanel.classList.add('active');
+        }, 10);
+    }
+}
