@@ -1,6 +1,12 @@
 import os
 import logging
+import json
+from datetime import datetime
 from flask import Flask, render_template, jsonify, request
+
+# Importação dos serviços
+from services.amadeus_service import AmadeusService
+from services.openai_service import OpenAIService
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -9,14 +15,26 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
-# Mock data for conversations
+# Inicializa os serviços
+amadeus_service = AmadeusService()
+openai_service = OpenAIService()
+
+# Dados temporários (serão substituídos por banco de dados)
 conversations = [
     {"id": 1, "title": "Viagem para Paris", "last_updated": "15/10/2023"},
     {"id": 2, "title": "Final de semana em Barcelona", "last_updated": "28/09/2023"},
     {"id": 3, "title": "Planejamento de férias de verão", "last_updated": "10/08/2023"}
 ]
 
-# Mock data for travel plans
+# Armazena mensagens das conversas
+conversation_messages = {
+    1: [
+        {"is_user": True, "content": "Olá, estou planejando uma viagem para Paris.", "timestamp": "2023-10-15T10:30:00"},
+        {"is_user": False, "content": "Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?", "timestamp": "2023-10-15T10:30:15"}
+    ]
+}
+
+# Dados de viagens
 plans = [
     {
         "id": 1,
@@ -36,7 +54,7 @@ plans = [
     }
 ]
 
-# Mock user profile
+# Dados do perfil do usuário
 user_profile = {
     "name": "João Silva",
     "email": "joao.silva@exemplo.com",
@@ -92,21 +110,75 @@ def update_profile():
 def chat():
     data = request.json
     user_message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
     
-    # Mock GPT response
-    if 'paris' in user_message.lower():
-        response = "Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?"
-    elif 'voo' in user_message.lower() or 'passagem' in user_message.lower():
-        response = "Posso ajudar você a encontrar voos. Poderia me informar sua cidade de partida, destino e datas de viagem?"
-    elif 'hotel' in user_message.lower() or 'hospedagem' in user_message.lower():
-        response = "Para hospedagem, recomendo verificar opções no centro da cidade para a melhor experiência. Qual é a sua faixa de orçamento por noite?"
-    else:
-        response = "Sou o Flai, seu assistente de viagens. Conte-me sobre seus planos de viagem, e vou ajudar a organizar a viagem perfeita. Para onde você gostaria de ir?"
+    # Obter histórico da conversa, se existir
+    messages_history = []
+    if conversation_id and conversation_id in conversation_messages:
+        messages_history = conversation_messages[conversation_id]
     
-    return jsonify({
-        "response": response,
-        "note": "Esta é uma resposta simulada. Em produção, seria conectado à API GPT."
-    })
+    try:
+        # Chamar a API da OpenAI através do nosso serviço
+        result = openai_service.travel_assistant(user_message, messages_history)
+        
+        if 'error' in result:
+            logging.error(f"Erro na API do OpenAI: {result['error']}")
+            return jsonify({
+                "response": "Desculpe, estou enfrentando problemas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.",
+                "error": result['error']
+            }), 500
+        
+        # Adicionar a mensagem do usuário e a resposta ao histórico
+        now = datetime.now().isoformat()
+        
+        # Adicionar mensagem do usuário ao histórico
+        new_user_message = {
+            "is_user": True,
+            "content": user_message,
+            "timestamp": now
+        }
+        
+        # Adicionar resposta do assistente ao histórico
+        assistant_response = result['response']
+        new_assistant_message = {
+            "is_user": False,
+            "content": assistant_response,
+            "timestamp": now
+        }
+        
+        # Se for uma nova conversa, criar um ID e título
+        if not conversation_id:
+            new_id = max([c['id'] for c in conversations], default=0) + 1
+            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
+            conversations.append({
+                "id": new_id,
+                "title": title,
+                "last_updated": datetime.now().strftime("%d/%m/%Y")
+            })
+            conversation_id = new_id
+            conversation_messages[conversation_id] = []
+        
+        # Adicionar as novas mensagens ao histórico
+        conversation_messages[conversation_id].append(new_user_message)
+        conversation_messages[conversation_id].append(new_assistant_message)
+        
+        # Atualizar o timestamp da última atualização da conversa
+        for conv in conversations:
+            if conv['id'] == conversation_id:
+                conv['last_updated'] = datetime.now().strftime("%d/%m/%Y")
+                break
+        
+        return jsonify({
+            "response": assistant_response,
+            "conversation_id": conversation_id
+        })
+    
+    except Exception as e:
+        logging.error(f"Erro ao processar mensagem do chat: {str(e)}")
+        return jsonify({
+            "response": "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde.",
+            "error": str(e)
+        }), 500
 
 @app.route('/api/search', methods=['POST'])
 def search():
