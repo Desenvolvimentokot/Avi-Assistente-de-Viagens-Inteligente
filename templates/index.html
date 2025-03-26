@@ -6,26 +6,27 @@
     <title>Flai - Seu Assistente de Viagem</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
 </head>
 <body>
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="logo">
+            <div class="logo" style="color: white;">
                 <i class="fas fa-paper-plane"></i>
                 <span>Flai</span>
             </div>
             <div class="nav-items">
-                <div class="nav-item active">
+                <div class="nav-item" id="chat-tab">
                     <i class="fas fa-comment"></i>
                     <span>Chat</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" id="plans-tab">
                     <i class="fas fa-map-marked-alt"></i>
                     <span>Planos</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" id="profile-tab">
                     <i class="fas fa-user"></i>
                     <span>Perfil</span>
                 </div>
@@ -43,34 +44,110 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <div class="header">
-                <div class="chat-title">Chat com Flai</div>
-                <div class="header-actions">
-                    <div class="header-action">
-                        <i class="fas fa-bell"></i>
+            <!-- Chat Section -->
+            <div id="chat-section" class="content-section active">
+                <div class="header">
+                    <div class="chat-title">Chat com Flai</div>
+                    <div class="header-actions">
+                        <div class="header-action">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="header-action">
+                            <i class="fas fa-cog"></i>
+                        </div>
                     </div>
-                    <div class="header-action">
-                        <i class="fas fa-cog"></i>
+                </div>
+
+                <div class="chat-modes">
+                    <div class="mode-button active" data-mode="quick-search">Busca Rápida</div>
+                    <div class="mode-button" data-mode="full-planning">Planejamento Completo</div>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-messages">
+                        <!-- Mensagens serão adicionadas pelo JavaScript -->
+                    </div>
+                </div>
+
+                <div class="message-input-container">
+                    <textarea class="message-input" placeholder="Digite sua mensagem..."></textarea>
+                    <button class="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Plans Section -->
+            <div id="plans-section" class="content-section">
+                <div class="header">
+                    <div class="chat-title">Seus Planos de Viagem</div>
+                    <div class="header-actions">
+                        <div class="header-action">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="plans-container">
+                    <div class="plans-list">
+                        <!-- Planos serão adicionados pelo JavaScript -->
+                        <p class="no-plans-message">Você ainda não tem planos de viagem salvos.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="chat-modes">
-                <div class="mode-button active" data-mode="quick-search">Busca Rápida</div>
-                <div class="mode-button" data-mode="full-planning">Planejamento Completo</div>
-            </div>
-
-            <div class="chat-container">
-                <div class="chat-messages">
-                    <!-- Mensagens serão adicionadas pelo JavaScript -->
+            <!-- Profile Section -->
+            <div id="profile-section" class="content-section">
+                <div class="header">
+                    <div class="chat-title">Seu Perfil</div>
+                    <div class="header-actions">
+                        <div class="header-action">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="message-input-container">
-                <textarea class="message-input" placeholder="Digite sua mensagem..."></textarea>
-                <button class="send-button">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
+                
+                <div class="profile-container">
+                    <div class="profile-section">
+                        <h2>Informações Pessoais</h2>
+                        <div class="profile-form-group">
+                            <label for="profile-name">Nome</label>
+                            <input type="text" id="profile-name" class="profile-input" placeholder="Seu nome completo">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-email">Email</label>
+                            <input type="email" id="profile-email" class="profile-input" placeholder="seu.email@exemplo.com">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-phone">Telefone</label>
+                            <input type="tel" id="profile-phone" class="profile-input" placeholder="(00) 00000-0000">
+                        </div>
+                        <button class="profile-save-button">Salvar Informações</button>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h2>Preferências de Viagem</h2>
+                        <div class="profile-form-group">
+                            <label for="profile-destinations">Destinos Preferidos</label>
+                            <input type="text" id="profile-destinations" class="profile-input" placeholder="Ex: Paris, Tóquio, Nova York">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-accommodation">Tipo de Acomodação Preferida</label>
+                            <select id="profile-accommodation" class="profile-input">
+                                <option value="">Selecione uma opção</option>
+                                <option value="hotel">Hotel</option>
+                                <option value="hostel">Hostel</option>
+                                <option value="apartment">Apartamento</option>
+                                <option value="resort">Resort</option>
+                            </select>
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-budget">Orçamento Médio por Viagem (R$)</label>
+                            <input type="number" id="profile-budget" class="profile-input" placeholder="Ex: 5000">
+                        </div>
+                        <button class="profile-save-button">Salvar Preferências</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

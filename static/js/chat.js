@@ -1,52 +1,118 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
+    // Elementos do DOM
     const chatMessages = document.querySelector('.chat-messages');
     const messageInput = document.querySelector('.message-input');
     const sendButton = document.querySelector('.send-button');
     const modeButtons = document.querySelectorAll('.mode-button');
 
-    let currentMode = 'quick-search';
-    let conversationHistory = [];
+    // Variáveis globais
+    let chatMode = 'quick-search'; // Modo padrão
+    let currentConversationId = null;
+    let chatContext = {
+        mode: 'quick-search',
+        quickSearchStep: 0,
+        quickSearchData: {}
+    };
 
     // Inicialização
-    function init() {
-        addMessage('👋 Olá! Sou o BuscaRápida do Flai, especialista em encontrar as melhores passagens aéreas para você. Como posso ajudar?', false);
+    addWelcomeMessage();
+
+    // Eventos
+    if (sendButton) {
+        sendButton.addEventListener('click', sendMessage);
     }
 
-    // Event Listeners
-    sendButton.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
 
+    // Alternar entre modos de chat
     modeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            modeButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            currentMode = this.dataset.mode;
+        button.addEventListener('click', () => {
+            const mode = button.getAttribute('data-mode');
+            if (mode && mode !== chatMode) {
+                chatMode = mode;
+
+                // Atualizar UI
+                modeButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                // Resetar chat para o novo modo
+                chatMessages.innerHTML = '';
+                addWelcomeMessage();
+
+                // Atualizar contexto
+                chatContext = {
+                    mode: mode,
+                    quickSearchStep: 0,
+                    quickSearchData: {}
+                };
+            }
         });
     });
 
-    // Funções
+    // Funções principais
+    function addWelcomeMessage() {
+        const welcomeHTML = `
+            <div class="message assistant-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
+                    <p>Escolha uma das modalidades acima:</p>
+                    <ul>
+                        <li><strong>Busca Rápida</strong>: Para encontrar os melhores voos rapidamente.</li>
+                        <li><strong>Planejamento Completo</strong>: Para criar um itinerário detalhado com voos, hotéis e atrações.</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        chatMessages.innerHTML = welcomeHTML;
+    }
+
     function sendMessage() {
-        const message = messageInput.value.trim();
-        if (!message) return;
+        const messageText = messageInput.value.trim();
 
-        // Adicionar mensagem do usuário ao chat
-        addMessage(message, true);
+        if (messageText) {
+            // Adicionar mensagem do usuário ao chat
+            addMessage(messageText, true);
 
-        // Limpar input
-        messageInput.value = '';
+            // Limpar campo de entrada
+            messageInput.value = '';
 
-        // Adicionar à história da conversa
-        conversationHistory.push({ role: 'user', content: message });
+            // Adicionar indicador de digitação
+            showTypingIndicator();
 
-        // Mostrar indicador de digitação
-        showTypingIndicator();
+            // Enviar para processamento
+            processMessage(messageText);
+        }
+    }
 
-        // Enviar requisição para o backend
+    function processMessage(message) {
+        // Preparar histórico para envio
+        const history = [];
+        const messageDivs = document.querySelectorAll('.message');
+
+        messageDivs.forEach(div => {
+            const isUser = div.classList.contains('user-message');
+            const content = div.querySelector('.message-content').innerText;
+
+            if (content) {
+                history.push({
+                    is_user: isUser,
+                    content: content
+                });
+            }
+        });
+
+        // Enviar para o backend
         fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -54,34 +120,26 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 message: message,
-                mode: currentMode,
-                history: conversationHistory
+                mode: chatMode,
+                history: history
             })
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Erro na requisição');
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            // Remover indicador de digitação
             removeTypingIndicator();
 
-            // Processar resposta
             if (data.error) {
                 addMessage('Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.', false);
-            } else {
-                // Adicionar resposta ao chat
-                addMessage(data.response, false);
+                console.log("Error response:", data.error);
+                return;
+            }
 
-                // Adicionar à história da conversa
-                conversationHistory.push({ role: 'assistant', content: data.response });
+            // Adicionar resposta ao chat
+            addMessage(data.response, false);
 
-                // Se houver link de compra, mostrar botão
-                if (data.purchase_link) {
-                    addPurchaseLink(data.purchase_link);
-                }
+            // Se houver link de compra, mostrar botão
+            if (data.purchase_link) {
+                addPurchaseLink(data.purchase_link);
             }
         })
         .catch(error => {
@@ -113,6 +171,20 @@ document.addEventListener('DOMContentLoaded', function() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    function addPurchaseLink(url) {
+        const purchaseElement = document.createElement('div');
+        purchaseElement.classList.add('purchase-link');
+        purchaseElement.innerHTML = `
+            <p>Quer comprar esta passagem? Clique no botão abaixo:</p>
+            <a href="${url}" target="_blank" class="purchase-button">
+                <i class="fas fa-shopping-cart"></i> Comprar Agora
+            </a>
+        `;
+
+        chatMessages.appendChild(purchaseElement);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
     function showTypingIndicator() {
         const typingElement = document.createElement('div');
         typingElement.classList.add('message', 'assistant-message', 'typing-indicator');
@@ -123,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
-        contentElement.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+        contentElement.innerHTML = '<div class="typing-dots"><span>.</span><span>.</span><span>.</span></div>';
 
         typingElement.appendChild(avatarElement);
         typingElement.appendChild(contentElement);
@@ -138,25 +210,6 @@ document.addEventListener('DOMContentLoaded', function() {
             typingIndicator.remove();
         }
     }
-
-    function addPurchaseLink(url) {
-        const linkContainer = document.createElement('div');
-        linkContainer.classList.add('purchase-link-container');
-
-        const linkButton = document.createElement('a');
-        linkButton.href = url;
-        linkButton.target = '_blank';
-        linkButton.classList.add('purchase-link-button');
-        linkButton.innerHTML = '<i class="fas fa-external-link-alt"></i> Comprar passagem';
-
-        linkContainer.appendChild(linkButton);
-        chatMessages.appendChild(linkContainer);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Inicializar
-    init();
-
 
     // Funções de carregamento e gerenciamento de dados (from original code)
     function loadConversations() {
@@ -315,10 +368,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.chat-messages').innerHTML = '';
 
         // Resetar ID de conversa
-        conversationHistory = [];
+        chatContext = {
+            mode: chatMode,
+            quickSearchStep: 0,
+            quickSearchData: {}
+        };
 
         // Adicionar mensagem de boas-vindas
-        addMessage('👋 Olá! Sou o BuscaRápida do Flai, especialista em encontrar as melhores passagens aéreas para você. Como posso ajudar?', false);
+        addWelcomeMessage();
     });
 
 
@@ -327,6 +384,4 @@ document.addEventListener('DOMContentLoaded', function() {
     loadUserProfile();
     loadTravelPlans();
     startPriceMonitoring();
-
-
 });

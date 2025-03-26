@@ -45,10 +45,10 @@ def index():
 
 # API para chat
 @app.route('/api/chat', methods=['POST'])
-async def chat():
+def chat():
     """Processa mensagens do chat"""
     try:
-        data = await request.get_json()
+        data = request.get_json()
         message = data.get('message', '')
         mode = data.get('mode', 'quick-search')
         history = data.get('history', [])
@@ -57,7 +57,9 @@ async def chat():
             return jsonify({"error": True, "message": "Mensagem vazia"})
 
         if mode == 'quick-search':
-            response = await busca_rapida_service.process_message(message, history)
+            # Importar aqui para evitar circular imports
+            from services.busca_rapida_service import process_message
+            response = process_message(message, history)
             return jsonify(response)
         else:
             # Implementar lógica para planejamento completo

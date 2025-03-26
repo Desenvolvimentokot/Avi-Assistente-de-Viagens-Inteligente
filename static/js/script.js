@@ -16,6 +16,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
     const quickSearchModeBtn = document.getElementById('quick-search-mode');
     const fullPlanningModeBtn = document.getElementById('full-planning-mode');
+    const chatTab = document.getElementById('chat-tab');
+    const plansTab = document.getElementById('plans-tab');
+    const profileTab = document.getElementById('profile-tab');
+    const chatSection = document.getElementById('chat-section');
+    const plansSection = document.getElementById('plans-section');
+    const profileSection = document.getElementById('profile-section');
+
 
     // State variables
     let isSidebarCollapsed = false;
@@ -53,13 +60,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Navegação entre seções
-    sidebarNavItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const section = this.getAttribute('data-section');
-            showSection(section);
-        });
+    // Navegação entre seções (Nova implementação com tabs)
+    // Definir seção ativa inicialmente
+    setActiveTab(chatTab, chatSection);
+
+    // Adicionar event listeners para tabs
+    chatTab.addEventListener('click', () => {
+        setActiveTab(chatTab, chatSection);
     });
+
+    plansTab.addEventListener('click', () => {
+        setActiveTab(plansTab, plansSection);
+    });
+
+    profileTab.addEventListener('click', () => {
+        setActiveTab(profileTab, profileSection);
+    });
+
 
     // Funcionalidade de chat
     if (chatForm) {
@@ -128,42 +145,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Funções de exibição
-    function showSection(section) {
-        // Atualizar seção ativa na navegação
-        sidebarNavItems.forEach(item => {
-            if (item.getAttribute('data-section') === section) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
+    // Funções de exibição (adaptada para tabs)
+    function setActiveTab(tab, section) {
+        // Remover classes ativas de todas as tabs
+        const allTabs = document.querySelectorAll('.nav-item');
+        allTabs.forEach(item => {
+            item.classList.remove('active');
         });
 
-        // Esconder todas as seções de conteúdo
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
+        // Adicionar classe ativa à tab selecionada
+        tab.classList.add('active');
+
+        // Esconder todas as seções
+        const allSections = document.querySelectorAll('.content-section');
+        allSections.forEach(item => {
+            item.classList.remove('active');
         });
 
-        // Mostrar seção específica
-        const targetSection = document.getElementById(`${section}-section`);
-        if (targetSection) {
-            targetSection.classList.add('active');
-        }
-
-        // Mostrar/esconder seções específicas na sidebar
-        document.querySelectorAll('.sidebar-section').forEach(section => {
-            section.classList.remove('active');
-        });
-
-        if (section === 'chat' || section === 'plans') {
-            const targetSidebarSection = document.getElementById(`${section}s-section`);
-            if (targetSidebarSection) {
-                targetSidebarSection.classList.add('active');
-            }
-        }
-
-        activeSection = section;
+        // Mostrar a seção selecionada
+        section.classList.add('active');
     }
+
 
     function showModal(modal) {
         if (modal) {
@@ -198,8 +200,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (welcomeContent) {
                 welcomeContent.innerHTML = `
                     <p>Você está no modo: <strong>${mode === 'quick-search' ? 'Busca Rápida' : 'Planejamento Completo'}</strong></p>
-                    <p>${mode === 'quick-search' 
-                        ? 'Neste modo, podemos encontrar rapidamente os melhores voos para a sua viagem.' 
+                    <p>${mode === 'quick-search'
+                        ? 'Neste modo, podemos encontrar rapidamente os melhores voos para a sua viagem.'
                         : 'Neste modo, vamos criar um plano completo de viagem, incluindo voos, hotéis e atividades.'}
                     </p>
                     <p>Como posso ajudar?</p>
@@ -272,35 +274,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     context: chatContext
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                // Remover indicador de digitação
-                chatMessages.removeChild(typingIndicator);
+                .then(response => response.json())
+                .then(data => {
+                    // Remover indicador de digitação
+                    chatMessages.removeChild(typingIndicator);
 
-                // Adicionar resposta ao chat
-                addMessageToChat(data.response, false);
+                    // Adicionar resposta ao chat
+                    addMessageToChat(data.response, false);
 
-                // Atualizar ID da conversa e contexto
-                if (data.conversation_id) {
-                    currentConversationId = data.conversation_id;
-                }
-                if (data.context) {
-                    chatContext = data.context;
-                }
+                    // Atualizar ID da conversa e contexto
+                    if (data.conversation_id) {
+                        currentConversationId = data.conversation_id;
+                    }
+                    if (data.context) {
+                        chatContext = data.context;
+                    }
 
-                // Processar ações específicas (ex: busca de voos)
-                if (data.action) {
-                    processAction(data.action);
-                }
+                    // Processar ações específicas (ex: busca de voos)
+                    if (data.action) {
+                        processAction(data.action);
+                    }
 
-                // Atualizar lista de conversas
-                loadConversations();
-            })
-            .catch(error => {
-                console.log("Error getting chat response:", error);
-                chatMessages.removeChild(typingIndicator);
-                addMessageToChat("Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.", false);
-            });
+                    // Atualizar lista de conversas
+                    loadConversations();
+                })
+                .catch(error => {
+                    console.log("Error getting chat response:", error);
+                    chatMessages.removeChild(typingIndicator);
+                    addMessageToChat("Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.", false);
+                });
         }
     }
 
@@ -656,33 +658,33 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ email, password })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                userLoggedIn = true;
-                userProfile = data.user;
-                hideModal(loginModal);
-                updateUIAfterLogin();
-                loadUserData();
-            } else {
-                alert(data.error || 'Erro ao fazer login. Verifique suas credenciais.');
-            }
-        })
-        .catch(error => {
-            console.log("Usuário não está logado:", error);
-            // Em modo de demonstração, simular login bem-sucedido
-            if (useLocalProcessing) {
-                userLoggedIn = true;
-                userProfile = {
-                    name: 'Usuário Demo',
-                    email: email || 'usuario@exemplo.com'
-                };
-                hideModal(loginModal);
-                updateUIAfterLogin();
-            } else {
-                alert('Erro ao fazer login. Por favor, tente novamente.');
-            }
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    userLoggedIn = true;
+                    userProfile = data.user;
+                    hideModal(loginModal);
+                    updateUIAfterLogin();
+                    loadUserData();
+                } else {
+                    alert(data.error || 'Erro ao fazer login. Verifique suas credenciais.');
+                }
+            })
+            .catch(error => {
+                console.log("Usuário não está logado:", error);
+                // Em modo de demonstração, simular login bem-sucedido
+                if (useLocalProcessing) {
+                    userLoggedIn = true;
+                    userProfile = {
+                        name: 'Usuário Demo',
+                        email: email || 'usuario@exemplo.com'
+                    };
+                    hideModal(loginModal);
+                    updateUIAfterLogin();
+                } else {
+                    alert('Erro ao fazer login. Por favor, tente novamente.');
+                }
+            });
     }
 
     function signup(name, email, password, passwordConfirm) {
@@ -700,27 +702,27 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ name, email, password })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Cadastro realizado com sucesso! Faça login para continuar.');
-                hideModal(signupModal);
-                showModal(loginModal);
-            } else {
-                alert(data.error || 'Erro ao criar conta. Tente novamente.');
-            }
-        })
-        .catch(error => {
-            console.log("Erro no cadastro:", error);
-            // Em modo de demonstração, simular cadastro bem-sucedido
-            if (useLocalProcessing) {
-                alert('Cadastro realizado com sucesso! Faça login para continuar.');
-                hideModal(signupModal);
-                showModal(loginModal);
-            } else {
-                alert('Erro ao criar conta. Por favor, tente novamente.');
-            }
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Cadastro realizado com sucesso! Faça login para continuar.');
+                    hideModal(signupModal);
+                    showModal(loginModal);
+                } else {
+                    alert(data.error || 'Erro ao criar conta. Tente novamente.');
+                }
+            })
+            .catch(error => {
+                console.log("Erro no cadastro:", error);
+                // Em modo de demonstração, simular cadastro bem-sucedido
+                if (useLocalProcessing) {
+                    alert('Cadastro realizado com sucesso! Faça login para continuar.');
+                    hideModal(signupModal);
+                    showModal(loginModal);
+                } else {
+                    alert('Erro ao criar conta. Por favor, tente novamente.');
+                }
+            });
     }
 
     function updateUIAfterLogin() {
@@ -742,23 +744,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function logout() {
         fetch('/api/logout')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                userLoggedIn = false;
-                userProfile = {};
-                location.reload(); // Recarregar página para resetar estado
-            }
-        })
-        .catch(error => {
-            console.log("Erro ao fazer logout:", error);
-            // Em modo de demonstração, simular logout bem-sucedido
-            if (useLocalProcessing) {
-                userLoggedIn = false;
-                userProfile = {};
-                location.reload();
-            }
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    userLoggedIn = false;
+                    userProfile = {};
+                    location.reload(); // Recarregar página para resetar estado
+                }
+            })
+            .catch(error => {
+                console.log("Erro ao fazer logout:", error);
+                // Em modo de demonstração, simular logout bem-sucedido
+                if (useLocalProcessing) {
+                    userLoggedIn = false;
+                    userProfile = {};
+                    location.reload();
+                }
+            });
     }
 
     function loadUserData() {
@@ -777,68 +779,68 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadConversations() {
         return new Promise((resolve, reject) => {
             fetch('/api/conversations')
-            .then(response => response.json())
-            .then(data => {
-                conversations = data;
-                updateConversationsList();
-                resolve(data);
-            })
-            .catch(error => {
-                console.log("Error loading conversations:", error);
-                // Em modo de demonstração, usar dados locais
-                if (useLocalProcessing) {
-                    // Manter conversas atuais ou inicializar vazias
-                    if (!conversations.length) {
-                        conversations = [];
+                .then(response => response.json())
+                .then(data => {
+                    conversations = data;
+                    updateConversationsList();
+                    resolve(data);
+                })
+                .catch(error => {
+                    console.log("Error loading conversations:", error);
+                    // Em modo de demonstração, usar dados locais
+                    if (useLocalProcessing) {
+                        // Manter conversas atuais ou inicializar vazias
+                        if (!conversations.length) {
+                            conversations = [];
+                        }
+                        resolve(conversations);
+                    } else {
+                        reject(error);
                     }
-                    resolve(conversations);
-                } else {
-                    reject(error);
-                }
-            });
+                });
         });
     }
 
     function loadPlans() {
         return new Promise((resolve, reject) => {
             fetch('/api/plans')
-            .then(response => response.json())
-            .then(data => {
-                plans = data;
-                updatePlansList();
-                resolve(data);
-            })
-            .catch(error => {
-                console.log("Error loading plans:", error);
-                // Em modo de demonstração, usar dados locais
-                if (useLocalProcessing) {
-                    plans = [];
-                    resolve(plans);
-                } else {
-                    reject(error);
-                }
-            });
+                .then(response => response.json())
+                .then(data => {
+                    plans = data;
+                    updatePlansList();
+                    resolve(data);
+                })
+                .catch(error => {
+                    console.log("Error loading plans:", error);
+                    // Em modo de demonstração, usar dados locais
+                    if (useLocalProcessing) {
+                        plans = [];
+                        resolve(plans);
+                    } else {
+                        reject(error);
+                    }
+                });
         });
     }
 
     function loadProfile() {
         return new Promise((resolve, reject) => {
             fetch('/api/profile')
-            .then(response => response.json())
-            .then(data => {
-                userProfile = data;
-                updateProfileForm();
-                resolve(data);
-            })
-            .catch(error => {
-                console.log("Error loading profile:", error);
-                // Em modo de demonstração, manter perfil atual
-                if (useLocalProcessing) {
-                    resolve(userProfile);
-                } else {
-                    reject(error);
-                }
-            });
+                .then(response => response.json())
+                .then(data => {
+                    userProfile = data;
+                    updateProfileForm();
+                    resolve(data);
+                })
+                .catch(error => {
+                    console.log("Error loading profile:", error);
+                    // Em modo de demonstração, manter perfil atual
+                    if (useLocalProcessing) {
+                        resolve(userProfile);
+                    } else {
+                        reject(error);
+                    }
+                });
         });
     }
 
@@ -884,25 +886,25 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(profileData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                userProfile = data.profile;
-                alert('Perfil atualizado com sucesso!');
-            } else {
-                alert(data.error || 'Erro ao atualizar perfil. Tente novamente.');
-            }
-        })
-        .catch(error => {
-            console.log("Error saving profile:", error);
-            // Em modo de demonstração, simular sucesso
-            if (useLocalProcessing) {
-                userProfile = profileData;
-                alert('Perfil atualizado com sucesso! (Modo demo)');
-            } else {
-                alert('Erro ao atualizar perfil. Por favor, tente novamente.');
-            }
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    userProfile = data.profile;
+                    alert('Perfil atualizado com sucesso!');
+                } else {
+                    alert(data.error || 'Erro ao atualizar perfil. Tente novamente.');
+                }
+            })
+            .catch(error => {
+                console.log("Error saving profile:", error);
+                // Em modo de demonstração, simular sucesso
+                if (useLocalProcessing) {
+                    userProfile = profileData;
+                    alert('Perfil atualizado com sucesso! (Modo demo)');
+                } else {
+                    alert('Erro ao atualizar perfil. Por favor, tente novamente.');
+                }
+            });
     }
 
     function updatePlansList() {
@@ -955,7 +957,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="plan-info">
                     <p><strong>Destino:</strong> ${plan.destination}</p>
                     <p><strong>Data Início:</strong> ${plan.start_date || 'Não definida'}</p>
-                    <p><strong>Data Fim:</strong> ${plan.end_date || 'Não definida'}</p>
+                    <p><strong>Data Fim:</strong> ${plan<p><strong>Data Fim:</strong> ${plan.end_date || 'Não definida'}</p>
                 </div>
                 <div class="plan-details-content">
                     ${plan.details || 'Nenhum detalhe disponível.'}
@@ -995,33 +997,33 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/api/plan/${planId}`, {
                 method: 'DELETE'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remover plano da lista
-                    plans = plans.filter(p => p.id !== planId);
-                    updatePlansList();
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remover plano da lista
+                        plans = plans.filter(p => p.id !== planId);
+                        updatePlansList();
 
-                    // Voltar para a lista de planos
-                    showSection('plans');
+                        // Voltar para a lista de planos
+                        showSection('plans');
 
-                    alert('Plano excluído com sucesso!');
-                } else {
-                    alert(data.error || 'Erro ao excluir plano.');
-                }
-            })
-            .catch(error => {
-                console.log("Error deleting plan:", error);
-                // Em modo de demonstração, simular sucesso
-                if (useLocalProcessing) {
-                    plans = plans.filter(p => p.id !== planId);
-                    updatePlansList();
-                    showSection('plans');
-                    alert('Plano excluído com sucesso! (Modo demo)');
-                } else {
-                    alert('Erro ao excluir plano. Por favor, tente novamente.');
-                }
-            });
+                        alert('Plano excluído com sucesso!');
+                    } else {
+                        alert(data.error || 'Erro ao excluir plano.');
+                    }
+                })
+                .catch(error => {
+                    console.log("Error deleting plan:", error);
+                    // Em modo de demonstração, simular sucesso
+                    if (useLocalProcessing) {
+                        plans = plans.filter(p => p.id !== planId);
+                        updatePlansList();
+                        showSection('plans');
+                        alert('Plano excluído com sucesso! (Modo demo)');
+                    } else {
+                        alert('Erro ao excluir plano. Por favor, tente novamente.');
+                    }
+                });
         }
     }
 
@@ -1029,70 +1031,70 @@ document.addEventListener('DOMContentLoaded', function() {
     function init() {
         // Checar se usuário está logado
         fetch('/api/profile')
-        .then(response => {
-            if (response.ok) return response.json();
-            throw new Error('Não autenticado');
-        })
-        .then(data => {
-            userLoggedIn = true;
-            userProfile = data;
-            updateUIAfterLogin();
-            loadUserData();
-        })
-        .catch(error => {
-            // Usuário não está logado, manter UI padrão
-            console.log("Usuário não está logado:", error);
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Não autenticado');
+            })
+            .then(data => {
+                userLoggedIn = true;
+                userProfile = data;
+                updateUIAfterLogin();
+                loadUserData();
+            })
+            .catch(error => {
+                // Usuário não está logado, manter UI padrão
+                console.log("Usuário não está logado:", error);
 
-            // Em modo de demonstração, carregar dados de exemplo
-            if (useLocalProcessing) {
-                // Simular conversas de exemplo
-                conversations = [
-                    {
-                        id: '1',
-                        title: 'Planejando viagem para Paris',
-                        created_at: '2023-04-15T10:30:00Z',
-                        last_updated: '2023-04-15T11:45:00Z',
-                        messages: [
-                            {
-                                id: '1-1',
-                                content: 'Olá, estou planejando uma viagem para Paris. Pode me ajudar?',
-                                is_user: true,
-                                timestamp: '2023-04-15T10:30:00Z'
-                            },
-                            {
-                                id: '1-2',
-                                content: 'Claro! Paris é um destino incrível. Quando você planeja viajar e por quanto tempo?',
-                                is_user: false,
-                                timestamp: '2023-04-15T10:31:00Z'
-                            }
-                        ]
-                    },
-                    {
-                        id: '2',
-                        title: 'Viagem para a praia',
-                        created_at: '2023-04-10T14:20:00Z',
-                        last_updated: '2023-04-10T15:30:00Z',
-                        messages: [
-                            {
-                                id: '2-1',
-                                content: 'Quero ir para alguma praia no nordeste em julho. Sugestões?',
-                                is_user: true,
-                                timestamp: '2023-04-10T14:20:00Z'
-                            },
-                            {
-                                id: '2-2',
-                                content: 'Julho é uma ótima época para visitar o nordeste! Recomendo Porto de Galinhas, Morro de São Paulo ou Jericoacoara. Você tem alguma preferência?',
-                                is_user: false,
-                                timestamp: '2023-04-10T14:22:00Z'
-                            }
-                        ]
-                    }
-                ];
+                // Em modo de demonstração, carregar dados de exemplo
+                if (useLocalProcessing) {
+                    // Simular conversas de exemplo
+                    conversations = [
+                        {
+                            id: '1',
+                            title: 'Planejando viagem para Paris',
+                            created_at: '2023-04-15T10:30:00Z',
+                            last_updated: '2023-04-15T11:45:00Z',
+                            messages: [
+                                {
+                                    id: '1-1',
+                                    content: 'Olá, estou planejando uma viagem para Paris. Pode me ajudar?',
+                                    is_user: true,
+                                    timestamp: '2023-04-15T10:30:00Z'
+                                },
+                                {
+                                    id: '1-2',
+                                    content: 'Claro! Paris é um destino incrível. Quando você planeja viajar e por quanto tempo?',
+                                    is_user: false,
+                                    timestamp: '2023-04-15T10:31:00Z'
+                                }
+                            ]
+                        },
+                        {
+                            id: '2',
+                            title: 'Viagem para a praia',
+                            created_at: '2023-04-10T14:20:00Z',
+                            last_updated: '2023-04-10T15:30:00Z',
+                            messages: [
+                                {
+                                    id: '2-1',
+                                    content: 'Quero ir para alguma praia no nordeste em julho. Sugestões?',
+                                    is_user: true,
+                                    timestamp: '2023-04-10T14:20:00Z'
+                                },
+                                {
+                                    id: '2-2',
+                                    content: 'Julho é uma ótima época para visitar o nordeste! Recomendo Porto de Galinhas, Morro de São Paulo ou Jericoacoara. Você tem alguma preferência?',
+                                    is_user: false,
+                                    timestamp: '2023-04-10T14:22:00Z'
+                                }
+                            ]
+                        }
+                    ];
 
-                // Atualizar UI
-                updateConversationsList();
-            }
-        });
+                    // Atualizar UI
+                    updateConversationsList();
+                }
+            });
 
         // Configurar eventos dos formulários modais
         document.getElementById('login-form').addEventListener('submit', function(e) {
@@ -1123,15 +1125,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funções para monitoramento de preços
     function loadPriceMonitors() {
         fetch('/api/price-monitor')
-        .then(response => response.json())
-        .then(data => {
-            console.log(`Carregados: ${data.flights.length + data.hotels.length} ofertas e ${data.alerts.length} alertas`);
-            // Atualizar UI com os dados (implementação futura)
-        })
-        .catch(error => {
-            // Usuário não logado ou outro erro
-            console.log("Carregados: 0 ofertas e 0 alertas");
-        });
+            .then(response => response.json())
+            .then(data => {
+                console.log(`Carregados: ${data.flights.length + data.hotels.length} ofertas e ${data.alerts.length} alertas`);
+                // Atualizar UI com os dados (implementação futura)
+            })
+            .catch(error => {
+                // Usuário não logado ou outro erro
+                console.log("Carregados: 0 ofertas e 0 alertas");
+            });
     }
 
     function checkPrices() {
@@ -1143,9 +1145,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatDateTime(isoString) {
         if (!isoString) return '';
         const date = new Date(isoString);
-        return date.toLocaleString('pt-BR', { 
-            day: '2-digit', 
-            month: '2-digit', 
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -1172,4 +1174,85 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Iniciar aplicação
     init();
+    // Configurar funcionalidade da página de perfil
+    setupProfileFunctionality();
 });
+
+// Função para definir a tab ativa
+function setActiveTab(tab, section) {
+    // Remover classes ativas de todas as tabs
+    const allTabs = document.querySelectorAll('.nav-item');
+    allTabs.forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Adicionar classe ativa à tab selecionada
+    tab.classList.add('active');
+
+    // Esconder todas as seções
+    const allSections = document.querySelectorAll('.content-section');
+    allSections.forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Mostrar a seção selecionada
+    section.classList.add('active');
+}
+
+// Configurar funcionalidade da página de perfil
+function setupProfileFunctionality() {
+    // Elementos do perfil
+    const saveProfileButtons = document.querySelectorAll('.profile-save-button');
+
+    // Event listeners para botões de salvar
+    saveProfileButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Simular salvamento de perfil
+            button.textContent = 'Salvando...';
+
+            // Simular atraso de processamento
+            setTimeout(() => {
+                button.textContent = 'Salvo!';
+
+                // Voltar ao estado original após um tempo
+                setTimeout(() => {
+                    button.textContent = 'Salvar Informações';
+                }, 1500);
+            }, 1000);
+        });
+    });
+
+    // Tentar carregar dados do perfil (simulação)
+    loadProfileData();
+}
+
+// Função para carregar dados do perfil
+function loadProfileData() {
+    try {
+        // Esta função seria substituída por uma chamada à API real
+        console.log("Carregando dados do perfil...");
+
+        // Simulação de dados
+        const profileData = {
+            name: "Usuário de Teste",
+            email: "usuario@teste.com",
+            phone: "(11) 98765-4321",
+            preferences: {
+                preferred_destinations: "Lisboa, Paris, Nova York",
+                accommodation_type: "hotel",
+                budget: "10000"
+            }
+        };
+
+        // Preencher formulário com dados
+        document.getElementById('profile-name').value = profileData.name;
+        document.getElementById('profile-email').value = profileData.email;
+        document.getElementById('profile-phone').value = profileData.phone;
+        document.getElementById('profile-destinations').value = profileData.preferences.preferred_destinations;
+        document.getElementById('profile-accommodation').value = profileData.preferences.accommodation_type;
+        document.getElementById('profile-budget').value = profileData.preferences.budget;
+
+    } catch (error) {
+        console.log("Error loading profile:", error);
+    }
+}

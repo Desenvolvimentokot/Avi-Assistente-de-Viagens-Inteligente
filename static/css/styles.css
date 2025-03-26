@@ -310,44 +310,34 @@ body {
 }
 
 .message-input {
-    flex-grow: 1;
-    padding: 12px 15px;
-    border-radius: 25px;
+    flex: 1;
     border: 1px solid #e1e4e8;
-    outline: none;
+    border-radius: 20px;
+    padding: 12px 15px;
+    margin-right: 10px;
     resize: none;
+    outline: none;
     font-family: inherit;
-    font-size: 15px;
-    max-height: 120px;
-    min-height: 24px;
-}
-
-.message-input:focus {
-    border-color: #1a73e8;
+    line-height: 1.4;
+    max-height: 100px;
 }
 
 .send-button {
+    background-color: #0062cc; /* Cor azul menos chamativa */
+    color: white;
+    border: none;
+    border-radius: 50%;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    background-color: #1a73e8;
-    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border: none;
-    flex-shrink: 0;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
 }
 
 .send-button:hover {
-    background-color: #1669d8;
-}
-
-.send-button:disabled {
-    background-color: #e1e4e8;
-    cursor: not-allowed;
+    background-color: #004a9f;
 }
 
 /* Resultados de busca */
@@ -656,4 +646,92 @@ body {
 
 .btn-danger:hover {
     background-color: #c82333;
+}
+
+/* Estilos para as seções de conteúdo */
+.content-section {
+    display: flex; /* Changed to flex to match the intention */
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+}
+
+/* Estilos para a página de perfil */
+.profile-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    margin-bottom: 30px;
+}
+
+.profile-header h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.profile-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.profile-section h2 {
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.profile-form-group {
+    margin-bottom: 15px;
+}
+
+.profile-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.profile-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.profile-save-button {
+    background-color: #0062cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 10px;
+}
+
+.profile-save-button:hover {
+    background-color: #004a9f;
+}
+
+/* Adicionar estilos específicos para responsividade */
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .logo {
+        text-align: center;
+        padding: 10px;
+    }
 }
