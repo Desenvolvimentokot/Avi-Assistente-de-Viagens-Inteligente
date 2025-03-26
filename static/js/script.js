@@ -95,7 +95,7 @@ function renderConversations() {
         item.dataset.id = conversation.id;
         item.innerHTML = `
             <div class="sidebar-list-item-title">${conversation.title}</div>
-            <div class="sidebar-list-item-info">Updated: ${conversation.last_updated}</div>
+            <div class="sidebar-list-item-info">Atualizado: ${conversation.last_updated}</div>
         `;
         
         item.addEventListener('click', () => {
@@ -149,38 +149,38 @@ function renderPlanDetails(plan) {
     // Mock flight and hotel data that would come from Amadeus API
     const mockFlights = [
         {
-            airline: "Air France",
-            flight_number: "AF1234",
-            departure: "New York (JFK)",
+            airline: "LATAM",
+            flight_number: "LA3456",
+            departure: "São Paulo (GRU)",
             arrival: plan.destination.split(',')[0],
             departure_time: "08:30",
             arrival_time: "20:15",
-            price: "€450"
+            price: "R$2.450"
         },
         {
-            airline: "Delta",
-            flight_number: "DL5678",
-            departure: "New York (JFK)",
+            airline: "Gol",
+            flight_number: "G35678",
+            departure: "São Paulo (GRU)",
             arrival: plan.destination.split(',')[0],
             departure_time: "18:00",
             arrival_time: "07:45 (+1)",
-            price: "€520"
+            price: "R$2.820"
         }
     ];
     
     const mockHotels = [
         {
-            name: `Grand Hotel ${plan.destination.split(',')[0]}`,
+            name: `Grande Hotel ${plan.destination.split(',')[0]}`,
             stars: 4,
-            location: `Central ${plan.destination.split(',')[0]}`,
-            price_per_night: "€180",
+            location: `${plan.destination.split(',')[0]} Central`,
+            price_per_night: "R$980",
             available: true
         },
         {
-            name: `${plan.destination.split(',')[0]} View Resort`,
+            name: `${plan.destination.split(',')[0]} Vista Resort`,
             stars: 3,
-            location: `Downtown ${plan.destination.split(',')[0]}`,
-            price_per_night: "€135",
+            location: `Centro de ${plan.destination.split(',')[0]}`,
+            price_per_night: "R$740",
             available: true
         }
     ];
@@ -188,7 +188,7 @@ function renderPlanDetails(plan) {
     // Update main content with plan details
     content.innerHTML = `
         <div class="content-section">
-            <h2 class="content-title">Travel Plan Details</h2>
+            <h2 class="content-title">Detalhes do Plano de Viagem</h2>
             <div class="plan-details">
                 <div class="plan-header">
                     <h3 class="plan-title">${plan.title}</h3>
@@ -197,36 +197,36 @@ function renderPlanDetails(plan) {
                 </div>
                 
                 <div class="plan-section">
-                    <h4 class="plan-section-title">Trip Details</h4>
+                    <h4 class="plan-section-title">Detalhes da Viagem</h4>
                     <p>${plan.details}</p>
                 </div>
                 
                 <div class="plan-section">
-                    <h4 class="plan-section-title">Flights</h4>
+                    <h4 class="plan-section-title">Voos</h4>
                     <div class="plan-flight-cards">
                         ${mockFlights.map(flight => `
                             <div class="plan-card">
                                 <div class="plan-card-title">${flight.airline} - ${flight.flight_number}</div>
                                 <div class="plan-card-info">${flight.departure} → ${flight.arrival}</div>
-                                <div class="plan-card-info">Departure: ${flight.departure_time} | Arrival: ${flight.arrival_time}</div>
+                                <div class="plan-card-info">Partida: ${flight.departure_time} | Chegada: ${flight.arrival_time}</div>
                                 <div class="plan-card-price">${flight.price}</div>
                             </div>
                         `).join('')}
-                        <p class="plan-section-note">Note: Flight data would come from Amadeus API in production</p>
+                        <p class="plan-section-note">Obs: Dados de voos virão da API Amadeus na versão em produção</p>
                     </div>
                 </div>
                 
                 <div class="plan-section">
-                    <h4 class="plan-section-title">Accommodations</h4>
+                    <h4 class="plan-section-title">Hospedagem</h4>
                     <div class="plan-hotel-cards">
                         ${mockHotels.map(hotel => `
                             <div class="plan-card">
                                 <div class="plan-card-title">${hotel.name} (${hotel.stars}★)</div>
                                 <div class="plan-card-info">${hotel.location}</div>
-                                <div class="plan-card-price">${hotel.price_per_night} per night</div>
+                                <div class="plan-card-price">${hotel.price_per_night} por noite</div>
                             </div>
                         `).join('')}
-                        <p class="plan-section-note">Note: Hotel data would come from Amadeus API in production</p>
+                        <p class="plan-section-note">Obs: Dados de hotéis virão da API Amadeus na versão em produção</p>
                     </div>
                 </div>
             </div>
@@ -279,10 +279,13 @@ function handleChatSubmit(e) {
         // Add assistant response
         addMessageToChat('assistant', data.response);
         
-        // Check if response mentions flights or hotels
-        if (message.toLowerCase().includes('flight') || message.toLowerCase().includes('hotel')) {
+        // Check if response mentions flights or hotels (in Portuguese)
+        if (message.toLowerCase().includes('voo') || 
+            message.toLowerCase().includes('passagem') || 
+            message.toLowerCase().includes('hotel') ||
+            message.toLowerCase().includes('hospedagem')) {
             // Simulate Amadeus API call
-            const searchType = message.toLowerCase().includes('flight') ? 'flights' : 'hotels';
+            const searchType = (message.toLowerCase().includes('voo') || message.toLowerCase().includes('passagem')) ? 'flights' : 'hotels';
             
             fetch('/api/search', {
                 method: 'POST',
@@ -297,25 +300,25 @@ function handleChatSubmit(e) {
                 let resultsHtml = '<div class="search-results">';
                 
                 if (searchType === 'flights') {
-                    resultsHtml += '<h4>Flight Options:</h4>';
+                    resultsHtml += '<h4>Opções de Voos:</h4>';
                     searchData.results.forEach(flight => {
                         resultsHtml += `
                             <div class="plan-card">
                                 <div class="plan-card-title">${flight.airline} - ${flight.flight_number}</div>
                                 <div class="plan-card-info">${flight.departure} → ${flight.arrival}</div>
-                                <div class="plan-card-info">Departure: ${flight.departure_time} | Arrival: ${flight.arrival_time}</div>
+                                <div class="plan-card-info">Partida: ${flight.departure_time} | Chegada: ${flight.arrival_time}</div>
                                 <div class="plan-card-price">${flight.price}</div>
                             </div>
                         `;
                     });
                 } else {
-                    resultsHtml += '<h4>Hotel Options:</h4>';
+                    resultsHtml += '<h4>Opções de Hotéis:</h4>';
                     searchData.results.forEach(hotel => {
                         resultsHtml += `
                             <div class="plan-card">
                                 <div class="plan-card-title">${hotel.name} (${hotel.stars}★)</div>
                                 <div class="plan-card-info">${hotel.location}</div>
-                                <div class="plan-card-price">${hotel.price_per_night} per night</div>
+                                <div class="plan-card-price">${hotel.price_per_night} por noite</div>
                             </div>
                         `;
                     });
@@ -334,7 +337,7 @@ function handleChatSubmit(e) {
         // Remove loading message
         loadingMsg.remove();
         // Add error message
-        addMessageToChat('assistant', 'Sorry, there was an error processing your request. Please try again.');
+        addMessageToChat('assistant', 'Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.');
     });
 }
 
