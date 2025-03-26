@@ -48,6 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(section);
         });
     });
+    
+    // Add event listener for sidebar toggle
+    sidebarToggle.addEventListener('click', toggleSidebar);
+    
+    // Add event listener for fullscreen toggle (will be re-attached when chat loads)
+    if (fullscreenToggle) {
+        fullscreenToggle.addEventListener('click', toggleFullscreenChat);
+    }
 });
 
 // Function to load conversations from API
@@ -503,6 +511,11 @@ function renderConversationUI() {
                         <i class="fas fa-paper-plane"></i> Enviar
                     </button>
                 </form>
+                
+                <!-- Fullscreen Toggle Button -->
+                <div id="fullscreen-toggle" class="fullscreen-toggle">
+                    <i class="fas fa-expand"></i>
+                </div>
             </div>
         </div>
     `;
@@ -510,6 +523,21 @@ function renderConversationUI() {
     // Re-attach event listeners
     chatForm = document.getElementById('chat-form');
     chatMessages = document.getElementById('chat-messages');
+    
+    // Re-attach fullscreen toggle listener
+    const fullscreenBtn = document.getElementById('fullscreen-toggle');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', toggleFullscreenChat);
+    }
+    
+    // Apply fullscreen mode if it was active
+    if (isFullscreenChat) {
+        document.body.classList.add('fullscreen-chat');
+        if (fullscreenBtn) {
+            fullscreenBtn.querySelector('i').classList.remove('fa-expand');
+            fullscreenBtn.querySelector('i').classList.add('fa-compress');
+        }
+    }
     chatForm.addEventListener('submit', handleChatSubmit);
     
     // Render messages
@@ -579,4 +607,49 @@ function searchHotels(params) {
             }
         ]
     });
+}
+
+/**
+ * Toggle sidebar expand/collapse state
+ */
+function toggleSidebar() {
+    isSidebarCollapsed = !isSidebarCollapsed;
+    
+    sidebar.classList.toggle('collapsed', isSidebarCollapsed);
+    content.classList.toggle('expanded', isSidebarCollapsed);
+    
+    const icon = sidebarToggle.querySelector('i');
+    if (isSidebarCollapsed) {
+        icon.classList.remove('fa-chevron-left');
+        icon.classList.add('fa-chevron-right');
+    } else {
+        icon.classList.remove('fa-chevron-right');
+        icon.classList.add('fa-chevron-left');
+    }
+}
+
+/**
+ * Toggle fullscreen chat mode
+ */
+function toggleFullscreenChat() {
+    isFullscreenChat = !isFullscreenChat;
+    
+    document.body.classList.toggle('fullscreen-chat', isFullscreenChat);
+    
+    const fullscreenBtn = document.getElementById('fullscreen-toggle');
+    if (fullscreenBtn) {
+        const icon = fullscreenBtn.querySelector('i');
+        if (isFullscreenChat) {
+            icon.classList.remove('fa-expand');
+            icon.classList.add('fa-compress');
+        } else {
+            icon.classList.remove('fa-compress');
+            icon.classList.add('fa-expand');
+        }
+    }
+    
+    // Auto-collapse sidebar when entering fullscreen mode
+    if (isFullscreenChat && !isSidebarCollapsed) {
+        toggleSidebar();
+    }
 }
