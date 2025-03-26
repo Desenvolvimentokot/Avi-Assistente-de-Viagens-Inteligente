@@ -35,17 +35,22 @@
         <div class="main-container">
             <!-- Sidebar -->
             <aside id="sidebar" class="sidebar">
+                <!-- Sidebar Toggle Button -->
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                
                 <!-- Sidebar Navigation -->
                 <nav class="sidebar-nav">
                     <ul class="sidebar-list">
                         <li class="sidebar-list-item sidebar-nav-item active" data-section="conversations">
-                            <i class="fas fa-comment-alt"></i> Conversas
+                            <i class="fas fa-comment-alt"></i> <span>Conversas</span>
                         </li>
                         <li class="sidebar-list-item sidebar-nav-item" data-section="plans">
-                            <i class="fas fa-map-marked-alt"></i> Meus Planos
+                            <i class="fas fa-map-marked-alt"></i> <span>Meus Planos</span>
                         </li>
                         <li class="sidebar-list-item sidebar-nav-item" data-section="profile">
-                            <i class="fas fa-user"></i> Perfil
+                            <i class="fas fa-user"></i> <span>Perfil</span>
                         </li>
                     </ul>
                 </nav>
@@ -88,6 +93,11 @@
                             <i class="fas fa-paper-plane"></i> Enviar
                         </button>
                     </form>
+                    
+                    <!-- Fullscreen Toggle Button -->
+                    <div id="fullscreen-toggle" class="fullscreen-toggle">
+                        <i class="fas fa-expand"></i>
+                    </div>
                 </div>
             </div>
         </div>

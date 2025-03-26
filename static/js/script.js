@@ -15,6 +15,8 @@ const chatInput = document.getElementById('chat-input');
 let chatForm = document.getElementById('chat-form');
 let chatMessages = document.getElementById('chat-messages');
 const profileForm = document.getElementById('profile-form');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const fullscreenToggle = document.getElementById('fullscreen-toggle');
 
 // State management
 let activeSection = 'conversations';
@@ -23,6 +25,8 @@ let plans = [];
 let userProfile = {};
 let activePlanId = null;
 let chatHistory = [];
+let isSidebarCollapsed = false;
+let isFullscreenChat = false;
 
 // Load initial data
 document.addEventListener('DOMContentLoaded', () => {
