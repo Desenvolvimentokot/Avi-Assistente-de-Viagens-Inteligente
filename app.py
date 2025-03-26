@@ -10,7 +10,8 @@ from werkzeug.security import generate_password_hash
 # Importação dos serviços e modelos
 from services.amadeus_service import AmadeusService
 from services.openai_service import OpenAIService
-from models import db, User, Conversation, Message, TravelPlan, PriceMonitor, PriceHistory, PriceAlert
+from services.pdf_service import PDFService
+from models import db, User, Conversation, Message, TravelPlan, FlightBooking, Accommodation, PriceMonitor, PriceHistory, PriceAlert
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -48,6 +49,7 @@ def chat():
     data = request.json
     user_message = data.get('message', '')
     conversation_id = data.get('conversation_id')
+    context = data.get('context', {})
 
     # Obter histórico da conversa, se existir
     messages_history = []
@@ -71,23 +73,79 @@ def chat():
             logging.error(f"Erro ao buscar conversa: {str(e)}")
 
     try:
+        # Definir modo de chat baseado no contexto
+        chat_mode = context.get('mode', 'general')
+        
+        # Pré-processamento para modalidades específicas
+        chat_action = None
+        
+        if chat_mode == 'quick-search':
+            # Processar modo de busca rápida
+            quick_search_step = context.get('quickSearchStep', 0)
+            quick_search_data = context.get('quickSearchData', {})
+            
+            # Processar a busca de voos se tivermos todos os dados
+            if quick_search_step >= 2 and all(key in quick_search_data and quick_search_data[key] for key in ['departureDate', 'returnDate', 'origin', 'destination']):
+                # Preparar para busca de voos através do serviço Amadeus
+                chat_action = {
+                    "type": "search_flights",
+                    "data": quick_search_data
+                }
+                
+                # Avançar para o próximo passo
+                quick_search_step += 1
+                
+            # Atualizar contexto com novos valores de passo
+            context['quickSearchStep'] = quick_search_step
+                
+        elif chat_mode == 'full-planning':
+            # Processar modo de planejamento completo
+            full_planning_step = context.get('fullPlanningStep', 0)
+            full_planning_data = context.get('fullPlanningData', {})
+            
+            # Gerar planejamento completo se tivermos todos os dados
+            if full_planning_step >= 4 and 'destinations' in full_planning_data and full_planning_data['destinations']:
+                # Preparar para gerar planejamento
+                chat_action = {
+                    "type": "generate_travel_plan",
+                    "data": full_planning_data
+                }
+                
+                # Avançar para o próximo passo
+                full_planning_step += 1
+            
+            # Atualizar contexto com novos valores de passo
+            context['fullPlanningStep'] = full_planning_step
+
         # Chamar a API da OpenAI através do nosso serviço
-        result = openai_service.travel_assistant(user_message, messages_history)
+        result = openai_service.travel_assistant(
+            user_message, 
+            messages_history,
+            system_context=f"Você está no modo de chat '{chat_mode}'. " + 
+                           (f"Etapa atual: {context.get('quickSearchStep', 0)}" if chat_mode == 'quick-search' else "") +
+                           (f"Etapa atual: {context.get('fullPlanningStep', 0)}" if chat_mode == 'full-planning' else "")
+        )
 
         if 'error' in result:
             logging.error(f"Erro na API do OpenAI: {result['error']}")
             return jsonify({
                 "response": "Desculpe, estou enfrentando problemas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.",
-                "error": result['error']
+                "error": result['error'],
+                "context": context
             }), 500
 
         # Se for uma nova conversa, criar uma nova entrada no banco de dados
         if not conversation_id:
             title = user_message[:30] + "..." if len(user_message) > 30 else user_message
             try:
+                # Tentar identificar usuário logado, se não existir, usar ID fixo para teste
+                user_id = 1  # ID padrão para testes
+                if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                    user_id = current_user.id
+                
                 conversation = Conversation(
                     title=title,
-                    user_id=1,  # Usuário fixo para testes
+                    user_id=user_id,
                     created_at=datetime.now()
                 )
                 db.session.add(conversation)
@@ -120,22 +178,29 @@ def chat():
                     timestamp=datetime.now()
                 )
                 db.session.add(assistant_msg)
+                
+                # Atualizar timestamp da conversa
+                conversation.last_updated = datetime.now()
+                
                 db.session.commit()
             except Exception as e:
                 logging.error(f"Erro ao salvar mensagens: {str(e)}")
                 # Continue mesmo com erro (modo degradado)
 
-        # Retornar a resposta e o ID da conversa
+        # Retornar a resposta, o ID da conversa e o contexto atualizado
         return jsonify({
             "response": result['response'],
-            "conversation_id": conversation_id
+            "conversation_id": conversation_id,
+            "context": context,
+            "action": chat_action
         })
 
     except Exception as e:
         logging.error(f"Erro no processamento do chat: {str(e)}")
         return jsonify({
             "response": "Desculpe, ocorreu um erro interno. Por favor, tente novamente mais tarde.",
-            "error": str(e)
+            "error": str(e),
+            "context": context
         }), 500
 
 # API para busca
@@ -422,6 +487,81 @@ def get_plan(plan_id):
     }
 
     return jsonify(result)
+
+@app.route('/api/plan/<int:plan_id>/pdf')
+@login_required
+def download_plan_pdf(plan_id):
+    from services.pdf_service import PDFService
+    from flask import send_file
+    
+    plan = TravelPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
+
+    if not plan:
+        return jsonify({"error": "Plano não encontrado"}), 404
+        
+    # Preparar dados para o PDF
+    plan_data = {
+        "id": plan.id,
+        "title": plan.title,
+        "destination": plan.destination,
+        "start_date": plan.start_date.isoformat() if plan.start_date else None,
+        "end_date": plan.end_date.isoformat() if plan.end_date else None,
+        "details": plan.details,
+        "flights": [],
+        "accommodations": []
+    }
+    
+    # Adicionar voos
+    for flight in plan.flights:
+        plan_data["flights"].append({
+            "id": flight.id,
+            "airline": flight.airline,
+            "flight_number": flight.flight_number,
+            "departure_location": flight.departure_location,
+            "arrival_location": flight.arrival_location,
+            "departure_time": flight.departure_time.isoformat() if flight.departure_time else None,
+            "arrival_time": flight.arrival_time.isoformat() if flight.arrival_time else None,
+            "price": flight.price,
+            "currency": flight.currency
+        })
+    
+    # Adicionar acomodações
+    for acc in plan.accommodations:
+        plan_data["accommodations"].append({
+            "id": acc.id,
+            "name": acc.name,
+            "location": acc.location,
+            "check_in": acc.check_in.isoformat() if acc.check_in else None,
+            "check_out": acc.check_out.isoformat() if acc.check_out else None,
+            "price_per_night": acc.price_per_night,
+            "currency": acc.currency,
+            "stars": acc.stars
+        })
+    
+    # Verificar se o usuário é premium
+    is_premium = False  # Implementação futura
+    
+    # Gerar PDF básico ou premium
+    if is_premium:
+        pdf_path = PDFService.generate_premium_pdf(plan_data, current_user)
+    else:
+        pdf_path = PDFService.generate_basic_pdf(plan_data, current_user)
+    
+    if not pdf_path:
+        return jsonify({"error": "Erro ao gerar PDF"}), 500
+    
+    # Enviar o arquivo para download
+    try:
+        return send_file(
+            pdf_path,
+            download_name=f"plano_viagem_{plan.id}.pdf",
+            as_attachment=True,
+            mimetype='application/pdf'
+        )
+    finally:
+        # Remover o arquivo temporário após envio
+        import threading
+        threading.Timer(60, PDFService.delete_pdf, args=[pdf_path]).start()
 
 @app.route('/api/profile')
 @login_required

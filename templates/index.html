@@ -66,9 +66,22 @@
         <div id="content" class="content">
             <div id="chat-section" class="content-section active">
                 <h2 class="content-title">Chat com Flai</h2>
+                <div class="chat-mode-selector">
+                    <button id="quick-search-mode" class="chat-mode-btn active">Busca Rápida</button>
+                    <button id="full-planning-mode" class="chat-mode-btn">Planejamento Completo</button>
+                </div>
                 <div class="chat-container">
                     <div id="chat-messages" class="chat-messages">
-                        <div class="message assistant">
+                        <div class="message assistant" id="welcome-message">
+                            <div class="message-content">
+                                <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
+                                <p>Escolha uma das modalidades acima:</p>
+                                <ul>
+                                    <li><strong>Busca Rápida</strong>: Para encontrar os melhores voos rapidamente.</li>
+                                    <li><strong>Planejamento Completo</strong>: Para criar um itinerário detalhado com voos, hotéis e atrações.</li>
+                                </ul>
+                            </div>
+                        </div>">
                             <div class="message-avatar">
                                 <i class="fas fa-robot"></i>
                             </div>
