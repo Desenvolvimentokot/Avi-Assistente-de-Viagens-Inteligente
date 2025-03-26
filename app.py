@@ -75,15 +75,15 @@ def chat():
     try:
         # Definir modo de chat baseado no contexto
         chat_mode = context.get('mode', 'general')
-        
+
         # Pré-processamento para modalidades específicas
         chat_action = None
-        
+
         if chat_mode == 'quick-search':
             # Processar modo de busca rápida
             quick_search_step = context.get('quickSearchStep', 0)
             quick_search_data = context.get('quickSearchData', {})
-            
+
             # Processar a busca de voos se tivermos todos os dados
             if quick_search_step >= 2 and all(key in quick_search_data and quick_search_data[key] for key in ['departureDate', 'returnDate', 'origin', 'destination']):
                 # Preparar para busca de voos através do serviço Amadeus
@@ -91,18 +91,18 @@ def chat():
                     "type": "search_flights",
                     "data": quick_search_data
                 }
-                
+
                 # Avançar para o próximo passo
                 quick_search_step += 1
-                
+
             # Atualizar contexto com novos valores de passo
             context['quickSearchStep'] = quick_search_step
-                
+
         elif chat_mode == 'full-planning':
             # Processar modo de planejamento completo
             full_planning_step = context.get('fullPlanningStep', 0)
             full_planning_data = context.get('fullPlanningData', {})
-            
+
             # Gerar planejamento completo se tivermos todos os dados
             if full_planning_step >= 4 and 'destinations' in full_planning_data and full_planning_data['destinations']:
                 # Preparar para gerar planejamento
@@ -110,10 +110,10 @@ def chat():
                     "type": "generate_travel_plan",
                     "data": full_planning_data
                 }
-                
+
                 # Avançar para o próximo passo
                 full_planning_step += 1
-            
+
             # Atualizar contexto com novos valores de passo
             context['fullPlanningStep'] = full_planning_step
 
@@ -121,10 +121,10 @@ def chat():
         model = "gpt-3.5-turbo"
         if chat_mode == 'full-planning':
             model = "gpt-4o"
-            
+
         # Configurar contexto específico para o modo de chat
         system_context = f"Você está no modo de chat '{chat_mode}'. "
-        
+
         if chat_mode == 'quick-search':
             system_context += f"Etapa atual: {context.get('quickSearchStep', 0)}. "
             system_context += """
@@ -142,14 +142,21 @@ def chat():
             - Elabore um plano completo incluindo voos, hospedagem e atividades
             - Direcione o usuário através de perguntas estruturadas para coletar todos os dados necessários
             """
-            
-        # Chamar a API da OpenAI através do nosso serviço
-        result = openai_service.travel_assistant(
-            user_message, 
-            messages_history,
-            system_context=system_context
-        )
-        
+
+        # Verificar o modo de chat para escolher o serviço apropriado
+        if chat_mode == 'quick-search':
+            # Usar o serviço especializado de Busca Rápida
+            from services.busca_rapida_service import BuscaRapidaService
+            busca_rapida_service = BuscaRapidaService()
+            result = busca_rapida_service.process_query(user_message, messages_history)
+        else:
+            # Para outros modos, usar o assistente de viagem regular
+            result = openai_service.travel_assistant(
+                user_message, 
+                messages_history,
+                system_context=system_context
+            )
+
         # Definir o modelo na resposta para referência futura
         if 'response' in result:
             result['model'] = model
@@ -170,7 +177,7 @@ def chat():
                 user_id = 1  # ID padrão para testes
                 if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
                     user_id = current_user.id
-                
+
                 conversation = Conversation(
                     title=title,
                     user_id=user_id,
@@ -206,10 +213,10 @@ def chat():
                     timestamp=datetime.now()
                 )
                 db.session.add(assistant_msg)
-                
+
                 # Atualizar timestamp da conversa
                 conversation.last_updated = datetime.now()
-                
+
                 db.session.commit()
             except Exception as e:
                 logging.error(f"Erro ao salvar mensagens: {str(e)}")
@@ -521,12 +528,12 @@ def get_plan(plan_id):
 def download_plan_pdf(plan_id):
     from services.pdf_service import PDFService
     from flask import send_file
-    
+
     plan = TravelPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
 
     if not plan:
         return jsonify({"error": "Plano não encontrado"}), 404
-        
+
     # Preparar dados para o PDF
     plan_data = {
         "id": plan.id,
@@ -538,7 +545,7 @@ def download_plan_pdf(plan_id):
         "flights": [],
         "accommodations": []
     }
-    
+
     # Adicionar voos
     for flight in plan.flights:
         plan_data["flights"].append({
@@ -552,7 +559,7 @@ def download_plan_pdf(plan_id):
             "price": flight.price,
             "currency": flight.currency
         })
-    
+
     # Adicionar acomodações
     for acc in plan.accommodations:
         plan_data["accommodations"].append({
@@ -565,19 +572,19 @@ def download_plan_pdf(plan_id):
             "currency": acc.currency,
             "stars": acc.stars
         })
-    
+
     # Verificar se o usuário é premium
     is_premium = False  # Implementação futura
-    
+
     # Gerar PDF básico ou premium
     if is_premium:
         pdf_path = PDFService.generate_premium_pdf(plan_data, current_user)
     else:
         pdf_path = PDFService.generate_basic_pdf(plan_data, current_user)
-    
+
     if not pdf_path:
         return jsonify({"error": "Erro ao gerar PDF"}), 500
-    
+
     # Enviar o arquivo para download
     try:
         return send_file(
