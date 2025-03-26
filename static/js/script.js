@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.sidebar-nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             const section = e.currentTarget.dataset.section;
+            
+            // Se for a seção de conversas, apenas mostrar a interface sem reiniciar o chat
+            if (section === 'conversations' && activeSection === 'conversations') {
+                return; // Não faz nada se já estiver na seção de conversas
+            }
+            
             showSection(section);
         });
     });
@@ -141,10 +147,17 @@ function renderConversations() {
         `;
         
         item.addEventListener('click', () => {
-            // Clear existing chat and load new conversation
-            chatHistory = [];
-            renderChatMessages();
-            showSection('conversations');
+            // Carrega a conversa existente em vez de começar uma nova
+            fetch(`/api/conversation/${conversation.id}/messages`)
+                .then(response => response.json())
+                .then(data => {
+                    chatHistory = data;
+                    renderChatMessages();
+                    showSection('conversations');
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar mensagens da conversa:', error);
+                });
         });
         
         conversationsList.appendChild(item);
