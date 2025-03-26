@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     // Elementos do DOM
     const chatMessages = document.querySelector('.chat-messages');
     const messageInput = document.querySelector('.message-input');
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funções de carregamento e gerenciamento de dados (from original code)
+    // Funções de carregamento e gerenciamento de dados
     function loadConversations() {
         fetch('/api/conversations')
         .then(response => response.json())
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage('', false, alertDiv);
     }
 
-    // Funções auxiliares (from original code)
+    // Funções auxiliares
     function getAirlineName(carrierCode) {
         // Mapear códigos de companhias aéreas para nomes
         const airlines = {
@@ -309,14 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return airlines[carrierCode] || carrierCode;
     }
 
-    function formatCurrency(amount, currency) {
-        // Formatar preço conforme a moeda
-        const formatter = new Intl.NumberFormat('pt-BR', {
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
-            currency: currency || 'BRL'
-        });
-
-        return formatter.format(amount);
+            currency: 'BRL'
+        }).format(value);
     }
 
     function formatTime(dateTimeStr) {
@@ -331,8 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     }
 
+
     function formatDuration(durationStr) {
-        // Formatar duração (ex: PT2H30M -> 2h 30min)
         const hoursMatch = durationStr.match(/(\d+)H/);
         const minutesMatch = durationStr.match(/(\d+)M/);
 
@@ -342,7 +339,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return hours + minutes;
     }
 
-    // Adicionar event listeners para itens da navegação (from original code)
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
+
+    function getBookingLink(type, code) {
+        const baseLinks = {
+            flight: {
+                'LATAM': 'https://www.latamairlines.com',
+                'GOL': 'https://www.voegol.com.br',
+                'AZUL': 'https://www.voeazul.com.br',
+                'default': 'https://www.google.com/flights'
+            },
+            hotel: {
+                'Booking.com': 'https://www.booking.com',
+                'Hoteis.com': 'https://www.hoteis.com',
+                'default': 'https://www.booking.com'
+            }
+        };
+
+        const links = baseLinks[type] || {};
+        return links[code] || links['default'];
+    }
+
+
+    // Adicionar event listeners para itens da navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', function() {
             document.querySelectorAll('.nav-item').forEach(navItem => {
@@ -362,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Adicionar event listener para o botão de nova conversa (from original code)
+    // Adicionar event listener para o botão de nova conversa
     document.querySelector('.add-conversation').addEventListener('click', function() {
         // Limpar mensagens existentes
         document.querySelector('.chat-messages').innerHTML = '';
@@ -379,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    //Start functions from original code
+    //Start functions
     loadConversations();
     loadUserProfile();
     loadTravelPlans();

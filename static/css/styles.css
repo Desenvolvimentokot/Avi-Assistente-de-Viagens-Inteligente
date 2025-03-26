@@ -439,13 +439,13 @@ body {
 }
 
 .primary-action {
-    background-color: #1a73e8;
+    background-color: #2d80c3;
     color: white;
     flex-grow: 1;
 }
 
 .primary-action:hover {
-    background-color: #1669d8;
+    background-color: #256aa3;
 }
 
 .secondary-action {
@@ -648,12 +648,31 @@ body {
     background-color: #c82333;
 }
 
+.btn-book-hotel, .btn-book-flight {
+    background-color: #2d80c3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.btn-book-hotel:hover, .btn-book-flight:hover {
+    background-color: #256aa3;
+}
+
 /* Estilos para as seções de conteúdo */
 .content-section {
-    display: flex; /* Changed to flex to match the intention */
+    display: none;
     flex-direction: column;
     flex: 1;
     height: 100%;
+}
+
+.content-section.active {
+    display: flex;
 }
 
 /* Estilos para a página de perfil */
