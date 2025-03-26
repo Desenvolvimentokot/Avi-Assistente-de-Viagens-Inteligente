@@ -49,6 +49,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Add event listeners to header navigation items
+    document.querySelectorAll('.header-nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const icon = e.currentTarget.querySelector('i');
+            
+            if (icon.classList.contains('fa-bell')) {
+                toggleNotifications();
+            } else if (icon.classList.contains('fa-user-circle')) {
+                showSection('profile');
+            }
+        });
+    });
+    
     // Add event listener for sidebar toggle
     sidebarToggle.addEventListener('click', toggleSidebar);
     
@@ -255,6 +269,8 @@ function renderProfile() {
     document.getElementById('profile-preferred-destinations').value = userProfile.preferences?.preferred_destinations || '';
     document.getElementById('profile-accommodation-type').value = userProfile.preferences?.accommodation_type || '';
     document.getElementById('profile-budget').value = userProfile.preferences?.budget || '';
+    
+    console.log('Profile rendered:', userProfile);
 }
 
 // Function to handle chat form submission
