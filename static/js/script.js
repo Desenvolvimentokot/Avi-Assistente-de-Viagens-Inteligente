@@ -83,9 +83,11 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', (e) => {
             const section = e.currentTarget.dataset.section;
             
-            // Se for a seção de conversas, apenas mostrar a interface sem reiniciar o chat
+            // Se for a seção de conversas, verificar se já estamos nela
             if (section === 'conversations' && activeSection === 'conversations') {
-                return; // Não faz nada se já estiver na seção de conversas
+                // Apenas mostra a seção sem recriar a interface
+                conversationsSection.style.display = 'block';
+                return;
             }
             
             showSection(section);
@@ -616,7 +618,12 @@ function showSection(section) {
     if (section === 'conversations') {
         conversationsSection.style.display = 'block';
         document.querySelector('.sidebar-nav-item[data-section="conversations"]').classList.add('active');
-        renderConversationUI();
+        
+        // Apenas renderiza a UI de conversa se não estiver já visualizando a mesma
+        // Isso evita recriar a interface e perder o histórico ao clicar no menu
+        if (activeSection !== 'conversations') {
+            renderConversationUI();
+        }
     } else if (section === 'plans') {
         plansSection.style.display = 'block';
         document.querySelector('.sidebar-nav-item[data-section="plans"]').classList.add('active');
@@ -806,6 +813,22 @@ function renderConversationUI() {
     const fullscreenBtn = document.getElementById('fullscreen-toggle');
     if (fullscreenBtn) {
         fullscreenBtn.addEventListener('click', toggleFullscreenChat);
+    }
+    
+    // Adicionar comportamento da tecla Enter para envio de mensagens
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.addEventListener('keydown', function(e) {
+            // Se pressionou Enter sem Shift, envia o formulário
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Impede a quebra de linha
+                chatForm.dispatchEvent(new Event('submit', {
+                    bubbles: true,
+                    cancelable: true
+                }));
+            }
+            // Shift+Enter permite quebra de linha normal
+        });
     }
     
     // Apply fullscreen mode if it was active
