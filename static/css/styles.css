@@ -432,10 +432,106 @@ button, input, select, textarea {
     color: var(--light-text);
 }
 
+.plan-card-price-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-sm);
+}
+
 .plan-card-price {
     font-weight: 600;
     color: var(--primary-color);
-    margin-top: var(--spacing-sm);
+}
+
+/* Botão de monitoramento de preço */
+.monitor-price-btn {
+    background-color: var(--accent-color);
+    color: var(--white);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.monitor-price-btn:hover {
+    background-color: #1aa99c;
+}
+
+.monitor-price-btn i {
+    font-size: 10px;
+}
+
+.monitor-price-btn.monitoring {
+    background-color: #6cc070;
+    cursor: default;
+}
+
+/* Estilo para notificação não lida */
+.notification-item.unread {
+    background-color: var(--hover-color);
+    border-left: 3px solid var(--primary-color);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #ff3860;
+    color: white;
+    font-size: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Botões de ação no painel de notificações */
+.notifications-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.notifications-action-btn {
+    background: none;
+    border: none;
+    color: var(--light-text);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.notifications-action-btn:hover {
+    color: var(--primary-color);
+}
+
+.notification-message {
+    font-size: 13px;
+    color: var(--text-color);
+    margin: 3px 0;
+}
+
+/* Estado vazio para notificações */
+.empty-notifications {
+    padding: var(--spacing-md);
+    text-align: center;
+    color: var(--light-text);
+}
+
+.empty-notifications p {
+    margin: var(--spacing-sm) 0;
+    font-size: 14px;
 }
 
 /* Profile styles */

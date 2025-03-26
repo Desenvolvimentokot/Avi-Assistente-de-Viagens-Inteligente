@@ -404,7 +404,52 @@ function handleChatSubmit(e) {
                 }
                 
                 resultsHtml += '</div>';
-                addMessageToChat('assistant', resultsHtml);
+                const messageElement = addMessageToChat('assistant', resultsHtml);
+                
+                // Adicionar event listeners aos botões de monitoramento de preço
+                setTimeout(() => {
+                    const monitorButtons = messageElement.querySelectorAll('.monitor-price-btn');
+                    monitorButtons.forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            
+                            // Extrair dados do botão
+                            const type = btn.dataset.type;
+                            const id = btn.dataset.id;
+                            const name = btn.dataset.name;
+                            const destination = btn.dataset.destination;
+                            const price = parseFloat(btn.dataset.price);
+                            const formattedPrice = btn.dataset.formattedPrice;
+                            const details = JSON.parse(btn.dataset.details);
+                            
+                            // Criar objeto para monitoramento
+                            const offer = {
+                                type,
+                                id,
+                                name,
+                                destination,
+                                price,
+                                formattedPrice,
+                                details
+                            };
+                            
+                            // Adicionar ao monitoramento
+                            addPriceMonitor(offer);
+                            
+                            // Feedback visual ao usuário
+                            btn.innerHTML = '<i class="fas fa-check"></i> Monitorando';
+                            btn.classList.add('monitoring');
+                            btn.disabled = true;
+                            
+                            // Adicionar mensagem de confirmação no chat
+                            const monitoringMessage = type === 'flight' 
+                                ? `Estou monitorando o preço do voo ${name} para ${destination}. Você receberá uma notificação quando o preço cair.`
+                                : `Estou monitorando o preço do hotel ${name} em ${destination}. Você receberá uma notificação quando o preço cair.`;
+                            
+                            addMessageToChat('assistant', monitoringMessage);
+                        });
+                    });
+                }, 100); // Pequeno atraso para garantir que o DOM foi atualizado
             })
             .catch(error => {
                 console.error('Error searching:', error);
@@ -601,8 +646,52 @@ function showSection(section) {
                         <button type="submit" class="profile-form-button">Salvar Perfil</button>
                     </form>
                 </div>
+                
+                <div class="content-section" style="margin-top: 30px;">
+                    <h2 class="content-title">Monitoramento de Preços</h2>
+                    <div class="price-monitoring-container">
+                        <div class="price-monitoring-header">
+                            <h3>Ofertas Monitoradas</h3>
+                            <p>Você receberá notificações quando houver queda nos preços destas ofertas.</p>
+                        </div>
+                        
+                        <div id="monitored-offers-list" class="monitored-offers-list">
+                            ${monitoredOffers.length === 0 ? `
+                                <div class="empty-state">
+                                    <p>Você ainda não está monitorando nenhuma oferta.</p>
+                                    <p>Busque voos ou hotéis no chat e clique em "Monitorar Preço" para receber notificações quando os preços caírem.</p>
+                                </div>
+                            ` : monitoredOffers.map(offer => `
+                                <div class="monitored-offer-item" data-id="${offer.id}" data-type="${offer.type}">
+                                    <div class="monitored-offer-icon">
+                                        <i class="fas fa-${offer.type === 'flight' ? 'plane' : 'hotel'}"></i>
+                                    </div>
+                                    <div class="monitored-offer-content">
+                                        <div class="monitored-offer-title">${offer.name}</div>
+                                        <div class="monitored-offer-info">${offer.destination}</div>
+                                        <div class="monitored-offer-price">
+                                            <span class="current-price">${offer.formattedPrice}</span>
+                                            ${offer.price < offer.lowestPrice ? '' : `
+                                                <span class="lowest-price">Menor preço encontrado: ${formatPrice(offer.lowestPrice)}</span>
+                                            `}
+                                        </div>
+                                        <div class="monitored-offer-date">Monitorando desde ${new Date(offer.added).toLocaleDateString('pt-BR')}</div>
+                                    </div>
+                                    <button class="remove-monitor-btn" data-id="${offer.id}" data-type="${offer.type}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
+        
+        // Função auxiliar para formatar preço
+        function formatPrice(price) {
+            return `R$${price.toFixed(2).replace('.', ',')}`;
+        }
         
         // Recapturar a referência ao formulário de perfil
         const newProfileForm = document.getElementById('profile-form');
