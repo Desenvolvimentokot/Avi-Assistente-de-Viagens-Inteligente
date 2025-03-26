@@ -11,40 +11,40 @@ app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Mock data for conversations
 conversations = [
-    {"id": 1, "title": "Trip to Paris", "last_updated": "2023-10-15"},
-    {"id": 2, "title": "Weekend in Barcelona", "last_updated": "2023-09-28"},
-    {"id": 3, "title": "Summer vacation planning", "last_updated": "2023-08-10"}
+    {"id": 1, "title": "Viagem para Paris", "last_updated": "15/10/2023"},
+    {"id": 2, "title": "Final de semana em Barcelona", "last_updated": "28/09/2023"},
+    {"id": 3, "title": "Planejamento de férias de verão", "last_updated": "10/08/2023"}
 ]
 
 # Mock data for travel plans
 plans = [
     {
         "id": 1,
-        "title": "Weekend in Barcelona",
-        "destination": "Barcelona, Spain",
-        "start_date": "2023-12-15",
-        "end_date": "2023-12-17",
-        "details": "A weekend getaway to explore the architecture and cuisine of Barcelona."
+        "title": "Final de semana em Barcelona",
+        "destination": "Barcelona, Espanha",
+        "start_date": "15/12/2023",
+        "end_date": "17/12/2023",
+        "details": "Um fim de semana para explorar a arquitetura e a culinária de Barcelona."
     },
     {
         "id": 2,
-        "title": "Summer in Greece",
-        "destination": "Athens and Santorini, Greece",
-        "start_date": "2024-06-10",
-        "end_date": "2024-06-20",
-        "details": "A 10-day vacation exploring Athens and relaxing in Santorini."
+        "title": "Verão na Grécia",
+        "destination": "Atenas e Santorini, Grécia",
+        "start_date": "10/06/2024",
+        "end_date": "20/06/2024",
+        "details": "Férias de 10 dias explorando Atenas e relaxando em Santorini."
     }
 ]
 
 # Mock user profile
 user_profile = {
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "phone": "+1 123-456-7890",
+    "name": "João Silva",
+    "email": "joao.silva@exemplo.com",
+    "phone": "+55 11 98765-4321",
     "preferences": {
-        "preferred_destinations": "Beach, Mountains",
+        "preferred_destinations": "Praia, Montanha",
         "accommodation_type": "Hotel",
-        "budget": "Medium"
+        "budget": "Médio"
     }
 }
 
@@ -65,7 +65,7 @@ def get_plan(plan_id):
     plan = next((p for p in plans if p["id"] == plan_id), None)
     if plan:
         return jsonify(plan)
-    return jsonify({"error": "Plan not found"}), 404
+    return jsonify({"error": "Plano não encontrado"}), 404
 
 @app.route('/api/profile')
 def get_profile():
@@ -95,17 +95,17 @@ def chat():
     
     # Mock GPT response
     if 'paris' in user_message.lower():
-        response = "Paris is a beautiful destination! The best time to visit is spring (April to June) or fall (September to November). Would you like me to suggest some accommodations or activities?"
-    elif 'flight' in user_message.lower():
-        response = "I can help you find flights. Could you provide your departure city, destination, and travel dates?"
-    elif 'hotel' in user_message.lower() or 'accommodation' in user_message.lower():
-        response = "For accommodations, I recommend checking options in the city center for the best experience. What's your budget range per night?"
+        response = "Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?"
+    elif 'voo' in user_message.lower() or 'passagem' in user_message.lower():
+        response = "Posso ajudar você a encontrar voos. Poderia me informar sua cidade de partida, destino e datas de viagem?"
+    elif 'hotel' in user_message.lower() or 'hospedagem' in user_message.lower():
+        response = "Para hospedagem, recomendo verificar opções no centro da cidade para a melhor experiência. Qual é a sua faixa de orçamento por noite?"
     else:
-        response = "I'm your Flai travel assistant. Tell me about your travel plans, and I'll help you organize the perfect trip. Where would you like to go?"
+        response = "Sou o Flai, seu assistente de viagens. Conte-me sobre seus planos de viagem, e vou ajudar a organizar a viagem perfeita. Para onde você gostaria de ir?"
     
     return jsonify({
         "response": response,
-        "note": "This is a mock response. In production, this would connect to the GPT API."
+        "note": "Esta é uma resposta simulada. Em produção, seria conectado à API GPT."
     })
 
 @app.route('/api/search', methods=['POST'])
@@ -118,47 +118,47 @@ def search():
         return jsonify({
             "results": [
                 {
-                    "airline": "Air France",
-                    "flight_number": "AF1234",
-                    "departure": "New York (JFK)",
+                    "airline": "LATAM",
+                    "flight_number": "LA3456",
+                    "departure": "São Paulo (GRU)",
                     "arrival": "Paris (CDG)",
                     "departure_time": "08:30",
                     "arrival_time": "20:15",
-                    "price": "€450"
+                    "price": "R$2.450"
                 },
                 {
-                    "airline": "Delta",
-                    "flight_number": "DL5678",
-                    "departure": "New York (JFK)",
+                    "airline": "Gol",
+                    "flight_number": "G35678",
+                    "departure": "São Paulo (GRU)",
                     "arrival": "Paris (CDG)",
                     "departure_time": "18:00",
                     "arrival_time": "07:45 (+1)",
-                    "price": "€520"
+                    "price": "R$2.820"
                 }
             ],
-            "note": "This is a mock response. In production, this would connect to the Amadeus API."
+            "note": "Esta é uma resposta simulada. Em produção, seria conectado à API Amadeus."
         })
     elif search_type == 'hotels':
         return jsonify({
             "results": [
                 {
-                    "name": "Grand Hotel Paris",
+                    "name": "Grande Hotel Paris",
                     "stars": 4,
-                    "location": "Central Paris",
-                    "price_per_night": "€180",
+                    "location": "Paris Central",
+                    "price_per_night": "R$980",
                     "available": True
                 },
                 {
-                    "name": "Seine River View",
+                    "name": "Vista Rio Sena",
                     "stars": 3,
-                    "location": "Left Bank, Paris",
-                    "price_per_night": "€135",
+                    "location": "Margem Esquerda, Paris",
+                    "price_per_night": "R$740",
                     "available": True
                 }
             ],
-            "note": "This is a mock response. In production, this would connect to the Amadeus API."
+            "note": "Esta é uma resposta simulada. Em produção, seria conectado à API Amadeus."
         })
     else:
         return jsonify({
-            "error": "Invalid search type. Use 'flights' or 'hotels'."
+            "error": "Tipo de pesquisa inválido. Use 'flights' ou 'hotels'."
         }), 400
