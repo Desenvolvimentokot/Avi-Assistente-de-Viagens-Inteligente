@@ -20,7 +20,7 @@ class OpenAIService:
         """
         if not self.api_key:
             logging.error("API key da OpenAI não configurada")
-            return {'error': 'API key da OpenAI não configurada'}
+            return {'error': 'API key da OpenAI não configurada. Por favor, configure a chave nas variáveis de ambiente.'}
         
         headers = {
             'Content-Type': 'application/json',
@@ -34,19 +34,34 @@ class OpenAIService:
             'max_tokens': max_tokens
         }
         
+        # Adicionar mensagem de fallback caso ocorra um erro
+        fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
+        
         try:
+            logging.info(f"Enviando requisição para OpenAI API: {json.dumps(data)[:200]}...")
             response = requests.post(
                 self.api_url,
                 headers=headers,
-                json=data
+                json=data,
+                timeout=30  # Adicionar timeout para evitar esperas indefinidas
             )
             response.raise_for_status()
             return response.json()
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"Erro na chamada à API OpenAI: {str(e)}")
             if hasattr(e, 'response') and e.response:
                 logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro na chamada à API OpenAI: {str(e)}'}
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get('error', {}).get('message', str(e))
+                    logging.error(f"Mensagem de erro da API: {error_message}")
+                    return {'error': f'Erro na API OpenAI: {error_message}'}
+                except:
+                    pass
+            return {'error': f'Erro de comunicação com a API OpenAI: {str(e)}'}
+        except Exception as e:
+            logging.error(f"Erro inesperado ao chamar a API OpenAI: {str(e)}")
+            return {'error': f'Erro inesperado: {str(e)}'}
     
     def travel_assistant(self, user_message, conversation_history=None):
         """

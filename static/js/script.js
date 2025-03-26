@@ -50,6 +50,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Isso é útil para demonstração/teste rápido
     setTimeout(checkPrices, 10000); // Verifica após 10 segundos para dar tempo de visualizar
     
+    // Configurar event listener para a tecla Enter no campo de mensagem
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.addEventListener('keydown', function(e) {
+            // Se pressionou Enter sem Shift, envia o formulário
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Impede a quebra de linha
+                const chatForm = document.getElementById('chat-form');
+                if (chatForm) {
+                    // Dispara o evento de submit no formulário
+                    const submitEvent = new Event('submit', {
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    chatForm.dispatchEvent(submitEvent);
+                }
+            }
+            // Se pressionou Shift+Enter, permite quebra de linha normal
+        });
+    }
+    
     // Show conversations section by default
     showSection('conversations');
     
