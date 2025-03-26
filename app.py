@@ -93,6 +93,9 @@ def chat():
                 db.session.add(conversation)
                 db.session.commit()
                 conversation_id = conversation.id
+
+                # Depois de criar a conversa, carregá-la nas conversas do usuário
+                logging.info(f"Nova conversa criada: {conversation_id} - {title}")
             except Exception as e:
                 logging.error(f"Erro ao criar conversa: {str(e)}")
                 # Continue mesmo com erro (modo degradado)
@@ -292,10 +295,10 @@ def login():
     data = request.json
     email = data.get('email')
     password = data.get('password')
-    
+
     if not email or not password:
         return jsonify({"error": "Email e senha são obrigatórios"}), 400
-    
+
     user = User.query.filter_by(email=email).first()
     if user and user.check_password(password):
         login_user(user)
@@ -307,7 +310,7 @@ def login():
                 "email": user.email
             }
         })
-    
+
     return jsonify({"error": "Email ou senha inválidos"}), 401
 
 @app.route('/logout')
@@ -320,7 +323,7 @@ def logout():
 @login_required
 def get_conversations_login_required():
     user_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
-    
+
     result = []
     for conv in user_conversations:
         result.append({
@@ -328,7 +331,7 @@ def get_conversations_login_required():
             "title": conv.title,
             "last_updated": conv.last_updated.strftime("%d/%m/%Y")
         })
-    
+
     return jsonify(result)
 
 @app.route('/api/conversation/<int:conversation_id>/messages')
@@ -337,9 +340,9 @@ def get_conversation_messages(conversation_id):
     conv = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
     if not conv:
         return jsonify({"error": "Conversa não encontrada"}), 404
-    
+
     messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
-    
+
     result = []
     for msg in messages:
         result.append({
@@ -348,7 +351,7 @@ def get_conversation_messages(conversation_id):
             "content": msg.content,
             "timestamp": msg.timestamp.isoformat()
         })
-    
+
     return jsonify(result)
 
 
@@ -356,7 +359,7 @@ def get_conversation_messages(conversation_id):
 @login_required
 def get_plans():
     user_plans = TravelPlan.query.filter_by(user_id=current_user.id).order_by(TravelPlan.updated_at.desc()).all()
-    
+
     result = []
     for plan in user_plans:
         result.append({
@@ -367,17 +370,17 @@ def get_plans():
             "end_date": plan.end_date.strftime("%d/%m/%Y") if plan.end_date else None,
             "details": plan.details
         })
-    
+
     return jsonify(result)
 
 @app.route('/api/plan/<int:plan_id>')
 @login_required
 def get_plan(plan_id):
     plan = TravelPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
-    
+
     if not plan:
         return jsonify({"error": "Plano não encontrado"}), 404
-    
+
     # Buscar voos associados
     flights_data = []
     for flight in plan.flights:
@@ -392,7 +395,7 @@ def get_plan(plan_id):
             "price": flight.price,
             "currency": flight.currency
         })
-    
+
     # Buscar acomodações associadas
     accommodations_data = []
     for acc in plan.accommodations:
@@ -406,7 +409,7 @@ def get_plan(plan_id):
             "currency": acc.currency,
             "stars": acc.stars
         })
-    
+
     result = {
         "id": plan.id,
         "title": plan.title,
@@ -417,14 +420,14 @@ def get_plan(plan_id):
         "flights": flights_data,
         "accommodations": accommodations_data
     }
-    
+
     return jsonify(result)
 
 @app.route('/api/profile')
 @login_required
 def get_profile():
     user = current_user
-    
+
     profile = {
         "id": user.id,
         "name": user.name,
@@ -436,7 +439,7 @@ def get_profile():
             "budget": user.budget
         }
     }
-    
+
     return jsonify(profile)
 
 @app.route('/api/profile', methods=['POST'])
@@ -444,7 +447,7 @@ def get_profile():
 def update_profile():
     user = current_user
     data = request.json
-    
+
     # Update only the provided fields
     if 'name' in data:
         user.name = data['name']
@@ -460,9 +463,9 @@ def update_profile():
             user.accommodation_type = preferences['accommodation_type']
         if 'budget' in preferences:
             user.budget = preferences['budget']
-    
+
     db.session.commit()
-    
+
     return jsonify({
         "success": True, 
         "profile": {
@@ -485,10 +488,10 @@ def get_monitored_offers():
     """Retorna todas as ofertas monitoradas"""
     user_monitors = PriceMonitor.query.filter_by(user_id=current_user.id).all()
     user_alerts = PriceAlert.query.join(PriceMonitor).filter(PriceMonitor.user_id == current_user.id).order_by(PriceAlert.date.desc()).all()
-    
+
     flights = []
     hotels = []
-    
+
     # Organizar monitores por tipo
     for monitor in user_monitors:
         item = {
@@ -504,7 +507,7 @@ def get_monitored_offers():
             "last_checked": monitor.last_checked.isoformat(),
             "data": monitor.offer_data
         }
-        
+
         # Adicionar histórico de preços
         price_history = []
         for history in monitor.price_history:
@@ -513,12 +516,12 @@ def get_monitored_offers():
                 "price": history.price
             })
         item["price_history"] = price_history
-        
+
         if monitor.type == 'flight':
             flights.append(item)
         else:
             hotels.append(item)
-    
+
     # Processar alertas
     alerts = []
     for alert in user_alerts:
@@ -535,7 +538,7 @@ def get_monitored_offers():
             "date": alert.date.isoformat(),
             "read": alert.read
         })
-    
+
     return jsonify({
         "flights": flights,
         "hotels": hotels,
@@ -550,29 +553,29 @@ def add_monitored_offer():
         data = request.json
         offer_type = data.get('type')  # 'flight' ou 'hotel'
         offer_data = data.get('data')
-        
+
         if not offer_type or not offer_data:
             return jsonify({"error": "Tipo de oferta e dados são obrigatórios"}), 400
-            
+
         if offer_type not in ['flight', 'hotel']:
             return jsonify({"error": "Tipo de oferta inválido. Use 'flight' ou 'hotel'"}), 400
-        
+
         now = datetime.utcnow()
         name = ""
         description = ""
         price = None
         currency = "BRL"
-        
+
         # Extrair dados específicos com base no tipo de oferta
         if offer_type == 'flight':
             # Nome: Companhia aérea + número do voo
             if 'airline' in offer_data and 'flight_number' in offer_data:
                 name = f"{offer_data['airline']} {offer_data['flight_number']}"
-            
+
             # Descrição: Origem-Destino
             if 'departure' in offer_data and 'arrival' in offer_data:
                 description = f"{offer_data['departure']} → {offer_data['arrival']}"
-            
+
             # Preço: extrair valor numérico e moeda
             if 'price' in offer_data:
                 price_str = offer_data['price']
@@ -583,16 +586,16 @@ def add_monitored_offer():
                         currency = parts[1]
                     except ValueError:
                         pass
-                        
+
         elif offer_type == 'hotel':
             # Nome: Nome do hotel
             if 'name' in offer_data:
                 name = offer_data['name']
-            
+
             # Descrição: Localização
             if 'location' in offer_data:
                 description = offer_data['location']
-            
+
             # Preço: extrair valor numérico e moeda
             if 'price_per_night' in offer_data:
                 price_str = offer_data['price_per_night']
@@ -603,13 +606,13 @@ def add_monitored_offer():
                         currency = parts[1]
                     except ValueError:
                         pass
-        
+
         # Se não conseguimos extrair um preço, retornar erro
         if price is None:
             return jsonify({
                 "error": "Não foi possível extrair o preço da oferta"
             }), 400
-        
+
         # Criar a entrada de monitoramento no banco de dados
         monitor = PriceMonitor(
             user_id=current_user.id,
@@ -627,7 +630,7 @@ def add_monitored_offer():
         )
         db.session.add(monitor)
         db.session.flush()  # Para obter o ID
-        
+
         # Adicionar o primeiro registro de histórico de preço
         price_history = PriceHistory(
             monitor_id=monitor.id,
@@ -635,16 +638,16 @@ def add_monitored_offer():
             date=now
         )
         db.session.add(price_history)
-        
+
         # Commit das alterações
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Oferta adicionada ao monitoramento com sucesso",
             "monitor_id": monitor.id
         })
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Erro ao adicionar oferta ao monitoramento: {str(e)}")
@@ -660,24 +663,24 @@ def remove_monitored_offer(monitor_id):
     try:
         # Buscar o monitor no banco de dados
         monitor = PriceMonitor.query.filter_by(id=monitor_id, user_id=current_user.id).first()
-        
+
         if not monitor:
             return jsonify({
                 "error": "Oferta monitorada não encontrada"
             }), 404
-        
+
         # Definir o tipo para a mensagem de sucesso
         offer_type = "voo" if monitor.type == "flight" else "hotel"
-        
+
         # Remover o monitor e seus dados associados (histórico e alertas serão removidos em cascata)
         db.session.delete(monitor)
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": f"Oferta de {offer_type} removida do monitoramento com sucesso"
         })
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Erro ao remover oferta do monitoramento: {str(e)}")
@@ -705,10 +708,10 @@ def check_prices():
             },
             "alerts": []
         }
-        
+
         # Buscar monitores de preço do usuário
         user_monitors = PriceMonitor.query.filter_by(user_id=current_user.id).all()
-        
+
         # Processar cada monitor
         for monitor in user_monitors:
             # Incrementar contadores
@@ -720,7 +723,7 @@ def check_prices():
                 results['hotels']['checked'] += 1
                 category = 'hotels'
                 threshold = 0.93  # 7% de queda para hotéis
-            
+
             try:
                 # Em produção, usaríamos a API Amadeus para verificar o preço atual
                 # Aqui, vamos simular uma pequena variação de preço aleatória
@@ -729,12 +732,12 @@ def check_prices():
                     import random
                     change = random.uniform(-0.15, 0.05)  # Tendência para queda
                     new_price = monitor.current_price * (1 + change)
-                    
+
                     # Atualizar preço atual
                     old_price = monitor.current_price
                     monitor.current_price = new_price
                     monitor.last_checked = now
-                    
+
                     # Adicionar ao histórico de preços
                     price_history = PriceHistory(
                         monitor_id=monitor.id,
@@ -742,11 +745,11 @@ def check_prices():
                         date=now
                     )
                     db.session.add(price_history)
-                    
+
                     # Atualizar o menor preço, se aplicável
                     if new_price < monitor.lowest_price:
                         monitor.lowest_price = new_price
-                    
+
                     # Se houve queda significativa no preço, criar alerta
                     if new_price < old_price * threshold:
                         alert = PriceAlert(
@@ -758,7 +761,7 @@ def check_prices():
                         )
                         db.session.add(alert)
                         db.session.flush()  # Para obter o ID
-                        
+
                         # Adicionar aos resultados
                         results['alerts'].append({
                             "id": alert.id,
@@ -772,19 +775,19 @@ def check_prices():
                             "date": now.isoformat(),
                             "read": False
                         })
-                    
+
                     results[category]['updated'] += 1
             except Exception as e:
                 db.session.rollback()
                 logging.error(f"Erro ao verificar preço do item {monitor.id}: {str(e)}")
                 results[category]['errors'] += 1
                 continue
-        
+
         # Commit das alterações
         db.session.commit()
-        
+
         return jsonify(results)
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Erro ao verificar preços: {str(e)}")
@@ -802,7 +805,7 @@ def get_price_alerts():
         user_alerts = PriceAlert.query.join(PriceMonitor).filter(
             PriceMonitor.user_id == current_user.id
         ).order_by(PriceAlert.date.desc()).all()
-        
+
         # Formatar resposta
         alerts = []
         for alert in user_alerts:
@@ -819,9 +822,9 @@ def get_price_alerts():
                 "date": alert.date.isoformat(),
                 "read": alert.read
             })
-        
+
         return jsonify(alerts)
-        
+
     except Exception as e:
         logging.error(f"Erro ao buscar alertas de preço: {str(e)}")
         return jsonify({
@@ -836,30 +839,30 @@ def mark_alerts_read():
     try:
         data = request.json
         alert_ids = data.get('alert_ids', [])
-        
+
         # Preparar a consulta para obter apenas alertas do usuário atual
         query = PriceAlert.query.join(PriceMonitor).filter(
             PriceMonitor.user_id == current_user.id
         )
-        
+
         if alert_ids:
             # Se há IDs específicos, adicionar filtro
             query = query.filter(PriceAlert.id.in_(alert_ids))
-        
+
         # Buscar e atualizar alertas
         alerts = query.all()
         for alert in alerts:
             alert.read = True
-        
+
         # Commit das alterações
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Alertas marcados como lidos com sucesso",
             "count": len(alerts)
         })
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Erro ao marcar alertas como lidos: {str(e)}")

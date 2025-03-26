@@ -30,365 +30,93 @@ document.addEventListener('DOMContentLoaded', function() {
             sidebar.classList.toggle('collapsed');
             isSidebarCollapsed = !isSidebarCollapsed;
 
-            // Mudar o ícone dependendo do estado
-            const icon = sidebarToggle.querySelector('i');
+            // Atualizar ícone do botão
             if (isSidebarCollapsed) {
-                icon.classList.remove('fa-chevron-left');
-                icon.classList.add('fa-chevron-right');
+                sidebarToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
             } else {
-                icon.classList.remove('fa-chevron-right');
-                icon.classList.add('fa-chevron-left');
+                sidebarToggle.innerHTML = '<i class="fas fa-chevron-left"></i>';
             }
+
+            // Expandir/encolher conteúdo principal
+            content.classList.toggle('expanded');
         });
     }
 
-    // Navegação da barra lateral
+    // Navegação entre seções
     sidebarNavItems.forEach(item => {
         item.addEventListener('click', function() {
             const section = this.getAttribute('data-section');
-
-            // Atualizar a classe ativa no item da barra lateral
-            sidebarNavItems.forEach(navItem => {
-                navItem.classList.remove('active');
-            });
-            this.classList.add('active');
-
-            // Mostrar a seção correspondente
             showSection(section);
-
-            // Atualizar o conteúdo da barra lateral com base na seção
-            updateSidebarContent(section);
         });
     });
 
-    // Função para mostrar a seção correspondente
-    function showSection(section) {
-        activeSection = section;
-
-        // Esconder todas as seções
-        const contentSections = document.querySelectorAll('.content-section');
-        contentSections.forEach(section => {
-            section.classList.remove('active');
-        });
-
-        // Mostrar a seção correspondente
-        const sectionToShow = document.getElementById(`${section}-section`);
-        if (sectionToShow) {
-            sectionToShow.classList.add('active');
-        }
-    }
-
-    // Atualizar o conteúdo da barra lateral com base na seção
-    function updateSidebarContent(section) {
-        const conversationsSection = document.getElementById('conversations-section');
-        const plansSection = document.getElementById('plans-section');
-
-        // Esconder todas as seções da barra lateral
-        if (conversationsSection) conversationsSection.classList.remove('active');
-        if (plansSection) plansSection.classList.remove('active');
-
-        // Mostrar a seção correspondente
-        if (section === 'chat' && conversationsSection) {
-            conversationsSection.classList.add('active');
-            loadConversations(); // Carregar conversas
-        } else if (section === 'plans' && plansSection) {
-            plansSection.classList.add('active');
-            loadPlans(); // Carregar planos
-        }
-    }
-
-    // Abrir modal
-    function openModal(modal) {
-        if (modal) {
-            modal.style.display = 'flex';
-        }
-    }
-
-    // Fechar modal
-    function closeModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    // Event listeners para modais
-    if (loginButton) {
-        loginButton.addEventListener('click', function() {
-            openModal(loginModal);
-        });
-    }
-
-    if (signupButton) {
-        signupButton.addEventListener('click', function() {
-            openModal(signupModal);
-        });
-    }
-
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const modal = this.closest('.modal');
-            closeModal(modal);
-        });
-    });
-
-    // Clicar fora do modal para fechar
-    window.addEventListener('click', function(event) {
-        if (event.target.classList.contains('modal')) {
-            closeModal(event.target);
-        }
-    });
-
-    // Processar formulário de login
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-
-            fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    password: password
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    userLoggedIn = true;
-                    userProfile = data.user;
-                    closeModal(loginModal);
-
-                    // Atualizar UI para usuário logado
-                    updateUIForLoggedInUser();
-
-                    // Carregar dados do usuário
-                    loadUserData();
-                } else {
-                    alert(data.error || 'Erro ao fazer login');
-                }
-            })
-            .catch(error => {
-                console.error('Error logging in:', error);
-                alert('Erro ao fazer login. Por favor, tente novamente.');
-            });
-        });
-    }
-
-    // Atualizar UI para usuário logado
-    function updateUIForLoggedInUser() {
-        if (loginButton) loginButton.style.display = 'none';
-        if (signupButton) signupButton.style.display = 'none';
-
-        // Mostrar saudação ao usuário
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions) {
-            const userGreeting = document.createElement('div');
-            userGreeting.classList.add('user-greeting');
-            userGreeting.innerHTML = `
-                <span>Olá, ${userProfile.name || 'Usuário'}</span>
-                <button id="logout-button" class="btn btn-outline btn-sm">
-                    <i class="fas fa-sign-out-alt"></i> Sair
-                </button>
-            `;
-            headerActions.innerHTML = '';
-            headerActions.appendChild(userGreeting);
-
-            // Adicionar event listener para o botão de logout
-            const logoutButton = document.getElementById('logout-button');
-            if (logoutButton) {
-                logoutButton.addEventListener('click', logout);
-            }
-        }
-    }
-
-    // Função de logout
-    function logout() {
-        fetch('/logout')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                userLoggedIn = false;
-                userProfile = {};
-
-                // Resetar UI
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Error logging out:', error);
-        });
-    }
-
-    // Carregar dados do usuário (conversas, planos, perfil)
-    function loadUserData() {
-        loadConversations();
-        loadPlans();
-        loadProfile();
-    }
-
-    // Verificar se o usuário já está logado ao carregar a página
-    function checkLoginStatus() {
-        fetch('/api/profile')
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Usuário não está logado');
-        })
-        .then(data => {
-            userLoggedIn = true;
-            userProfile = data;
-            updateUIForLoggedInUser();
-            loadUserData();
-        })
-        .catch(error => {
-            console.log('Usuário não está logado:', error);
-            // Não precisamos mostrar erro, pois é esperado quando não está logado
-        });
-    }
-
-    // Carregar perfil do usuário
-    function loadProfile() {
-        fetch('/api/profile')
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Erro ao carregar perfil');
-        })
-        .then(data => {
-            userProfile = data;
-
-            // Preencher formulário de perfil
-            const nameInput = document.getElementById('profile-name');
-            const emailInput = document.getElementById('profile-email');
-            const phoneInput = document.getElementById('profile-phone');
-            const destinationsInput = document.getElementById('profile-preferred-destinations');
-            const accommodationSelect = document.getElementById('profile-accommodation-type');
-            const budgetSelect = document.getElementById('profile-budget');
-
-            if (nameInput) nameInput.value = data.name || '';
-            if (emailInput) emailInput.value = data.email || '';
-            if (phoneInput) phoneInput.value = data.phone || '';
-
-            if (data.preferences) {
-                if (destinationsInput) destinationsInput.value = data.preferences.preferred_destinations || '';
-                if (accommodationSelect) accommodationSelect.value = data.preferences.accommodation_type || '';
-                if (budgetSelect) budgetSelect.value = data.preferences.budget || '';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading profile:', error);
-        });
-    }
-
-    // Processar formulário de perfil
-    if (profileForm) {
-        profileForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const name = document.getElementById('profile-name').value;
-            const email = document.getElementById('profile-email').value;
-            const phone = document.getElementById('profile-phone').value;
-            const preferredDestinations = document.getElementById('profile-preferred-destinations').value;
-            const accommodationType = document.getElementById('profile-accommodation-type').value;
-            const budget = document.getElementById('profile-budget').value;
-
-            const profileData = {
-                name: name,
-                email: email,
-                phone: phone,
-                preferences: {
-                    preferred_destinations: preferredDestinations,
-                    accommodation_type: accommodationType,
-                    budget: budget
-                }
-            };
-
-            fetch('/api/profile', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(profileData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Perfil atualizado com sucesso!');
-                    userProfile = data.profile;
-                } else {
-                    alert(data.error || 'Erro ao atualizar perfil');
-                }
-            })
-            .catch(error => {
-                console.error('Error updating profile:', error);
-                alert('Erro ao atualizar perfil. Por favor, tente novamente.');
-            });
-        });
-    }
-
-    // Formulário de chat
+    // Funcionalidade de chat
     if (chatForm) {
         chatForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            sendMessage();
+        });
+    }
 
-            const message = messageInput.value.trim();
-            if (message) {
-                addMessageToChat(message, true);
-                messageInput.value = '';
-
-                // Ajustar altura do textarea
-                messageInput.style.height = 'auto';
-
-                // Enviar mensagem para o servidor
-                sendMessage(message);
+    // Adicionar evento para tecla Enter no campo de mensagem
+    if (messageInput) {
+        messageInput.addEventListener('keydown', function(e) {
+            // Verificar se a tecla pressionada é Enter e não tem Shift pressionado (para permitir quebras de linha com Shift+Enter)
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Impedir o comportamento padrão (quebra de linha)
+                sendMessage(); // Enviar a mensagem
             }
         });
     }
 
-    // Auto-resize para o textarea de mensagem
-    if (messageInput) {
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
+    // Função para enviar mensagem
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Adicionar mensagem do usuário ao chat
+        addMessageToChat(message, true);
+
+        // Limpar campo de input
+        messageInput.value = '';
+
+        // Enviar mensagem para a API e receber resposta
+        getChatResponse(message);
     }
 
-    // Adicionar mensagem ao chat
+    // Função para adicionar mensagem ao chat
     function addMessageToChat(message, isUser) {
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message');
-        messageDiv.classList.add(isUser ? 'user' : 'assistant');
+        messageDiv.className = isUser ? 'message user' : 'message assistant';
 
-        messageDiv.innerHTML = `
-            <div class="message-avatar">
-                <i class="fas ${isUser ? 'fa-user' : 'fa-robot'}"></i>
-            </div>
-            <div class="message-content">
-                <p>${message}</p>
-            </div>
-        `;
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'message-avatar';
+
+        // Adicionar ícone baseado em quem está falando
+        avatarDiv.innerHTML = isUser 
+            ? '<i class="fas fa-user"></i>' 
+            : '<i class="fas fa-robot"></i>';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = `<p>${message}</p>`;
+
+        messageDiv.appendChild(avatarDiv);
+        messageDiv.appendChild(contentDiv);
 
         chatMessages.appendChild(messageDiv);
 
-        // Rolar para o final
+        // Scroll para a última mensagem
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Enviar mensagem para o servidor
-    function sendMessage(message) {
+    // Função para obter resposta do chat
+    function getChatResponse(userMessage) {
         const data = {
-            message: message
+            message: userMessage,
         };
 
-        // Se estiver em uma conversa existente, adicionar o ID
+        // Adicionar ID da conversa, se existir
         if (currentConversationId) {
             data.conversation_id = currentConversationId;
         }
@@ -424,11 +152,86 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error getting chat response:', error);
-            addMessageToChat('Desculpe, ocorreu um erro ao processar sua mensagem.', false);
+            addMessageToChat('Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde.', false);
         });
     }
 
-    // Carregar conversas do usuário
+    // Modais de login e cadastro
+    if (loginButton) {
+        loginButton.addEventListener('click', function() {
+            showModal(loginModal);
+        });
+    }
+
+    if (signupButton) {
+        signupButton.addEventListener('click', function() {
+            showModal(signupModal);
+        });
+    }
+
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            hideModal(this.closest('.modal'));
+        });
+    });
+
+    // Fechar modal ao clicar fora
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            hideModal(e.target);
+        }
+    });
+
+    // Funções auxiliares para modais
+    function showModal(modal) {
+        modal.style.display = 'flex';
+    }
+
+    function hideModal(modal) {
+        modal.style.display = 'none';
+    }
+
+    // Função para mudar entre seções
+    function showSection(section) {
+        // Atualizar item ativo na navegação
+        sidebarNavItems.forEach(item => {
+            if (item.getAttribute('data-section') === section) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        // Seção do sidebar
+        const sidebarSections = document.querySelectorAll('.sidebar-section');
+        sidebarSections.forEach(section => {
+            section.classList.remove('active');
+        });
+
+        if (section === 'chat') {
+            document.getElementById('conversations-section').classList.add('active');
+        } else if (section === 'plans') {
+            document.getElementById('plans-section').classList.add('active');
+        }
+
+        // Seções de conteúdo
+        const contentSections = document.querySelectorAll('.content-section');
+        contentSections.forEach(s => {
+            s.classList.remove('active');
+        });
+
+        if (section === 'chat') {
+            document.getElementById('chat-section').classList.add('active');
+        } else if (section === 'plans') {
+            document.getElementById('plans-detail-section').classList.add('active');
+        } else if (section === 'profile') {
+            document.getElementById('profile-section').classList.add('active');
+        }
+
+        activeSection = section;
+    }
+
+    // Carregar conversas
     function loadConversations() {
         fetch('/api/conversations')
         .then(response => {
@@ -438,11 +241,11 @@ document.addEventListener('DOMContentLoaded', function() {
             throw new Error('Error loading conversations');
         })
         .then(data => {
-            conversations = data;
+            conversations = data.conversations || [];
             renderConversationsList();
         })
         .catch(error => {
-            console.log('Error loading conversations:', error);
+            console.error('Error loading conversations:', error);
         });
     }
 
@@ -451,43 +254,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const conversationsList = document.getElementById('conversations-list');
         if (!conversationsList) return;
 
+        // Limpar lista
         conversationsList.innerHTML = '';
 
-        if (conversations.length === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.classList.add('empty-list-message');
-            emptyMessage.textContent = 'Nenhuma conversa iniciada';
-            conversationsList.appendChild(emptyMessage);
-            return;
-        }
-
-        // Usar o template para criar itens na lista
-        const template = document.getElementById('conversation-item-template');
-
+        // Adicionar cada conversa à lista
         conversations.forEach(conversation => {
-            const item = document.importNode(template.content, true).querySelector('.sidebar-item');
+            const template = document.getElementById('conversation-item-template');
+            const clone = document.importNode(template.content, true);
 
+            const item = clone.querySelector('.sidebar-item');
             item.setAttribute('data-id', conversation.id);
-            item.querySelector('.sidebar-item-title').textContent = conversation.title;
-            item.querySelector('.sidebar-item-subtitle').textContent = conversation.last_updated;
 
-            // Marcar a conversa atual como ativa
-            if (conversation.id === currentConversationId) {
+            const title = clone.querySelector('.sidebar-item-title');
+            title.textContent = conversation.title;
+
+            const date = new Date(conversation.created_at);
+            const subtitle = clone.querySelector('.sidebar-item-subtitle');
+            subtitle.textContent = date.toLocaleDateString();
+
+            // Destacar conversa ativa
+            if (currentConversationId === conversation.id) {
                 item.classList.add('active');
             }
 
+            // Adicionar evento de clique
             item.addEventListener('click', function() {
-                // Carregar conversa
                 loadConversation(conversation.id);
             });
 
-            conversationsList.appendChild(item);
+            conversationsList.appendChild(clone);
         });
     }
 
-    // Carregar uma conversa específica
+    // Carregar conversa específica
     function loadConversation(conversationId) {
-        fetch(`/api/conversation/${conversationId}/messages`)
+        fetch(`/api/conversations/${conversationId}`)
         .then(response => {
             if (response.ok) {
                 return response.json();
@@ -498,15 +299,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Limpar chat atual
             chatMessages.innerHTML = '';
 
-            // Adicionar mensagens ao chat
-            data.forEach(message => {
-                addMessageToChat(message.content, message.is_user);
-            });
-
             // Atualizar ID da conversa atual
             currentConversationId = conversationId;
 
-            // Atualizar UI para mostrar conversa ativa
+            // Carregar mensagens
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => {
+                    addMessageToChat(msg.content, msg.is_user);
+                });
+            }
+
+            // Atualizar lista de conversas para destacar a conversa ativa
             renderConversationsList();
 
             // Mostrar seção de chat
@@ -558,203 +361,274 @@ document.addEventListener('DOMContentLoaded', function() {
         const plansList = document.getElementById('plans-list');
         if (!plansList) return;
 
+        // Limpar lista
         plansList.innerHTML = '';
 
-        if (plans.length === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.classList.add('empty-list-message');
-            emptyMessage.textContent = 'Nenhum plano de viagem criado';
-            plansList.appendChild(emptyMessage);
-            return;
-        }
-
-        // Usar o template para criar itens na lista
-        const template = document.getElementById('plan-item-template');
-
+        // Adicionar cada plano à lista
         plans.forEach(plan => {
-            const item = document.importNode(template.content, true).querySelector('.sidebar-item');
+            const template = document.getElementById('plan-item-template');
+            const clone = document.importNode(template.content, true);
 
+            const item = clone.querySelector('.sidebar-item');
             item.setAttribute('data-id', plan.id);
-            item.querySelector('.sidebar-item-title').textContent = plan.title;
-            item.querySelector('.sidebar-item-subtitle').textContent = plan.destination;
 
+            const title = clone.querySelector('.sidebar-item-title');
+            title.textContent = plan.title;
+
+            const subtitle = clone.querySelector('.sidebar-item-subtitle');
+            subtitle.textContent = plan.destination;
+
+            // Adicionar evento de clique
             item.addEventListener('click', function() {
-                // Carregar detalhes do plano
-                loadPlanDetails(plan.id);
+                loadPlan(plan.id);
             });
 
-            plansList.appendChild(item);
+            plansList.appendChild(clone);
         });
     }
 
-    // Carregar detalhes de um plano
-    function loadPlanDetails(planId) {
+    // Carregar plano específico
+    function loadPlan(planId) {
         fetch(`/api/plan/${planId}`)
         .then(response => {
             if (response.ok) {
                 return response.json();
             }
-            throw new Error('Error loading plan details');
+            throw new Error('Error loading plan');
         })
-        .then(plan => {
-            const planDetailsContainer = document.getElementById('plan-details');
-            if (!planDetailsContainer) return;
-
-            // Formatar datas
-            const startDate = plan.start_date || 'Data não definida';
-            const endDate = plan.end_date || 'Data não definida';
-
-            planDetailsContainer.innerHTML = `
-                <div class="plan-header">
-                    <h3>${plan.title}</h3>
-                    <div class="plan-destination">
-                        <i class="fas fa-map-marker-alt"></i> ${plan.destination}
-                    </div>
-                    <div class="plan-dates">
-                        <i class="fas fa-calendar"></i> ${startDate} - ${endDate}
-                    </div>
-                </div>
-                <div class="plan-content">
-                    <h4>Detalhes</h4>
-                    <p>${plan.details || 'Nenhum detalhe disponível'}</p>
-
-                    <div class="plan-sections">
-                        <div class="plan-section">
-                            <h4>Voos</h4>
-                            <div class="plan-flights-list">
-                                ${renderFlightsList(plan.flights || [])}
-                            </div>
-                        </div>
-
-                        <div class="plan-section">
-                            <h4>Acomodações</h4>
-                            <div class="plan-accommodations-list">
-                                ${renderAccommodationsList(plan.accommodations || [])}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="plan-actions">
-                    <button class="btn btn-primary" onclick="downloadPlanPDF(${plan.id})">
-                        <i class="fas fa-download"></i> Baixar PDF
-                    </button>
-                </div>
-            `;
-
-            // Mostrar seção de detalhes do plano
-            showSection('plans-detail');
+        .then(data => {
+            renderPlanDetails(data);
+            showSection('plans');
         })
         .catch(error => {
-            console.error('Error loading plan details:', error);
-            alert('Erro ao carregar detalhes do plano. Por favor, tente novamente.');
+            console.error('Error loading plan:', error);
+            alert('Erro ao carregar plano. Por favor, tente novamente.');
         });
     }
 
-    // Renderizar lista de voos
-    function renderFlightsList(flights) {
-        if (flights.length === 0) {
-            return '<p class="empty-list-message">Nenhum voo adicionado</p>';
-        }
+    // Renderizar detalhes do plano
+    function renderPlanDetails(plan) {
+        const planDetails = document.getElementById('plan-details');
 
-        let html = '';
-
-        flights.forEach(flight => {
-            html += `
-                <div class="flight-item">
-                    <div class="flight-header">
-                        <span class="flight-airline">${flight.airline}</span>
-                        <span class="flight-number">${flight.flight_number}</span>
-                    </div>
-                    <div class="flight-route">
-                        <div class="flight-location">
-                            <div class="flight-time">${formatTime(flight.departure_time)}</div>
-                            <div class="flight-city">${flight.departure_location}</div>
-                        </div>
-                        <div class="flight-divider">
-                            <i class="fas fa-plane"></i>
-                        </div>
-                        <div class="flight-location">
-                            <div class="flight-time">${formatTime(flight.arrival_time)}</div>
-                            <div class="flight-city">${flight.arrival_location}</div>
-                        </div>
-                    </div>
-                    <div class="flight-price">
-                        <span>${flight.price} ${flight.currency}</span>
-                    </div>
+        // Criar HTML para o plano
+        const html = `
+            <div class="plan-header">
+                <h3>${plan.title}</h3>
+                <span class="plan-destination">${plan.destination}</span>
+                <div class="plan-dates">
+                    ${plan.start_date ? `<span>De: ${plan.start_date}</span>` : ''}
+                    ${plan.end_date ? `<span>Até: ${plan.end_date}</span>` : ''}
                 </div>
-            `;
-        });
-
-        return html;
-    }
-
-    // Renderizar lista de acomodações
-    function renderAccommodationsList(accommodations) {
-        if (accommodations.length === 0) {
-            return '<p class="empty-list-message">Nenhuma acomodação adicionada</p>';
-        }
-
-        let html = '';
-
-        accommodations.forEach(acc => {
-            html += `
-                <div class="accommodation-item">
-                    <div class="accommodation-header">
-                        <span class="accommodation-name">${acc.name}</span>
-                        <div class="accommodation-stars">
-                            ${renderStars(acc.stars)}
-                        </div>
-                    </div>
-                    <div class="accommodation-location">
-                        <i class="fas fa-map-marker-alt"></i> ${acc.location}
-                    </div>
-                    <div class="accommodation-dates">
-                        <span>${acc.check_in || 'Data não definida'} - ${acc.check_out || 'Data não definida'}</span>
-                    </div>
-                    <div class="accommodation-price">
-                        <span>${acc.price_per_night} ${acc.currency} / noite</span>
-                    </div>
+            </div>
+            <div class="plan-content">
+                <div class="plan-description">
+                    <h4>Detalhes</h4>
+                    <p>${plan.details || 'Sem detalhes disponíveis.'}</p>
                 </div>
-            `;
-        });
 
-        return html;
+                <div class="plan-flights">
+                    <h4>Voos</h4>
+                    ${plan.flights && plan.flights.length > 0 
+                        ? `<ul>${plan.flights.map(flight => `
+                            <li>
+                                <div class="flight-item">
+                                    <div class="flight-header">
+                                        <span class="flight-airline">${flight.airline} ${flight.flight_number}</span>
+                                        <span class="flight-price">${flight.price} ${flight.currency}</span>
+                                    </div>
+                                    <div class="flight-route">
+                                        ${flight.departure_location} → ${flight.arrival_location}
+                                    </div>
+                                    <div class="flight-times">
+                                        <span>Partida: ${new Date(flight.departure_time).toLocaleString()}</span>
+                                        <span>Chegada: ${new Date(flight.arrival_time).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </li>`).join('')}
+                        </ul>`
+                        : '<p>Nenhum voo selecionado.</p>'
+                    }
+                </div>
+
+                <div class="plan-accommodations">
+                    <h4>Acomodações</h4>
+                    ${plan.accommodations && plan.accommodations.length > 0 
+                        ? `<ul>${plan.accommodations.map(acc => `
+                            <li>
+                                <div class="accommodation-item">
+                                    <div class="accommodation-header">
+                                        <span class="accommodation-name">${acc.name}</span>
+                                        <span class="accommodation-price">${acc.price_per_night} ${acc.currency}/noite</span>
+                                    </div>
+                                    <div class="accommodation-location">${acc.location}</div>
+                                    <div class="accommodation-dates">
+                                        <span>Check-in: ${acc.check_in}</span>
+                                        <span>Check-out: ${acc.check_out}</span>
+                                    </div>
+                                    <div class="accommodation-stars">
+                                        ${'★'.repeat(acc.stars)}${'☆'.repeat(5 - acc.stars)}
+                                    </div>
+                                </div>
+                            </li>`).join('')}
+                        </ul>`
+                        : '<p>Nenhuma acomodação selecionada.</p>'
+                    }
+                </div>
+            </div>
+        `;
+
+        planDetails.innerHTML = html;
     }
 
-    // Renderizar estrelas para avaliação
-    function renderStars(stars) {
-        const starsCount = parseInt(stars) || 0;
-        let html = '';
-
-        for (let i = 0; i < 5; i++) {
-            if (i < starsCount) {
-                html += '<i class="fas fa-star"></i>';
-            } else {
-                html += '<i class="far fa-star"></i>';
+    // Carregar perfil do usuário
+    function loadProfile() {
+        fetch('/api/profile')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+                userLoggedIn = true;
             }
-        }
-
-        return html;
+            throw new Error('User not logged in');
+        })
+        .then(data => {
+            userProfile = data;
+            populateProfileForm();
+        })
+        .catch(error => {
+            console.error('Error loading profile:', error);
+            userLoggedIn = false;
+        });
     }
 
-    // Formatar hora
-    function formatTime(timeString) {
-        if (!timeString) return 'Horário não definido';
+    // Preencher formulário de perfil
+    function populateProfileForm() {
+        if (!userProfile) return;
 
-        try {
-            const date = new Date(timeString);
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        } catch (e) {
-            return timeString;
+        document.getElementById('profile-name').value = userProfile.name || '';
+        document.getElementById('profile-email').value = userProfile.email || '';
+        document.getElementById('profile-phone').value = userProfile.phone || '';
+
+        if (userProfile.preferences) {
+            document.getElementById('profile-preferred-destinations').value = userProfile.preferences.preferred_destinations || '';
+            document.getElementById('profile-accommodation-type').value = userProfile.preferences.accommodation_type || '';
+            document.getElementById('profile-budget').value = userProfile.preferences.budget || '';
         }
     }
 
-    // Função placeholder para baixar PDF
-    window.downloadPlanPDF = function(planId) {
-        alert('Função de download em PDF será implementada em breve.');
-    };
+    // Submissão do formulário de perfil
+    if (profileForm) {
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!userLoggedIn) {
+                alert('Você precisa estar logado para salvar suas preferências.');
+                return;
+            }
+
+            const formData = new FormData(this);
+            const data = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                preferences: {
+                    preferred_destinations: formData.get('preferred_destinations'),
+                    accommodation_type: formData.get('accommodation_type'),
+                    budget: formData.get('budget')
+                }
+            };
+
+            fetch('/api/profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Error saving profile');
+            })
+            .then(data => {
+                alert('Perfil salvo com sucesso!');
+                userProfile = data.profile;
+            })
+            .catch(error => {
+                console.error('Error saving profile:', error);
+                alert('Erro ao salvar perfil. Por favor, tente novamente.');
+            });
+        });
+    }
 
     // Inicialização
-    checkLoginStatus();
-    showSection('chat');
+    loadConversations();
+    loadPlans();
+    loadProfile();
+
+    // Monitoramento de preços
+    let monitoredOffers = {
+        flights: [],
+        hotels: [],
+        alerts: []
+    };
+
+    // Carregar ofertas monitoradas
+    function loadMonitoredOffers() {
+        try {
+            fetch('/api/price-monitor')
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('User not logged in');
+            })
+            .then(data => {
+                monitoredOffers = data;
+                console.log(`Carregados: ${monitoredOffers.flights.length + monitoredOffers.hotels.length} ofertas e ${monitoredOffers.alerts.length} alertas`);
+            })
+            .catch(error => {
+                console.log('Usuário não está logado:', error);
+            });
+        } catch (e) {
+            console.error('Erro ao carregar ofertas monitoradas:', e);
+        }
+    }
+
+    // Verificar preços periodicamente (a cada 10 minutos)
+    function schedulePriceCheck() {
+        try {
+            console.log(`Verificando preços para ${monitoredOffers.flights.length + monitoredOffers.hotels.length} ofertas monitoradas`);
+
+            // Se houver ofertas monitoradas, verificar preços
+            if (monitoredOffers.flights.length > 0 || monitoredOffers.hotels.length > 0) {
+                fetch('/api/price-monitor/check', {
+                    method: 'POST'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Error checking prices');
+                })
+                .then(data => {
+                    // Recarregar ofertas após verificação
+                    loadMonitoredOffers();
+
+                    // Notificar usuário se houve alterações significativas de preço
+                    if (data.alerts && data.alerts.length > 0) {
+                        // Implementar notificação
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking prices:', error);
+                });
+            }
+        } catch (e) {
+            console.error('Erro ao verificar preços:', e);
+        }
+    }
+
+    // Iniciar monitoramento de preços
+    loadMonitoredOffers();
+    setInterval(schedulePriceCheck, 600000); // 10 minutos
 });
