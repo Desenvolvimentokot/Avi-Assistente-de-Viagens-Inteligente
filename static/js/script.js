@@ -28,11 +28,27 @@ let chatHistory = [];
 let isSidebarCollapsed = false;
 let isFullscreenChat = false;
 
+// Sistema de monitoramento de preços
+let monitoredOffers = []; // Armazena as ofertas monitoradas
+let priceAlerts = []; // Armazena alertas de queda de preço
+
 // Load initial data
 document.addEventListener('DOMContentLoaded', () => {
     loadConversations();
     loadPlans();
     loadProfile();
+    
+    // Carregar dados do monitoramento de preços (localStorage)
+    loadPriceMonitoringData();
+    
+    // Configurar verificação periódica de preços (a cada 5 minutos)
+    // Em uma implementação real, isso poderia ser feito no servidor
+    const PRICE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos em milissegundos
+    setInterval(checkPrices, PRICE_CHECK_INTERVAL);
+    
+    // Verificar preços imediatamente para inicializar o sistema
+    // Isso é útil para demonstração/teste rápido
+    setTimeout(checkPrices, 10000); // Verifica após 10 segundos para dar tempo de visualizar
     
     // Show conversations section by default
     showSection('conversations');
@@ -330,23 +346,58 @@ function handleChatSubmit(e) {
                 if (searchType === 'flights') {
                     resultsHtml += '<h4>Opções de Voos:</h4>';
                     searchData.results.forEach(flight => {
+                        // Converter preço para formato numérico para monitoramento (removendo R$ e vírgula)
+                        const numericPrice = parseFloat(flight.price.replace('R$', '').replace('.', '').replace(',', '.'));
+                        
                         resultsHtml += `
                             <div class="plan-card">
                                 <div class="plan-card-title">${flight.airline} - ${flight.flight_number}</div>
                                 <div class="plan-card-info">${flight.departure} → ${flight.arrival}</div>
                                 <div class="plan-card-info">Partida: ${flight.departure_time} | Chegada: ${flight.arrival_time}</div>
-                                <div class="plan-card-price">${flight.price}</div>
+                                <div class="plan-card-price-container">
+                                    <div class="plan-card-price">${flight.price}</div>
+                                    <button class="monitor-price-btn" data-type="flight" 
+                                        data-id="${flight.flight_number}"
+                                        data-name="${flight.airline} - ${flight.flight_number}"
+                                        data-destination="${flight.arrival}"
+                                        data-price="${numericPrice}"
+                                        data-formatted-price="${flight.price}"
+                                        data-details='${JSON.stringify({
+                                            departure: flight.departure,
+                                            departure_time: flight.departure_time,
+                                            arrival_time: flight.arrival_time
+                                        })}'>
+                                        <i class="fas fa-bell"></i> Monitorar Preço
+                                    </button>
+                                </div>
                             </div>
                         `;
                     });
                 } else {
                     resultsHtml += '<h4>Opções de Hotéis:</h4>';
                     searchData.results.forEach(hotel => {
+                        // Converter preço para formato numérico para monitoramento (removendo R$ e vírgula)
+                        const numericPrice = parseFloat(hotel.price_per_night.replace('R$', '').replace('.', '').replace(',', '.'));
+                        
                         resultsHtml += `
                             <div class="plan-card">
                                 <div class="plan-card-title">${hotel.name} (${hotel.stars}★)</div>
                                 <div class="plan-card-info">${hotel.location}</div>
-                                <div class="plan-card-price">${hotel.price_per_night} por noite</div>
+                                <div class="plan-card-price-container">
+                                    <div class="plan-card-price">${hotel.price_per_night} por noite</div>
+                                    <button class="monitor-price-btn" data-type="hotel" 
+                                        data-id="${hotel.name.replace(/\s+/g, '-')}"
+                                        data-name="${hotel.name}"
+                                        data-destination="${hotel.location}"
+                                        data-price="${numericPrice}"
+                                        data-formatted-price="${hotel.price_per_night}"
+                                        data-details='${JSON.stringify({
+                                            stars: hotel.stars,
+                                            available: hotel.available
+                                        })}'>
+                                        <i class="fas fa-bell"></i> Monitorar Preço
+                                    </button>
+                                </div>
                             </div>
                         `;
                     });
@@ -506,8 +557,58 @@ function showSection(section) {
             `;
         }
     } else if (section === 'profile') {
-        profileSection.style.display = 'block';
+        // Exibir o perfil no conteúdo principal em vez de usar a seção oculta
         document.querySelector('.sidebar-nav-item[data-section="profile"]').classList.add('active');
+        
+        // Renderizar o perfil diretamente no conteúdo principal
+        content.innerHTML = `
+            <div class="content-section">
+                <h2 class="content-title">Seu Perfil</h2>
+                <div class="profile-container">
+                    <form id="profile-form" class="profile-form">
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-name">Nome</label>
+                            <input type="text" id="profile-name" class="profile-form-input" placeholder="Seu nome" value="${userProfile.name || ''}">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-email">Email</label>
+                            <input type="email" id="profile-email" class="profile-form-input" placeholder="Seu endereço de email" value="${userProfile.email || ''}">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-phone">Telefone</label>
+                            <input type="tel" id="profile-phone" class="profile-form-input" placeholder="Seu número de telefone" value="${userProfile.phone || ''}">
+                        </div>
+                        
+                        <h3 class="profile-section-title">Preferências de Viagem</h3>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-preferred-destinations">Destinos Preferidos</label>
+                            <input type="text" id="profile-preferred-destinations" class="profile-form-input" placeholder="Praia, Montanhas, Cidades, etc." value="${userProfile.preferences?.preferred_destinations || ''}">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-accommodation-type">Tipo de Acomodação</label>
+                            <input type="text" id="profile-accommodation-type" class="profile-form-input" placeholder="Hotel, Hostel, Resort, etc." value="${userProfile.preferences?.accommodation_type || ''}">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-budget">Faixa de Orçamento</label>
+                            <input type="text" id="profile-budget" class="profile-form-input" placeholder="Econômico, Médio, Luxo" value="${userProfile.preferences?.budget || ''}">
+                        </div>
+                        
+                        <button type="submit" class="profile-form-button">Salvar Perfil</button>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Recapturar a referência ao formulário de perfil
+        const newProfileForm = document.getElementById('profile-form');
+        if (newProfileForm) {
+            newProfileForm.addEventListener('submit', handleProfileSubmit);
+        }
     }
     
     activeSection = section;
@@ -671,68 +772,385 @@ function toggleFullscreenChat() {
 }
 
 // Toggle notifications panel
-function toggleNotifications() {
-    // Check if notifications panel exists
+// Sistema de monitoramento de preços
+
+/**
+ * Adiciona uma nova oferta para monitoramento
+ * @param {Object} offer - Objeto contendo detalhes da oferta
+ * @param {string} offer.type - Tipo da oferta ('flight' ou 'hotel')
+ * @param {string} offer.id - Identificador único da oferta
+ * @param {string} offer.name - Nome da oferta (companhia aérea + número do voo, ou nome do hotel)
+ * @param {string} offer.destination - Destino 
+ * @param {number} offer.price - Preço atual em formato numérico (ex: 2450.00)
+ * @param {string} offer.formattedPrice - Preço formatado para exibição (ex: "R$2.450")
+ * @param {Object} offer.details - Detalhes específicos da oferta (datas, localização, etc)
+ */
+function addPriceMonitor(offer) {
+    // Verifica se a oferta já está sendo monitorada
+    const existingOffer = monitoredOffers.find(o => o.id === offer.id && o.type === offer.type);
+    
+    if (existingOffer) {
+        console.log(`Oferta já está sendo monitorada: ${offer.name} para ${offer.destination}`);
+        return existingOffer;
+    }
+    
+    // Adiciona timestamp e histórico de preços
+    const newOffer = {
+        ...offer,
+        added: new Date(),
+        lastChecked: new Date(),
+        priceHistory: [
+            {
+                price: offer.price,
+                date: new Date()
+            }
+        ],
+        lowestPrice: offer.price
+    };
+    
+    // Adiciona à lista de ofertas monitoradas
+    monitoredOffers.push(newOffer);
+    console.log(`Nova oferta adicionada ao monitoramento: ${offer.name} para ${offer.destination}`);
+    
+    // Armazena no localStorage
+    saveMonitoredOffers();
+    
+    return newOffer;
+}
+
+/**
+ * Remove uma oferta do monitoramento
+ * @param {string} type - Tipo da oferta ('flight' ou 'hotel')
+ * @param {string} id - ID da oferta a ser removida
+ */
+function removePriceMonitor(type, id) {
+    const index = monitoredOffers.findIndex(o => o.id === id && o.type === type);
+    
+    if (index !== -1) {
+        const offer = monitoredOffers[index];
+        monitoredOffers.splice(index, 1);
+        console.log(`Oferta removida do monitoramento: ${offer.name} para ${offer.destination}`);
+        
+        // Armazena no localStorage
+        saveMonitoredOffers();
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Verifica preços atuais das ofertas monitoradas
+ * Normalmente seria chamada periodicamente por um setInterval
+ */
+function checkPrices() {
+    console.log(`Verificando preços para ${monitoredOffers.length} ofertas monitoradas`);
+    
+    // Para cada oferta monitorada, simulamos uma consulta à API
+    monitoredOffers.forEach(offer => {
+        // Em uma implementação real, faríamos uma chamada às APIs Amadeus
+        // Para esta demonstração, vamos simular mudanças aleatórias de preço
+        simulateCheckPrice(offer);
+    });
+    
+    // Atualiza o painel de notificações se estiver aberto
+    const notificationsPanel = document.getElementById('notifications-panel');
+    if (notificationsPanel && notificationsPanel.classList.contains('active')) {
+        renderNotifications();
+    }
+}
+
+/**
+ * Função para simular uma verificação de preço
+ * Atualiza o histórico de preços e cria alertas quando necessário
+ * Em produção, isso seria substituído por chamadas reais à API Amadeus
+ * @param {Object} offer - Oferta a ser verificada
+ */
+function simulateCheckPrice(offer) {
+    // Chance de 30% de ter uma alteração de preço
+    if (Math.random() < 0.3) {
+        // Simula uma variação de preço entre -15% e +5%
+        const variation = (Math.random() * 0.2) - 0.15;
+        const newPrice = Math.max(offer.price * (1 + variation), offer.price * 0.5);
+        const roundedPrice = Math.round(newPrice * 100) / 100;
+        
+        // Formata o novo preço
+        const formattedPrice = `R$${roundedPrice.toFixed(2).replace('.', ',')}`;
+        
+        // Se o preço caiu, adiciona um alerta
+        if (roundedPrice < offer.price) {
+            createPriceAlert(offer, roundedPrice, formattedPrice);
+        }
+        
+        // Atualiza o histórico de preços
+        offer.priceHistory.push({
+            price: roundedPrice,
+            date: new Date()
+        });
+        
+        // Atualiza o preço atual
+        offer.price = roundedPrice;
+        offer.formattedPrice = formattedPrice;
+        
+        // Atualiza o menor preço se necessário
+        if (roundedPrice < offer.lowestPrice) {
+            offer.lowestPrice = roundedPrice;
+        }
+    }
+    
+    // Atualiza o timestamp da última verificação
+    offer.lastChecked = new Date();
+    
+    // Salva as alterações
+    saveMonitoredOffers();
+}
+
+/**
+ * Cria um alerta de queda de preço
+ * @param {Object} offer - Oferta que teve queda de preço
+ * @param {number} newPrice - Novo preço
+ * @param {string} formattedPrice - Preço formatado para exibição
+ */
+function createPriceAlert(offer, newPrice, formattedPrice) {
+    const percentDrop = ((offer.price - newPrice) / offer.price * 100).toFixed(1);
+    
+    const alert = {
+        id: `alert-${Date.now()}`,
+        offerId: offer.id,
+        offerType: offer.type,
+        title: offer.type === 'flight'
+            ? `Queda de preço: ${offer.name} para ${offer.destination}`
+            : `Queda de preço: ${offer.name} em ${offer.destination}`,
+        message: `O preço caiu ${percentDrop}% para ${formattedPrice}`,
+        icon: offer.type === 'flight' ? 'plane' : 'hotel',
+        date: new Date(),
+        read: false
+    };
+    
+    // Adiciona o alerta ao início da lista
+    priceAlerts.unshift(alert);
+    
+    // Limita a 50 alertas para não sobrecarregar o armazenamento
+    if (priceAlerts.length > 50) {
+        priceAlerts.pop();
+    }
+    
+    // Armazena no localStorage
+    savePriceAlerts();
+    
+    // Atualiza o contador de notificações não lidas
+    updateUnreadNotificationsCount();
+    
+    return alert;
+}
+
+/**
+ * Atualiza o contador de notificações não lidas
+ */
+function updateUnreadNotificationsCount() {
+    const unreadCount = priceAlerts.filter(alert => !alert.read).length;
+    
+    // Atualiza o badge no ícone de notificações
+    const notificationBadge = document.querySelector('.notification-badge');
+    if (notificationBadge) {
+        if (unreadCount > 0) {
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.style.display = 'flex';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Marca todos os alertas como lidos
+ */
+function markAllAlertsAsRead() {
+    priceAlerts.forEach(alert => {
+        alert.read = true;
+    });
+    
+    // Armazena no localStorage
+    savePriceAlerts();
+    
+    // Atualiza o contador
+    updateUnreadNotificationsCount();
+}
+
+/**
+ * Salva as ofertas monitoradas no localStorage
+ */
+function saveMonitoredOffers() {
+    localStorage.setItem('monitoredOffers', JSON.stringify(monitoredOffers));
+}
+
+/**
+ * Salva os alertas de preço no localStorage
+ */
+function savePriceAlerts() {
+    localStorage.setItem('priceAlerts', JSON.stringify(priceAlerts));
+}
+
+/**
+ * Carrega as ofertas monitoradas e alertas do localStorage
+ */
+function loadPriceMonitoringData() {
+    try {
+        const savedOffers = localStorage.getItem('monitoredOffers');
+        if (savedOffers) {
+            monitoredOffers = JSON.parse(savedOffers);
+            
+            // Converte as strings de data para objetos Date
+            monitoredOffers.forEach(offer => {
+                offer.added = new Date(offer.added);
+                offer.lastChecked = new Date(offer.lastChecked);
+                offer.priceHistory.forEach(record => {
+                    record.date = new Date(record.date);
+                });
+            });
+        }
+        
+        const savedAlerts = localStorage.getItem('priceAlerts');
+        if (savedAlerts) {
+            priceAlerts = JSON.parse(savedAlerts);
+            
+            // Converte as strings de data para objetos Date
+            priceAlerts.forEach(alert => {
+                alert.date = new Date(alert.date);
+            });
+        }
+        
+        // Atualiza o contador de notificações não lidas
+        updateUnreadNotificationsCount();
+        
+        console.log(`Carregados: ${monitoredOffers.length} ofertas e ${priceAlerts.length} alertas`);
+    } catch (error) {
+        console.error('Erro ao carregar dados do monitoramento de preços:', error);
+    }
+}
+
+// Função para renderizar as notificações
+function renderNotifications() {
+    // Verifica se o painel existe
     let notificationsPanel = document.getElementById('notifications-panel');
     
-    // If panel doesn't exist, create it
-    if (!notificationsPanel) {
-        notificationsPanel = document.createElement('div');
-        notificationsPanel.id = 'notifications-panel';
-        notificationsPanel.className = 'notifications-panel';
-        
-        // Add some mock notifications
-        notificationsPanel.innerHTML = `
-            <div class="notifications-header">
-                <h3>Notificações</h3>
+    // Conteúdo HTML para o painel
+    const notificationsHtml = `
+        <div class="notifications-header">
+            <h3>Notificações</h3>
+            <div class="notifications-actions">
+                <button id="mark-all-read" class="notifications-action-btn">
+                    <i class="fas fa-check-double"></i> Marcar todas como lidas
+                </button>
                 <button id="close-notifications" class="notifications-close">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="notifications-list">
-                <div class="notification-item">
+        </div>
+        <div class="notifications-list">
+            ${priceAlerts.length > 0 ? priceAlerts.map(alert => `
+                <div class="notification-item ${alert.read ? 'read' : 'unread'}" data-id="${alert.id}">
                     <div class="notification-icon">
-                        <i class="fas fa-plane"></i>
+                        <i class="fas fa-${alert.icon}"></i>
                     </div>
                     <div class="notification-content">
-                        <div class="notification-title">Sua viagem para Barcelona começa em 5 dias!</div>
-                        <div class="notification-time">Hoje, 10:30</div>
+                        <div class="notification-title">${alert.title}</div>
+                        <div class="notification-message">${alert.message}</div>
+                        <div class="notification-time">${formatAlertDate(alert.date)}</div>
                     </div>
                 </div>
-                <div class="notification-item">
-                    <div class="notification-icon">
-                        <i class="fas fa-hotel"></i>
-                    </div>
-                    <div class="notification-content">
-                        <div class="notification-title">Confirmação de reserva recebida do Hotel Barcelona Central</div>
-                        <div class="notification-time">Ontem, 14:15</div>
-                    </div>
+            `).join('') : `
+                <div class="empty-notifications">
+                    <p>Você não tem notificações de preço no momento.</p>
+                    <p>Adicione uma oferta ao monitoramento para receber alertas quando os preços caírem!</p>
                 </div>
-                <div class="notification-item">
-                    <div class="notification-icon">
-                        <i class="fas fa-percent"></i>
-                    </div>
-                    <div class="notification-content">
-                        <div class="notification-title">Promoção de última hora: 15% de desconto em voos para Lisboa</div>
-                        <div class="notification-time">2 dias atrás</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Add to document
+            `}
+        </div>
+    `;
+    
+    // Se o painel não existe, cria-o
+    if (!notificationsPanel) {
+        notificationsPanel = document.createElement('div');
+        notificationsPanel.id = 'notifications-panel';
+        notificationsPanel.className = 'notifications-panel';
         document.body.appendChild(notificationsPanel);
-        
-        // Add close button event listener
-        document.getElementById('close-notifications').addEventListener('click', () => {
-            notificationsPanel.classList.remove('active');
+    }
+    
+    // Atualiza o conteúdo
+    notificationsPanel.innerHTML = notificationsHtml;
+    
+    // Adiciona event listeners
+    document.getElementById('close-notifications').addEventListener('click', () => {
+        notificationsPanel.classList.remove('active');
+    });
+    
+    const markAllReadBtn = document.getElementById('mark-all-read');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', () => {
+            markAllAlertsAsRead();
+            renderNotifications();
         });
+    }
+    
+    // Adiciona event listeners para cada notificação
+    document.querySelectorAll('.notification-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const alertId = item.dataset.id;
+            const alert = priceAlerts.find(a => a.id === alertId);
+            
+            if (alert) {
+                // Marca como lida
+                alert.read = true;
+                savePriceAlerts();
+                updateUnreadNotificationsCount();
+                
+                // Atualiza a classe visualmente
+                item.classList.add('read');
+                item.classList.remove('unread');
+            }
+        });
+    });
+}
+
+/**
+ * Formata a data do alerta para exibição
+ * @param {Date} date - Data do alerta
+ * @returns {string} - Data formatada
+ */
+function formatAlertDate(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 1) {
+        return 'Agora mesmo';
+    } else if (diffMinutes < 60) {
+        return `${diffMinutes} ${diffMinutes === 1 ? 'minuto' : 'minutos'} atrás`;
+    } else if (diffHours < 24) {
+        return `${diffHours} ${diffHours === 1 ? 'hora' : 'horas'} atrás`;
+    } else if (diffDays < 7) {
+        return `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'} atrás`;
     } else {
-        // Toggle active class
+        return date.toLocaleDateString('pt-BR');
+    }
+}
+
+// Toggle do painel de notificações
+function toggleNotifications() {
+    // Marca alertas como lidos quando o painel for aberto
+    let notificationsPanel = document.getElementById('notifications-panel');
+    
+    // Renderiza as notificações (cria ou atualiza o painel)
+    renderNotifications();
+    
+    // Se o painel existe, alterna a classe .active
+    if (notificationsPanel) {
         notificationsPanel.classList.toggle('active');
     }
     
-    // If panel was just created, add active class after a brief delay
+    // Se o painel acabou de ser criado, adiciona a classe .active após um breve delay
     if (!notificationsPanel.classList.contains('active')) {
         setTimeout(() => {
             notificationsPanel.classList.add('active');
