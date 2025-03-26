@@ -1,0 +1,67 @@
+Crie um esqueleto básico para o projeto "Flai" usando HTML, CSS e JavaScript (vanilla JS, sem frameworks pesados). O site deve ter uma interface inspirada no ChatGPT, com design clean, utilizando cores pastéis – predominando branco e azul celeste.
+
+### Estrutura do Projeto
+
+1. **Layout Geral:**
+   - **Header:**  
+     - Exibe o logotipo ou nome "Flai".
+     - Pode incluir links de navegação (opcional: notificações, logout).
+   - **Sidebar (Menu Lateral):**  
+     - Fixada à esquerda, contendo as seguintes abas:
+       - *Conversas:* Lista de interações anteriores com o chatbot (dados mockados).
+       - *Meus Planejamentos:* Itinerários e reservas salvos (dados mockados).
+       - *Perfil:* Área para visualizar e editar informações pessoais.
+   - **Área Principal (Content):**  
+     - Apresenta o conteúdo dinâmico dependendo da aba selecionada:
+       - *Chat/Planejamento:* Área de interação com o assistente, semelhante a um chat.
+       - *Detalhes do Planejamento:* Exibição de um itinerário selecionado.
+       - *Perfil do Usuário:* Formulário de edição dos dados pessoais e preferências de viagem.
+
+2. **Design e Estilização:**
+   - Utilize uma paleta de cores com fundo branco e toques de azul celeste em elementos importantes (botões, cabeçalhos, menus).
+   - O visual deve ser clean, moderno e responsivo, utilizando tipografia clara e espaçamentos generosos.
+   - Adicione comentários no CSS para explicar os estilos e facilitar futuras alterações.
+
+3. **Funcionalidades e Integrações:**
+   - **Integração com GPT:**
+     - Na área de chat, crie um formulário para o usuário enviar mensagens.
+     - Ao enviar uma mensagem, simule uma chamada à API do GPT (placeholder) e exiba uma resposta dummy.
+     - Inclua comentários explicando onde a chamada à API do GPT será integrada futuramente.
+   - **Integração com Amadeus:**
+     - Crie uma função no JavaScript que simule uma chamada à API da Amadeus para buscar voos e hotéis.
+     - Utilize dados mockados para demonstrar a exibição dos resultados.
+     - Comente o código indicando onde e como a integração real com a Amadeus deve ocorrer (ex.: no backend via Node.js ou utilizando fetch para API externa).
+
+4. **Estrutura de Arquivos:**
+   - Uma pasta "public" contendo:
+     - **index.html:** Página principal com a estrutura da interface.
+     - **styles.css:** Arquivo de estilos, usando as cores definidas.
+     - **script.js:** JavaScript para manipulação da interface, envio de mensagens, simulação de chamadas às APIs do GPT e Amadeus.
+   - **README.md:** Instruções básicas de como rodar o projeto e explicação do fluxo das integrações.
+
+### Detalhamento do Layout
+
+- **Header:**  
+  - Mostra "Flai" e, se necessário, ícones para notificações ou perfil.
+  
+- **Sidebar:**  
+  - Lista com três seções: "Conversas", "Meus Planejamentos", "Perfil".
+  - Cada item da lista deve ser clicável e alterar o conteúdo da área principal sem recarregar a página.
+
+- **Área Principal:**
+  - **Chat/Planejamento:**  
+    - Exibe o histórico de mensagens.
+    - Formulário com um campo de entrada e botão "Enviar".
+    - Mensagens de resposta simuladas.
+  - **Detalhes do Planejamento:**  
+    - Exibe um exemplo de itinerário com destino, datas, e links (simulados) para parceiros.
+  - **Perfil:**  
+    - Formulário para editar nome, e-mail, telefone e preferências de viagem.
+
+### Considerações Finais
+
+- Organize o código com comentários que expliquem onde serão integradas as APIs reais do GPT e da Amadeus.
+- Garanta que a interface seja responsiva e que a navegação entre as seções (através do menu lateral) seja fluida.
+- O foco é criar um protótipo simples e funcional que demonstre o fluxo básico do Flai.
+
+Esta é a versão 1 do protótipo do Flai. Certifique-se de que o código esteja bem organizado e comentado para facilitar futuras integrações e melhorias.
