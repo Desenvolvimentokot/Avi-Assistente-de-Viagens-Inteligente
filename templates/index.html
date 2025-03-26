@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flai - Travel Planning Assistant</title>
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-logo">Flai</div>
+            <nav class="header-nav">
+                <a href="#" class="header-nav-item">
+                    <i class="fas fa-bell"></i>
+                </a>
+                <a href="#" class="header-nav-item">
+                    <i class="fas fa-user-circle"></i>
+                </a>
+            </nav>
+        </header>
+        
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="sidebar">
+                <!-- Sidebar Navigation -->
+                <nav class="sidebar-nav">
+                    <ul class="sidebar-list">
+                        <li class="sidebar-list-item sidebar-nav-item active" data-section="conversations">
+                            <i class="fas fa-comment-alt"></i> Conversations
+                        </li>
+                        <li class="sidebar-list-item sidebar-nav-item" data-section="plans">
+                            <i class="fas fa-map-marked-alt"></i> My Plans
+                        </li>
+                        <li class="sidebar-list-item sidebar-nav-item" data-section="profile">
+                            <i class="fas fa-user"></i> Profile
+                        </li>
+                    </ul>
+                </nav>
+                
+                <!-- Conversations Section -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Recent Conversations</h3>
+                    <ul id="conversations-list" class="sidebar-list">
+                        <!-- Conversations will be loaded here via JavaScript -->
+                    </ul>
+                </div>
+                
+                <!-- Plans Section -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Saved Plans</h3>
+                    <ul id="plans-list" class="sidebar-list">
+                        <!-- Plans will be loaded here via JavaScript -->
+                    </ul>
+                </div>
+            </aside>
+            
+            <!-- Main Content -->
+            <main class="content" id="content">
+                <!-- Content will be dynamically loaded here via JavaScript -->
+            </main>
+        </div>
+        
+        <!-- Hidden sections for content switching -->
+        <div id="conversations-section" style="display: none;">
+            <div class="content-section">
+                <h2 class="content-title">Chat with Flai</h2>
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Chat messages will be loaded here -->
+                    </div>
+                    
+                    <form id="chat-form" class="chat-input">
+                        <input id="message-input" type="text" placeholder="Type your message..." autocomplete="off">
+                        <button type="submit">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div id="plans-section" style="display: none;">
+            <!-- Plan details will be loaded here via JavaScript -->
+        </div>
+        
+        <div id="profile-section" style="display: none;">
+            <div class="content-section">
+                <h2 class="content-title">Your Profile</h2>
+                <div class="profile-container">
+                    <form id="profile-form" class="profile-form">
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-name">Name</label>
+                            <input type="text" id="profile-name" class="profile-form-input" placeholder="Your name">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-email">Email</label>
+                            <input type="email" id="profile-email" class="profile-form-input" placeholder="Your email address">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-phone">Phone</label>
+                            <input type="tel" id="profile-phone" class="profile-form-input" placeholder="Your phone number">
+                        </div>
+                        
+                        <h3 class="profile-section-title">Travel Preferences</h3>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-preferred-destinations">Preferred Destinations</label>
+                            <input type="text" id="profile-preferred-destinations" class="profile-form-input" placeholder="Beach, Mountains, Cities, etc.">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-accommodation-type">Accommodation Type</label>
+                            <input type="text" id="profile-accommodation-type" class="profile-form-input" placeholder="Hotel, Hostel, Resort, etc.">
+                        </div>
+                        
+                        <div class="profile-form-group">
+                            <label class="profile-form-label" for="profile-budget">Budget Range</label>
+                            <input type="text" id="profile-budget" class="profile-form-input" placeholder="Economy, Medium, Luxury">
+                        </div>
+                        
+                        <button type="submit" class="profile-form-button">Save Profile</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
