@@ -12,8 +12,8 @@ const conversationsSection = document.getElementById('conversations-section');
 const plansSection = document.getElementById('plans-section');
 const profileSection = document.getElementById('profile-section');
 const chatInput = document.getElementById('chat-input');
-const chatForm = document.getElementById('chat-form');
-const chatMessages = document.getElementById('chat-messages');
+let chatForm = document.getElementById('chat-form');
+let chatMessages = document.getElementById('chat-messages');
 const profileForm = document.getElementById('profile-form');
 
 // State management
