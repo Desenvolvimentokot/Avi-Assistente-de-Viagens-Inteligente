@@ -17,15 +17,15 @@ Main Stylesheet
     --hover-color: #f0f5ff;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
     --shadow: 0 4px 6px rgba(0,0,0,0.1);
-    --sidebar-width: 250px;
-    --sidebar-collapsed-width: 60px;
-    --header-height: 60px;
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 50px;
+    --header-height: 50px;
     --border-radius: 8px;
     --spacing-xs: 4px;
     --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
+    --spacing-md: 12px;
+    --spacing-lg: 20px;
+    --spacing-xl: 28px;
     --transition-speed: 0.3s;
 }
 
@@ -250,7 +250,7 @@ button, input, select, textarea {
 .chat-container {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - var(--header-height) - var(--spacing-lg) * 2 - 70px); /* Subtracting header, padding, and input box */
+    height: calc(100vh - var(--header-height) - var(--spacing-md) * 2 - 60px); /* Subtracting header, padding, and input box */
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -289,20 +289,20 @@ button, input, select, textarea {
 }
 
 .message {
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
     display: flex;
     align-items: flex-start;
 }
 
 .message-avatar {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    margin-right: var(--spacing-md);
+    margin-right: var(--spacing-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 10px;
     color: var(--white);
     background-color: var(--primary-color);
 }
@@ -313,6 +313,8 @@ button, input, select, textarea {
     background-color: var(--light-bg);
     border-radius: var(--border-radius);
     max-width: 80%;
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 .message.user .message-avatar {
@@ -352,13 +354,18 @@ button, input, select, textarea {
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
-.chat-input input {
+.chat-input textarea {
     flex: 1;
     border: none;
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--border-radius);
     outline: none;
-    font-size: 16px;
+    font-size: 14px;
+    resize: none;
+    min-height: 38px;
+    max-height: 120px;
+    font-family: inherit;
+    overflow-y: auto;
 }
 
 .chat-input button {
@@ -366,13 +373,15 @@ button, input, select, textarea {
     color: var(--white);
     border: none;
     border-radius: var(--border-radius);
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
     cursor: pointer;
     margin-left: var(--spacing-sm);
     transition: background-color 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 14px;
+    min-width: 80px;
 }
 
 .chat-input button i {
