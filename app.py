@@ -745,12 +745,11 @@ def remove_monitored_offer(monitor_id):
         }), 500
 
 @app.route('/api/price-monitor/check', methods=['POST'])
+@login_required
 def check_prices():
     """Verifica os preços das ofertas monitoradas"""
-    global monitored_offers, price_alerts
-    
     try:
-        now = datetime.now().isoformat()
+        now = datetime.utcnow()
         results = {
             "flights": {
                 "checked": 0,
@@ -765,107 +764,87 @@ def check_prices():
             "alerts": []
         }
         
-        # Verificar voos
-        for offer in monitored_offers['flights']:
-            results['flights']['checked'] += 1
+        # Buscar monitores de preço do usuário
+        user_monitors = PriceMonitor.query.filter_by(user_id=current_user.id).all()
+        
+        # Processar cada monitor
+        for monitor in user_monitors:
+            # Incrementar contadores
+            if monitor.type == 'flight':
+                results['flights']['checked'] += 1
+                category = 'flights'
+                threshold = 0.95  # 5% de queda para voos
+            else:
+                results['hotels']['checked'] += 1
+                category = 'hotels'
+                threshold = 0.93  # 7% de queda para hotéis
             
             try:
                 # Em produção, usaríamos a API Amadeus para verificar o preço atual
                 # Aqui, vamos simular uma pequena variação de preço aleatória
-                if 'current_price' in offer and offer['current_price']:
+                if monitor.current_price:
                     # Simular uma queda de preço para demonstração
                     import random
                     change = random.uniform(-0.15, 0.05)  # Tendência para queda
-                    new_price = offer['current_price'] * (1 + change)
-                    
-                    # Registrar o novo preço
-                    offer['last_checked'] = now
-                    offer['price_history'].append({
-                        "date": now,
-                        "price": new_price
-                    })
+                    new_price = monitor.current_price * (1 + change)
                     
                     # Atualizar preço atual
-                    old_price = offer['current_price']
-                    offer['current_price'] = new_price
+                    old_price = monitor.current_price
+                    monitor.current_price = new_price
+                    monitor.last_checked = now
+                    
+                    # Adicionar ao histórico de preços
+                    price_history = PriceHistory(
+                        monitor_id=monitor.id,
+                        price=new_price,
+                        date=now
+                    )
+                    db.session.add(price_history)
                     
                     # Atualizar o menor preço, se aplicável
-                    if new_price < offer['lowest_price']:
-                        offer['lowest_price'] = new_price
+                    if new_price < monitor.lowest_price:
+                        monitor.lowest_price = new_price
                     
                     # Se houve queda significativa no preço, criar alerta
-                    if new_price < old_price * 0.95:  # 5% de queda
-                        alert = {
-                            "id": str(uuid.uuid4()),
-                            "type": "price_drop",
-                            "offer_type": "flight",
-                            "offer_id": offer['id'],
-                            "offer_data": offer['data'],
+                    if new_price < old_price * threshold:
+                        alert = PriceAlert(
+                            monitor_id=monitor.id,
+                            old_price=old_price,
+                            new_price=new_price,
+                            date=now,
+                            read=False
+                        )
+                        db.session.add(alert)
+                        db.session.flush()  # Para obter o ID
+                        
+                        # Adicionar aos resultados
+                        results['alerts'].append({
+                            "id": alert.id,
+                            "monitor_id": monitor.id,
+                            "type": monitor.type,
+                            "name": monitor.name,
+                            "description": monitor.description,
                             "old_price": old_price,
                             "new_price": new_price,
-                            "currency": offer.get('currency', 'BRL'),
-                            "date": now,
+                            "currency": monitor.currency,
+                            "date": now.isoformat(),
                             "read": False
-                        }
-                        price_alerts.append(alert)
-                        results['alerts'].append(alert)
+                        })
                     
-                    results['flights']['updated'] += 1
+                    results[category]['updated'] += 1
             except Exception as e:
-                logging.error(f"Erro ao verificar preço do voo {offer['id']}: {str(e)}")
-                results['flights']['errors'] += 1
+                db.session.rollback()
+                logging.error(f"Erro ao verificar preço do item {monitor.id}: {str(e)}")
+                results[category]['errors'] += 1
+                continue
         
-        # Verificar hotéis
-        for offer in monitored_offers['hotels']:
-            results['hotels']['checked'] += 1
-            
-            try:
-                # Mesma lógica da simulação para voos
-                if 'current_price' in offer and offer['current_price']:
-                    import random
-                    change = random.uniform(-0.12, 0.03)  # Tendência para queda
-                    new_price = offer['current_price'] * (1 + change)
-                    
-                    # Registrar o novo preço
-                    offer['last_checked'] = now
-                    offer['price_history'].append({
-                        "date": now,
-                        "price": new_price
-                    })
-                    
-                    # Atualizar preço atual
-                    old_price = offer['current_price']
-                    offer['current_price'] = new_price
-                    
-                    # Atualizar o menor preço, se aplicável
-                    if new_price < offer['lowest_price']:
-                        offer['lowest_price'] = new_price
-                    
-                    # Se houve queda significativa no preço, criar alerta
-                    if new_price < old_price * 0.93:  # 7% de queda
-                        alert = {
-                            "id": str(uuid.uuid4()),
-                            "type": "price_drop",
-                            "offer_type": "hotel",
-                            "offer_id": offer['id'],
-                            "offer_data": offer['data'],
-                            "old_price": old_price,
-                            "new_price": new_price,
-                            "currency": offer.get('currency', 'BRL'),
-                            "date": now,
-                            "read": False
-                        }
-                        price_alerts.append(alert)
-                        results['alerts'].append(alert)
-                    
-                    results['hotels']['updated'] += 1
-            except Exception as e:
-                logging.error(f"Erro ao verificar preço do hotel {offer['id']}: {str(e)}")
-                results['hotels']['errors'] += 1
+        # Commit das alterações
+        db.session.commit()
         
         return jsonify(results)
         
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Erro ao verificar preços: {str(e)}")
         return jsonify({
             "error": "Ocorreu um erro ao verificar os preços",
@@ -873,35 +852,74 @@ def check_prices():
         }), 500
 
 @app.route('/api/price-alerts', methods=['GET'])
+@login_required
 def get_price_alerts():
-    """Retorna todos os alertas de preço"""
-    return jsonify(price_alerts)
+    """Retorna todos os alertas de preço do usuário atual"""
+    try:
+        # Buscar alertas de preço do usuário atual
+        user_alerts = PriceAlert.query.join(PriceMonitor).filter(
+            PriceMonitor.user_id == current_user.id
+        ).order_by(PriceAlert.date.desc()).all()
+        
+        # Formatar resposta
+        alerts = []
+        for alert in user_alerts:
+            monitor = alert.monitor
+            alerts.append({
+                "id": alert.id,
+                "monitor_id": alert.monitor_id,
+                "type": monitor.type,
+                "name": monitor.name,
+                "description": monitor.description,
+                "old_price": alert.old_price,
+                "new_price": alert.new_price,
+                "currency": monitor.currency,
+                "date": alert.date.isoformat(),
+                "read": alert.read
+            })
+        
+        return jsonify(alerts)
+        
+    except Exception as e:
+        logging.error(f"Erro ao buscar alertas de preço: {str(e)}")
+        return jsonify({
+            "error": "Ocorreu um erro ao buscar os alertas de preço",
+            "details": str(e)
+        }), 500
 
 @app.route('/api/price-alerts/mark-read', methods=['POST'])
+@login_required
 def mark_alerts_read():
-    """Marca todos os alertas como lidos"""
-    global price_alerts
-    
+    """Marca alertas como lidos"""
     try:
         data = request.json
         alert_ids = data.get('alert_ids', [])
         
-        if not alert_ids:
-            # Se não há IDs específicos, marcar todos como lidos
-            for alert in price_alerts:
-                alert['read'] = True
-        else:
-            # Marcar apenas os alertas específicos
-            for alert in price_alerts:
-                if alert['id'] in alert_ids:
-                    alert['read'] = True
+        # Preparar a consulta para obter apenas alertas do usuário atual
+        query = PriceAlert.query.join(PriceMonitor).filter(
+            PriceMonitor.user_id == current_user.id
+        )
+        
+        if alert_ids:
+            # Se há IDs específicos, adicionar filtro
+            query = query.filter(PriceAlert.id.in_(alert_ids))
+        
+        # Buscar e atualizar alertas
+        alerts = query.all()
+        for alert in alerts:
+            alert.read = True
+        
+        # Commit das alterações
+        db.session.commit()
         
         return jsonify({
             "success": True,
-            "message": "Alertas marcados como lidos com sucesso"
+            "message": "Alertas marcados como lidos com sucesso",
+            "count": len(alerts)
         })
         
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Erro ao marcar alertas como lidos: {str(e)}")
         return jsonify({
             "error": "Ocorreu um erro ao marcar os alertas como lidos",
