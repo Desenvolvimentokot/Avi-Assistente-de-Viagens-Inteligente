@@ -750,7 +750,7 @@ function renderConversationUI() {
                 <div id="chat-messages" class="chat-messages"></div>
                 
                 <form id="chat-form" class="chat-input">
-                    <input id="message-input" type="text" placeholder="Digite sua mensagem..." autocomplete="off">
+                    <textarea id="message-input" placeholder="Digite sua mensagem..." autocomplete="off" rows="1" maxlength="500"></textarea>
                     <button type="submit">
                         <i class="fas fa-paper-plane"></i> Enviar
                     </button>
