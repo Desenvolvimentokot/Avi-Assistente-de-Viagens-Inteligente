@@ -45,198 +45,29 @@ def index():
 
 # API para chat
 @app.route('/api/chat', methods=['POST'])
-def chat():
-    data = request.json
-    user_message = data.get('message', '')
-    conversation_id = data.get('conversation_id')
-    context = data.get('context', {})
-
-    # Obter histórico da conversa, se existir
-    messages_history = []
-    conversation = None
-
-    if conversation_id:
-        try:
-            conversation = Conversation.query.filter_by(id=conversation_id).first()
-            if not conversation:
-                return jsonify({"error": "Conversa não encontrada"}), 404
-
-            # Buscar mensagens da conversa
-            messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
-            for msg in messages:
-                messages_history.append({
-                    "is_user": msg.is_user,
-                    "content": msg.content,
-                    "timestamp": msg.timestamp.isoformat()
-                })
-        except Exception as e:
-            logging.error(f"Erro ao buscar conversa: {str(e)}")
-
+async def chat():
+    """Processa mensagens do chat"""
     try:
-        # Definir modo de chat baseado no contexto
-        chat_mode = context.get('mode', 'general')
+        data = await request.get_json()
+        message = data.get('message', '')
+        mode = data.get('mode', 'quick-search')
+        history = data.get('history', [])
 
-        # Pré-processamento para modalidades específicas
-        chat_action = None
+        if not message:
+            return jsonify({"error": True, "message": "Mensagem vazia"})
 
-        if chat_mode == 'quick-search':
-            # Processar modo de busca rápida
-            quick_search_step = context.get('quickSearchStep', 0)
-            quick_search_data = context.get('quickSearchData', {})
-
-            # Processar a busca de voos se tivermos todos os dados
-            if quick_search_step >= 2 and all(key in quick_search_data and quick_search_data[key] for key in ['departureDate', 'returnDate', 'origin', 'destination']):
-                # Preparar para busca de voos através do serviço Amadeus
-                chat_action = {
-                    "type": "search_flights",
-                    "data": quick_search_data
-                }
-
-                # Avançar para o próximo passo
-                quick_search_step += 1
-
-            # Atualizar contexto com novos valores de passo
-            context['quickSearchStep'] = quick_search_step
-
-        elif chat_mode == 'full-planning':
-            # Processar modo de planejamento completo
-            full_planning_step = context.get('fullPlanningStep', 0)
-            full_planning_data = context.get('fullPlanningData', {})
-
-            # Gerar planejamento completo se tivermos todos os dados
-            if full_planning_step >= 4 and 'destinations' in full_planning_data and full_planning_data['destinations']:
-                # Preparar para gerar planejamento
-                chat_action = {
-                    "type": "generate_travel_plan",
-                    "data": full_planning_data
-                }
-
-                # Avançar para o próximo passo
-                full_planning_step += 1
-
-            # Atualizar contexto com novos valores de passo
-            context['fullPlanningStep'] = full_planning_step
-
-        # Definir o modelo com base no modo de chat
-        model = "gpt-3.5-turbo"
-        if chat_mode == 'full-planning':
-            model = "gpt-4o"
-
-        # Configurar contexto específico para o modo de chat
-        system_context = f"Você está no modo de chat '{chat_mode}'. "
-
-        if chat_mode == 'quick-search':
-            system_context += f"Etapa atual: {context.get('quickSearchStep', 0)}. "
-            system_context += """
-            Neste modo sua tarefa é ajudar o usuário a encontrar voos rapidamente.
-            - Extraia dados específicos como origem, destino e período de viagem
-            - Interprete períodos aproximados (ex: 'primeira semana de novembro', 'mês de janeiro')
-            - Para cada período aproximado, defina datas exatas de início e fim
-            - Procure ser específico para determinar os melhores parâmetros de busca
-            """
-        elif chat_mode == 'full-planning':
-            system_context += f"Etapa atual: {context.get('fullPlanningStep', 0)}. "
-            system_context += """
-            Neste modo sua tarefa é desenvolver um planejamento de viagem completo.
-            - Extraia informações detalhadas sobre destinos, períodos, preferências e orçamento
-            - Elabore um plano completo incluindo voos, hospedagem e atividades
-            - Direcione o usuário através de perguntas estruturadas para coletar todos os dados necessários
-            """
-
-        # Verificar o modo de chat para escolher o serviço apropriado
-        if chat_mode == 'quick-search':
-            # Usar o serviço especializado de Busca Rápida
-            from services.busca_rapida_service import BuscaRapidaService
-            busca_rapida_service = BuscaRapidaService()
-            result = busca_rapida_service.process_query(user_message, messages_history)
+        if mode == 'quick-search':
+            response = await busca_rapida_service.process_message(message, history)
+            return jsonify(response)
         else:
-            # Para outros modos, usar o assistente de viagem regular
-            result = openai_service.travel_assistant(
-                user_message, 
-                messages_history,
-                system_context=system_context
-            )
-
-        # Definir o modelo na resposta para referência futura
-        if 'response' in result:
-            result['model'] = model
-
-        if 'error' in result:
-            logging.error(f"Erro na API do OpenAI: {result['error']}")
-            return jsonify({
-                "response": "Desculpe, estou enfrentando problemas para processar sua solicitação no momento. Por favor, tente novamente mais tarde.",
-                "error": result['error'],
-                "context": context
-            }), 500
-
-        # Se for uma nova conversa, criar uma nova entrada no banco de dados
-        if not conversation_id:
-            title = user_message[:30] + "..." if len(user_message) > 30 else user_message
-            try:
-                # Tentar identificar usuário logado, se não existir, usar ID fixo para teste
-                user_id = 1  # ID padrão para testes
-                if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                    user_id = current_user.id
-
-                conversation = Conversation(
-                    title=title,
-                    user_id=user_id,
-                    created_at=datetime.now()
-                )
-                db.session.add(conversation)
-                db.session.commit()
-                conversation_id = conversation.id
-
-                # Depois de criar a conversa, carregá-la nas conversas do usuário
-                logging.info(f"Nova conversa criada: {conversation_id} - {title}")
-            except Exception as e:
-                logging.error(f"Erro ao criar conversa: {str(e)}")
-                # Continue mesmo com erro (modo degradado)
-
-        # Salvar mensagem do usuário e resposta do assistente, se tiver conversa
-        if conversation_id:
-            try:
-                # Mensagem do usuário
-                user_msg = Message(
-                    conversation_id=conversation_id,
-                    content=user_message,
-                    is_user=True,
-                    timestamp=datetime.now()
-                )
-                db.session.add(user_msg)
-
-                # Resposta do assistente
-                assistant_msg = Message(
-                    conversation_id=conversation_id,
-                    content=result['response'],
-                    is_user=False,
-                    timestamp=datetime.now()
-                )
-                db.session.add(assistant_msg)
-
-                # Atualizar timestamp da conversa
-                conversation.last_updated = datetime.now()
-
-                db.session.commit()
-            except Exception as e:
-                logging.error(f"Erro ao salvar mensagens: {str(e)}")
-                # Continue mesmo com erro (modo degradado)
-
-        # Retornar a resposta, o ID da conversa e o contexto atualizado
-        return jsonify({
-            "response": result['response'],
-            "conversation_id": conversation_id,
-            "context": context,
-            "action": chat_action
-        })
+            # Implementar lógica para planejamento completo
+            return jsonify({"response": "Modo de planejamento completo em desenvolvimento."})
 
     except Exception as e:
-        logging.error(f"Erro no processamento do chat: {str(e)}")
-        return jsonify({
-            "response": "Desculpe, ocorreu um erro interno. Por favor, tente novamente mais tarde.",
-            "error": str(e),
-            "context": context
-        }), 500
+        print(f"Erro na API de chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": True, "message": "Erro ao processar a solicitação"})
 
 # API para busca
 @app.route('/api/search', methods=['POST'])
