@@ -1,142 +1,655 @@
-// Variáveis globais
-let currentConversationId = null;
-let chatMode = 'quick-search'; // 'quick-search' ou 'full-planning'
-let chatContext = {
-    mode: 'quick-search',
-    quickSearchStep: 0,
-    quickSearchData: {},
-    fullPlanningStep: 0,
-    fullPlanningData: {}
-};
-
-// Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Selecionar elementos principais
+    // Elementos DOM
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle');
-    const quickSearchModeBtn = document.getElementById('quick-search-mode');
-    const fullPlanningModeBtn = document.getElementById('full-planning-mode');
+    const content = document.getElementById('content');
     const chatForm = document.getElementById('chat-form');
     const messageInput = document.getElementById('message-input');
-    const conversationsList = document.getElementById('conversations-list');
-    const newConversationBtn = document.getElementById('new-conversation');
+    const chatMessages = document.getElementById('chat-messages');
+    const loginButton = document.getElementById('login-button');
+    const signupButton = document.getElementById('signup-button');
+    const loginModal = document.getElementById('login-modal');
+    const signupModal = document.getElementById('signup-modal');
+    const closeButtons = document.querySelectorAll('.close-modal');
+    const newConversationButton = document.getElementById('new-conversation');
+    const profileForm = document.getElementById('profile-form');
+    const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
+    const quickSearchModeBtn = document.getElementById('quick-search-mode');
+    const fullPlanningModeBtn = document.getElementById('full-planning-mode');
+
+    // State variables
+    let isSidebarCollapsed = false;
+    let currentConversationId = null;
+    let activeSection = 'chat';
+    let userLoggedIn = false;
+    let userProfile = {};
+    let conversations = [];
+    let plans = [];
+    let chatMode = 'quick-search'; // Modo padrão: 'quick-search' ou 'full-planning'
+    let chatContext = {
+        mode: 'quick-search',
+        quickSearchStep: 0,
+        quickSearchData: {},
+        fullPlanningStep: 0,
+        fullPlanningData: {}
+    };
+    let useLocalProcessing = true;  // Define se usamos processamento local (demo) ou a API
 
     // Toggle sidebar
-    sidebarToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        sidebarToggle.innerHTML = isCollapsed ? 
-            '<i class="fas fa-chevron-right"></i>' : 
-            '<i class="fas fa-chevron-left"></i>';
-    });
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            isSidebarCollapsed = !isSidebarCollapsed;
 
-    // Trocar entre modos de chat
-    quickSearchModeBtn.addEventListener('click', function() {
-        setActiveChatMode('quick-search');
-    });
+            // Atualizar ícone do botão
+            if (isSidebarCollapsed) {
+                sidebarToggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            } else {
+                sidebarToggle.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            }
 
-    fullPlanningModeBtn.addEventListener('click', function() {
-        setActiveChatMode('full-planning');
-    });
+            // Expandir/encolher conteúdo principal
+            content.classList.toggle('expanded');
+        });
+    }
 
-    // Enviar mensagem usando tecla Enter
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // Ajustar altura do textarea quando o usuário digita
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-
-    // Formulário de chat
-    chatForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        sendMessage();
-    });
-
-    // Navegação lateral
-    document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+    // Navegação entre seções
+    sidebarNavItems.forEach(item => {
         item.addEventListener('click', function() {
             const section = this.getAttribute('data-section');
-
-            // Atualizar item ativo na navegação
-            document.querySelectorAll('.sidebar-nav-item').forEach(navItem => {
-                navItem.classList.remove('active');
-            });
-            this.classList.add('active');
-
-            // Mostrar seção correta na barra lateral
-            document.querySelectorAll('.sidebar-section').forEach(sectionEl => {
-                sectionEl.classList.remove('active');
-            });
-
-            if (section === 'chat') {
-                document.getElementById('conversations-section').classList.add('active');
-            } else if (section === 'plans') {
-                document.getElementById('plans-section').classList.add('active');
-            }
-
-            // Mostrar conteúdo correto
-            document.querySelectorAll('.content-section').forEach(contentSection => {
-                contentSection.classList.remove('active');
-            });
-
-            if (section === 'chat') {
-                document.getElementById('chat-section').classList.add('active');
-            } else if (section === 'plans') {
-                document.getElementById('plans-detail-section').classList.add('active');
-            } else if (section === 'profile') {
-                document.getElementById('profile-section').classList.add('active');
-            }
+            showSection(section);
         });
     });
 
-    // Nova conversa
-    newConversationBtn.addEventListener('click', function() {
-        currentConversationId = null;
-        document.getElementById('chat-messages').innerHTML = '';
-        addAssistantMessage("Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?");
-        setActiveChatMode(chatMode); // Reiniciar o modo atual
-    });
+    // Funcionalidade de chat
+    if (chatForm) {
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendMessage();
+        });
+    }
 
-    // Carregar conversas existentes
-    loadConversations();
+    // Habilitar envio de mensagem com a tecla Enter
+    if (messageInput) {
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
 
-    // Carregar planos de viagem
-    loadPlans();
+    // Botões de modo de chat
+    if (quickSearchModeBtn) {
+        quickSearchModeBtn.addEventListener('click', function() {
+            setChatMode('quick-search');
+        });
+    }
 
-    // Carregar perfil do usuário
-    loadProfile();
+    if (fullPlanningModeBtn) {
+        fullPlanningModeBtn.addEventListener('click', function() {
+            setChatMode('full-planning');
+        });
+    }
 
-    // Modal de login
-    document.getElementById('login-button').addEventListener('click', function() {
-        document.getElementById('login-modal').style.display = 'flex';
-    });
+    // Botão de nova conversa
+    if (newConversationButton) {
+        newConversationButton.addEventListener('click', function() {
+            startNewConversation();
+        });
+    }
 
-    // Modal de cadastro
-    document.getElementById('signup-button').addEventListener('click', function() {
-        document.getElementById('signup-modal').style.display = 'flex';
-    });
+    // Modais de login e cadastro
+    if (loginButton) {
+        loginButton.addEventListener('click', function() {
+            showModal(loginModal);
+        });
+    }
+
+    if (signupButton) {
+        signupButton.addEventListener('click', function() {
+            showModal(signupModal);
+        });
+    }
 
     // Fechar modais
-    document.querySelectorAll('.close-modal').forEach(button => {
+    closeButtons.forEach(button => {
         button.addEventListener('click', function() {
-            this.closest('.modal').style.display = 'none';
+            const modal = this.closest('.modal');
+            hideModal(modal);
         });
     });
 
-    // Formulários de modal
-    document.getElementById('login-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+    // Formulário de perfil
+    if (profileForm) {
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveProfile();
+        });
+    }
 
-        fetch('/login', {
+    // Funções de exibição
+    function showSection(section) {
+        // Atualizar seção ativa na navegação
+        sidebarNavItems.forEach(item => {
+            if (item.getAttribute('data-section') === section) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        // Esconder todas as seções de conteúdo
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Mostrar seção específica
+        const targetSection = document.getElementById(`${section}-section`);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+
+        // Mostrar/esconder seções específicas na sidebar
+        document.querySelectorAll('.sidebar-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        if (section === 'chat' || section === 'plans') {
+            const targetSidebarSection = document.getElementById(`${section}s-section`);
+            if (targetSidebarSection) {
+                targetSidebarSection.classList.add('active');
+            }
+        }
+
+        activeSection = section;
+    }
+
+    function showModal(modal) {
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    function hideModal(modal) {
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    function setChatMode(mode) {
+        // Atualizar botões
+        if (mode === 'quick-search') {
+            quickSearchModeBtn.classList.add('active');
+            fullPlanningModeBtn.classList.remove('active');
+        } else {
+            quickSearchModeBtn.classList.remove('active');
+            fullPlanningModeBtn.classList.add('active');
+        }
+
+        // Atualizar estado
+        chatMode = mode;
+        chatContext.mode = mode;
+
+        // Atualizar a mensagem de boas-vindas
+        const welcomeMessage = document.getElementById('welcome-message');
+        if (welcomeMessage) {
+            const welcomeContent = welcomeMessage.querySelector('.message-content');
+            if (welcomeContent) {
+                welcomeContent.innerHTML = `
+                    <p>Você está no modo: <strong>${mode === 'quick-search' ? 'Busca Rápida' : 'Planejamento Completo'}</strong></p>
+                    <p>${mode === 'quick-search' 
+                        ? 'Neste modo, podemos encontrar rapidamente os melhores voos para a sua viagem.' 
+                        : 'Neste modo, vamos criar um plano completo de viagem, incluindo voos, hotéis e atividades.'}
+                    </p>
+                    <p>Como posso ajudar?</p>
+                `;
+            }
+        }
+    }
+
+    // Funções de chat
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Adicionar mensagem do usuário ao chat
+        addMessageToChat(message, true);
+        messageInput.value = '';
+
+        // Ajustar altura do textarea
+        messageInput.style.height = 'auto';
+
+        // Processar mensagem e obter resposta
+        processMessage(message);
+    }
+
+    function processMessage(message) {
+        // Mostrar indicador de "digitando..."
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'message assistant typing';
+        typingIndicator.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <p><i class="fas fa-spinner fa-spin"></i> Digitando...</p>
+            </div>
+        `;
+        chatMessages.appendChild(typingIndicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        if (useLocalProcessing) {
+            // Simulação de resposta local para demonstração
+            setTimeout(() => {
+                // Remover indicador de digitação
+                chatMessages.removeChild(typingIndicator);
+
+                // Processar resposta com base no modo de chat
+                let response;
+                if (chatMode === 'quick-search') {
+                    response = processQuickSearchResponse(message);
+                } else {
+                    response = processFullPlanningResponse(message);
+                }
+
+                // Adicionar resposta ao chat
+                addMessageToChat(response, false);
+
+                // Salvar conversa (local)
+                saveConversationLocal(message, response);
+            }, 1500);
+        } else {
+            // Chamada à API real
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message,
+                    conversation_id: currentConversationId,
+                    context: chatContext
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Remover indicador de digitação
+                chatMessages.removeChild(typingIndicator);
+
+                // Adicionar resposta ao chat
+                addMessageToChat(data.response, false);
+
+                // Atualizar ID da conversa e contexto
+                if (data.conversation_id) {
+                    currentConversationId = data.conversation_id;
+                }
+                if (data.context) {
+                    chatContext = data.context;
+                }
+
+                // Processar ações específicas (ex: busca de voos)
+                if (data.action) {
+                    processAction(data.action);
+                }
+
+                // Atualizar lista de conversas
+                loadConversations();
+            })
+            .catch(error => {
+                console.log("Error getting chat response:", error);
+                chatMessages.removeChild(typingIndicator);
+                addMessageToChat("Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.", false);
+            });
+        }
+    }
+
+    function processQuickSearchResponse(message) {
+        // Processar resposta real da API e adicionar botões interativos para compra
+        let processedResponse = message;
+
+        // Verificar se a mensagem contém informações de voo
+        if (message.includes("voo") || message.includes("passagem") || message.includes("Companhia")) {
+            // Adicionar botões de compra ao final da mensagem
+            processedResponse += `\n\n<div class="action-buttons">
+                <button class="btn btn-primary flight-purchase-btn" onclick="handleFlightPurchase('voo123')">
+                    <i class="fas fa-shopping-cart"></i> Comprar esta passagem
+                </button>
+                <button class="btn btn-outline flight-compare-btn">
+                    <i class="fas fa-balance-scale"></i> Comparar preços
+                </button>
+            </div>`;
+        }
+
+        return processedResponse;
+    }
+
+    function processFullPlanningResponse(message) {
+        // Simula o processamento no modo de planejamento completo
+        chatContext.fullPlanningStep = chatContext.fullPlanningStep || 0;
+        let response = '';
+
+        switch (chatContext.fullPlanningStep) {
+            case 0:
+                response = "Qual é o destino principal da sua viagem e há outros lugares que deseja visitar?";
+                chatContext.fullPlanningStep = 1;
+                break;
+            case 1:
+                // Simular processamento do destino
+                chatContext.fullPlanningData.destinations = message;
+                response = "Qual a data de início e qual a duração aproximada da sua viagem?";
+                chatContext.fullPlanningStep = 2;
+                break;
+            case 2:
+                // Simular processamento da data e duração
+                chatContext.fullPlanningData.dateAndDuration = message;
+                response = "Quantas pessoas estarão viajando e há alguma preferência específica (classe de voo, tipo de hospedagem)?";
+                chatContext.fullPlanningStep = 3;
+                break;
+            case 3:
+                // Simular processamento do número de pessoas e preferências
+                chatContext.fullPlanningData.peopleAndPreferences = message;
+                response = "Você possui um orçamento definido ou deseja encontrar as melhores ofertas disponíveis?";
+                chatContext.fullPlanningStep = 4;
+                break;
+            case 4:
+                // Simular processamento do orçamento
+                chatContext.fullPlanningData.budget = message;
+                response = "Você deseja incluir passeios ou experiências especiais? Se sim, quais atividades lhe interessam?";
+                chatContext.fullPlanningStep = 5;
+                break;
+            case 5:
+                // Simular processamento das atividades e gerar plano
+                chatContext.fullPlanningData.activities = message;
+
+                // Gerar plano completo
+                response = `
+                    <h3>Seu Plano de Viagem Personalizado</h3>
+                    <p>Baseado nas suas preferências, elaborei um plano completo para ${chatContext.fullPlanningData.destinations}:</p>
+
+                    <div class="travel-plan">
+                        <div class="travel-plan-section">
+                            <h4>Informações Gerais</h4>
+                            <ul>
+                                <li><strong>Destino:</strong> ${chatContext.fullPlanningData.destinations}</li>
+                                <li><strong>Data/Duração:</strong> ${chatContext.fullPlanningData.dateAndDuration}</li>
+                                <li><strong>Viajantes:</strong> ${chatContext.fullPlanningData.peopleAndPreferences}</li>
+                                <li><strong>Orçamento:</strong> ${chatContext.fullPlanningData.budget}</li>
+                            </ul>
+                        </div>
+
+                        <div class="travel-plan-section">
+                            <h4>Voos Recomendados</h4>
+                            <div class="plan-card">
+                                <div class="plan-card-header">
+                                    <span class="airline">LATAM</span>
+                                    <span class="price">R$ 1.250,00</span>
+                                </div>
+                                <div class="plan-card-content">
+                                    <p><strong>Ida:</strong> São Paulo → Rio de Janeiro, 09:00 - 10:30</p>
+                                    <p><strong>Volta:</strong> Rio de Janeiro → São Paulo, 18:00 - 19:30</p>
+                                </div>
+                                <button class="btn-book">Reservar</button>
+                            </div>
+                        </div>
+
+                        <div class="travel-plan-section">
+                            <h4>Hospedagem Recomendada</h4>
+                            <div class="plan-card">
+                                <div class="plan-card-header">
+                                    <span class="hotel-name">Hotel Copacabana Palace</span>
+                                    <span class="price">R$ 850,00/noite</span>
+                                </div>
+                                <div class="plan-card-content">
+                                    <p><strong>Localização:</strong> Av. Atlântica, Copacabana</p>
+                                    <p><strong>Classificação:</strong> 5 estrelas</p>
+                                    <p><strong>Comodidades:</strong> Café da manhã, Wi-Fi, Piscina</p>
+                                </div>
+                                <button class="btn-book">Reservar</button>
+                            </div>
+                        </div>
+
+                        <div class="travel-plan-section">
+                            <h4>Atividades Recomendadas</h4>
+                            <ul>
+                                <li>Visita ao Cristo Redentor (½ dia)</li>
+                                <li>Tour pelo Pão de Açúcar (½ dia)</li>
+                                <li>Passeio pelas praias de Copacabana e Ipanema (1 dia)</li>
+                                <li>Visita ao Jardim Botânico (½ dia)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p>Deseja salvar este plano ou fazer alguma modificação?</p>
+                    <div class="plan-actions">
+                        <button class="btn-save-plan">Salvar Plano</button>
+                        <button class="btn-download-pdf">Baixar PDF</button>
+                    </div>
+                `;
+
+                // Adicionar listeners aos botões do plano (em uma aplicação real, isso seria feito de forma mais elegante)
+                setTimeout(() => {
+                    const savePlanBtn = document.querySelector('.btn-save-plan');
+                    const downloadPdfBtn = document.querySelector('.btn-download-pdf');
+
+                    if (savePlanBtn) {
+                        savePlanBtn.addEventListener('click', function() {
+                            addMessageToChat("Plano salvo com sucesso! Você pode acessá-lo na seção 'Planos'.", false);
+                        });
+                    }
+
+                    if (downloadPdfBtn) {
+                        downloadPdfBtn.addEventListener('click', function() {
+                            addMessageToChat("O PDF do seu plano foi gerado e está pronto para download.", false);
+                        });
+                    }
+                }, 100);
+
+                chatContext.fullPlanningStep = 6;
+                break;
+            default:
+                response = "Como posso ajudar com seu planejamento de viagem? Deseja começar um novo plano?";
+                chatContext.fullPlanningStep = 0;
+                break;
+        }
+
+        return response;
+    }
+
+    function addMessageToChat(message, isUser) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        messageElement.classList.add(isUser ? 'user' : 'assistant');
+
+        const avatar = document.createElement('div');
+        avatar.classList.add('message-avatar');
+        avatar.innerHTML = isUser ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+
+        const content = document.createElement('div');
+        content.classList.add('message-content');
+
+        // Verificar se a mensagem contém HTML
+        if (message.includes('<div') || message.includes('<button')) {
+            content.innerHTML = message;
+        } else {
+            // Formatar texto simples, preservando quebras de linha
+            content.innerHTML = message.replace(/\n/g, '<br>');
+        }
+
+        messageElement.appendChild(avatar);
+        messageElement.appendChild(content);
+
+        chatMessages.appendChild(messageElement);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Inicializar botões interativos, se existirem
+        const purchaseButtons = messageElement.querySelectorAll('.flight-purchase-btn');
+        purchaseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const flightId = this.getAttribute('data-flight-id') || 'voo123';
+                const feedbackMsg = handleFlightPurchase(flightId);
+                const feedbackElement = document.createElement('div');
+                feedbackElement.classList.add('purchase-feedback');
+                feedbackElement.textContent = feedbackMsg;
+                this.parentNode.appendChild(feedbackElement);
+            });
+        });
+    }
+
+    function saveConversationLocal(userMessage, assistantResponse) {
+        const now = new Date();
+        const conversationTitle = userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : '');
+
+        if (!currentConversationId) {
+            // Nova conversa
+            currentConversationId = Date.now().toString();
+            const newConversation = {
+                id: currentConversationId,
+                title: conversationTitle,
+                created_at: now.toISOString(),
+                last_updated: now.toISOString(),
+                messages: [
+                    {
+                        id: Date.now().toString() + '1',
+                        content: userMessage,
+                        is_user: true,
+                        timestamp: now.toISOString()
+                    },
+                    {
+                        id: Date.now().toString() + '2',
+                        content: assistantResponse,
+                        is_user: false,
+                        timestamp: new Date(now.getTime() + 1000).toISOString()
+                    }
+                ]
+            };
+
+            conversations.unshift(newConversation);
+
+            // Atualizar a lista de conversas na interface
+            updateConversationsList();
+        } else {
+            // Conversa existente
+            const conversation = conversations.find(c => c.id === currentConversationId);
+            if (conversation) {
+                conversation.last_updated = now.toISOString();
+                conversation.messages.push(
+                    {
+                        id: Date.now().toString() + '1',
+                        content: userMessage,
+                        is_user: true,
+                        timestamp: now.toISOString()
+                    },
+                    {
+                        id: Date.now().toString() + '2',
+                        content: assistantResponse,
+                        is_user: false,
+                        timestamp: new Date(now.getTime() + 1000).toISOString()
+                    }
+                );
+
+                // Reordenar conversas (a mais recente primeiro)
+                conversations.sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
+
+                // Atualizar a lista de conversas na interface
+                updateConversationsList();
+            }
+        }
+    }
+
+    function startNewConversation() {
+        // Limpar o chat
+        chatMessages.innerHTML = `
+            <div class="message assistant" id="welcome-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
+                    <p>Escolha uma das modalidades acima:</p>
+                    <ul>
+                        <li><strong>Busca Rápida</strong>: Para encontrar os melhores voos rapidamente.</li>
+                        <li><strong>Planejamento Completo</strong>: Para criar um itinerário detalhado com voos, hotéis e atrações.</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        // Resetar o ID da conversa atual
+        currentConversationId = null;
+
+        // Resetar o contexto do chat
+        chatContext = {
+            mode: chatMode,
+            quickSearchStep: 0,
+            quickSearchData: {},
+            fullPlanningStep: 0,
+            fullPlanningData: {}
+        };
+
+        // Focar no campo de mensagem
+        messageInput.focus();
+    }
+
+    function updateConversationsList() {
+        const conversationsList = document.getElementById('conversations-list');
+        if (!conversationsList) return;
+
+        // Limpar lista atual
+        conversationsList.innerHTML = '';
+
+        // Template para item de conversa
+        const template = document.getElementById('conversation-item-template');
+
+        // Adicionar conversas à lista
+        conversations.forEach(conversation => {
+            // Clonar o template
+            const conversationItem = template.content.cloneNode(true);
+
+            // Configurar o item
+            const item = conversationItem.querySelector('.sidebar-item');
+            item.setAttribute('data-id', conversation.id);
+
+            const title = conversationItem.querySelector('.sidebar-item-title');
+            title.textContent = conversation.title;
+
+            const date = new Date(conversation.last_updated);
+            const subtitle = conversationItem.querySelector('.sidebar-item-subtitle');
+            subtitle.textContent = date.toLocaleDateString();
+
+            // Adicionar evento de clique
+            item.addEventListener('click', function() {
+                loadConversation(conversation.id);
+            });
+
+            // Adicionar à lista
+            conversationsList.appendChild(conversationItem);
+        });
+    }
+
+    function loadConversation(conversationId) {
+        const conversation = conversations.find(c => c.id === conversationId);
+        if (!conversation) return;
+
+        // Definir conversa atual
+        currentConversationId = conversationId;
+
+        // Limpar chat
+        chatMessages.innerHTML = '';
+
+        // Adicionar mensagens
+        conversation.messages.forEach(message => {
+            addMessageToChat(message.content, message.is_user);
+        });
+
+        // Focar no campo de mensagem
+        messageInput.focus();
+    }
+
+    // Funcionalidades de autenticação
+    function login(email, password) {
+        // Implementação simulada de login
+        fetch('/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -146,43 +659,41 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('login-modal').style.display = 'none';
-                // Atualizar UI para usuário logado
-                document.querySelector('.header-actions').innerHTML = `
-                    <span class="user-greeting">Olá, ${data.user.name}</span>
-                    <button id="logout-button" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
-                `;
-
-                // Adicionar event listener para logout
-                document.getElementById('logout-button').addEventListener('click', logout);
-
-                // Recarregar dados
-                loadConversations();
-                loadPlans();
-                loadProfile();
+                userLoggedIn = true;
+                userProfile = data.user;
+                hideModal(loginModal);
+                updateUIAfterLogin();
+                loadUserData();
             } else {
-                alert(data.error || 'Erro ao fazer login');
+                alert(data.error || 'Erro ao fazer login. Verifique suas credenciais.');
             }
         })
         .catch(error => {
-            console.error('Erro no login:', error);
-            alert('Erro ao fazer login. Tente novamente.');
+            console.log("Usuário não está logado:", error);
+            // Em modo de demonstração, simular login bem-sucedido
+            if (useLocalProcessing) {
+                userLoggedIn = true;
+                userProfile = {
+                    name: 'Usuário Demo',
+                    email: email || 'usuario@exemplo.com'
+                };
+                hideModal(loginModal);
+                updateUIAfterLogin();
+            } else {
+                alert('Erro ao fazer login. Por favor, tente novamente.');
+            }
         });
-    });
+    }
 
-    document.getElementById('signup-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const name = document.getElementById('signup-name').value;
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        const passwordConfirm = document.getElementById('signup-password-confirm').value;
-
+    function signup(name, email, password, passwordConfirm) {
+        // Validar senha
         if (password !== passwordConfirm) {
-            alert('As senhas não coincidem');
+            alert('As senhas não coincidem.');
             return;
         }
 
-        fetch('/api/register', {
+        // Implementação simulada de cadastro
+        fetch('/api/signup', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -192,34 +703,177 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('signup-modal').style.display = 'none';
-                alert('Conta criada com sucesso! Faça login para continuar.');
-
-                // Mostrar modal de login
-                document.getElementById('login-modal').style.display = 'flex';
-                document.getElementById('login-email').value = email;
+                alert('Cadastro realizado com sucesso! Faça login para continuar.');
+                hideModal(signupModal);
+                showModal(loginModal);
             } else {
-                alert(data.error || 'Erro ao criar conta');
+                alert(data.error || 'Erro ao criar conta. Tente novamente.');
             }
         })
         .catch(error => {
-            console.error('Erro no cadastro:', error);
-            alert('Erro ao criar conta. Tente novamente.');
+            console.log("Erro no cadastro:", error);
+            // Em modo de demonstração, simular cadastro bem-sucedido
+            if (useLocalProcessing) {
+                alert('Cadastro realizado com sucesso! Faça login para continuar.');
+                hideModal(signupModal);
+                showModal(loginModal);
+            } else {
+                alert('Erro ao criar conta. Por favor, tente novamente.');
+            }
         });
-    });
+    }
 
-    // Formulário de perfil
-    document.getElementById('profile-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
+    function updateUIAfterLogin() {
+        // Atualizar botões de login/cadastro
+        const headerActions = document.querySelector('.header-actions');
+        if (headerActions) {
+            headerActions.innerHTML = `
+                <span class="user-greeting">Olá, ${userProfile.name || 'Usuário'}</span>
+                <button id="logout-button" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            `;
+
+            // Adicionar evento ao botão de logout
+            const logoutButton = document.getElementById('logout-button');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', logout);
+            }
+        }
+    }
+
+    function logout() {
+        fetch('/api/logout')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                userLoggedIn = false;
+                userProfile = {};
+                location.reload(); // Recarregar página para resetar estado
+            }
+        })
+        .catch(error => {
+            console.log("Erro ao fazer logout:", error);
+            // Em modo de demonstração, simular logout bem-sucedido
+            if (useLocalProcessing) {
+                userLoggedIn = false;
+                userProfile = {};
+                location.reload();
+            }
+        });
+    }
+
+    function loadUserData() {
+        // Carregar dados do usuário após login
+        Promise.all([
+            loadConversations(),
+            loadPlans(),
+            loadProfile()
+        ]).then(() => {
+            console.log('Dados do usuário carregados com sucesso.');
+        }).catch(error => {
+            console.log('Erro ao carregar dados do usuário:', error);
+        });
+    }
+
+    function loadConversations() {
+        return new Promise((resolve, reject) => {
+            fetch('/api/conversations')
+            .then(response => response.json())
+            .then(data => {
+                conversations = data;
+                updateConversationsList();
+                resolve(data);
+            })
+            .catch(error => {
+                console.log("Error loading conversations:", error);
+                // Em modo de demonstração, usar dados locais
+                if (useLocalProcessing) {
+                    // Manter conversas atuais ou inicializar vazias
+                    if (!conversations.length) {
+                        conversations = [];
+                    }
+                    resolve(conversations);
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function loadPlans() {
+        return new Promise((resolve, reject) => {
+            fetch('/api/plans')
+            .then(response => response.json())
+            .then(data => {
+                plans = data;
+                updatePlansList();
+                resolve(data);
+            })
+            .catch(error => {
+                console.log("Error loading plans:", error);
+                // Em modo de demonstração, usar dados locais
+                if (useLocalProcessing) {
+                    plans = [];
+                    resolve(plans);
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function loadProfile() {
+        return new Promise((resolve, reject) => {
+            fetch('/api/profile')
+            .then(response => response.json())
+            .then(data => {
+                userProfile = data;
+                updateProfileForm();
+                resolve(data);
+            })
+            .catch(error => {
+                console.log("Error loading profile:", error);
+                // Em modo de demonstração, manter perfil atual
+                if (useLocalProcessing) {
+                    resolve(userProfile);
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function updateProfileForm() {
+        if (!profileForm) return;
+
+        // Preencher campos do formulário com dados do perfil
+        document.getElementById('profile-name').value = userProfile.name || '';
+        document.getElementById('profile-email').value = userProfile.email || '';
+        document.getElementById('profile-phone').value = userProfile.phone || '';
+
+        // Preferências
+        if (userProfile.preferences) {
+            document.getElementById('profile-preferred-destinations').value = userProfile.preferences.preferred_destinations || '';
+            document.getElementById('profile-accommodation-type').value = userProfile.preferences.accommodation_type || '';
+            document.getElementById('profile-budget').value = userProfile.preferences.budget || '';
+        }
+    }
+
+    function saveProfile() {
+        const name = document.getElementById('profile-name').value;
+        const email = document.getElementById('profile-email').value;
+        const phone = document.getElementById('profile-phone').value;
+        const preferredDestinations = document.getElementById('profile-preferred-destinations').value;
+        const accommodationType = document.getElementById('profile-accommodation-type').value;
+        const budget = document.getElementById('profile-budget').value;
+
         const profileData = {
-            name: formData.get('name'),
-            email: formData.get('email'),
-            phone: formData.get('phone'),
+            name,
+            email,
+            phone,
             preferences: {
-                preferred_destinations: formData.get('preferred_destinations'),
-                accommodation_type: formData.get('accommodation_type'),
-                budget: formData.get('budget')
+                preferred_destinations: preferredDestinations,
+                accommodation_type: accommodationType,
+                budget
             }
         };
 
@@ -233,1184 +887,289 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                userProfile = data.profile;
                 alert('Perfil atualizado com sucesso!');
             } else {
-                alert(data.error || 'Erro ao atualizar perfil');
+                alert(data.error || 'Erro ao atualizar perfil. Tente novamente.');
             }
         })
         .catch(error => {
-            console.error('Erro ao atualizar perfil:', error);
-            alert('Erro ao atualizar perfil. Tente novamente.');
-        });
-    });
-});
-
-// Função para enviar mensagem
-function sendMessage() {
-    const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
-
-    if (message === '') {
-        return;
-    }
-
-    // Adicionar mensagem do usuário ao chat
-    addUserMessage(message);
-
-    // Limpar input
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-
-    // Mostrar indicador de digitação
-    const typingIndicator = document.createElement('div');
-    typingIndicator.className = 'message assistant typing';
-    typingIndicator.id = 'typing-indicator';
-    typingIndicator.innerHTML = `
-        <div class="message-avatar">
-            <i class="fas fa-robot"></i>
-        </div>
-        <div class="message-content">
-            <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-    `;
-    document.getElementById('chat-messages').appendChild(typingIndicator);
-
-    // Rolar para o final do chat
-    const chatContainer = document.getElementById('chat-messages');
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    // Enviar mensagem para o backend
-    fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            message: message,
-            conversation_id: currentConversationId,
-            context: chatContext
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Remover indicador de digitação
-        document.getElementById('typing-indicator').remove();
-
-        // Atualizar ID da conversa
-        if (data.conversation_id) {
-            currentConversationId = data.conversation_id;
-        }
-
-        // Atualizar contexto do chat
-        if (data.context) {
-            chatContext = data.context;
-        }
-
-        // Processar resposta com base no modo do chat
-        let processedResponse = data.response;
-        if (chatContext.mode === 'quick-search') {
-            processedResponse = processQuickSearchResponse(data.response);
-        } else if (chatContext.mode === 'full-planning') {
-            processedResponse = processFullPlanningResponse(data.response);
-        }
-
-        // Adicionar resposta do assistente
-        addAssistantMessage(processedResponse);
-
-        // Executar ação do chat, se houver
-        if (data.action) {
-            executeAction(data.action);
-        }
-
-        // Atualizar lista de conversas
-        loadConversations();
-    })
-    .catch(error => {
-        console.log('Error getting chat response:', error);
-
-        // Remover indicador de digitação
-        if (document.getElementById('typing-indicator')) {
-            document.getElementById('typing-indicator').remove();
-        }
-
-        // Mostrar mensagem de erro
-        addAssistantMessage("Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente mais tarde.");
-    });
-}
-
-// Funções para adicionar mensagens ao chat
-function addUserMessage(message) {
-    const chatMessages = document.getElementById('chat-messages');
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message user';
-    messageElement.innerHTML = `
-        <div class="message-content">
-            <p>${escapeHtml(message)}</p>
-        </div>
-        <div class="message-avatar">
-            <i class="fas fa-user"></i>
-        </div>
-    `;
-    chatMessages.appendChild(messageElement);
-
-    // Rolar para o final do chat
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function addAssistantMessage(message) {
-    const chatMessages = document.getElementById('chat-messages');
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message assistant';
-
-    // Verificar se a mensagem contém HTML (para botões de ação, etc.)
-    if (message.includes('<')) {
-        messageElement.innerHTML = `
-            <div class="message-avatar">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div class="message-content">
-                ${message}
-            </div>
-        `;
-    } else {
-        messageElement.innerHTML = `
-            <div class="message-avatar">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div class="message-content">
-                <p>${message}</p>
-            </div>
-        `;
-    }
-
-    chatMessages.appendChild(messageElement);
-
-    // Rolar para o final do chat
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// Função para definir o modo de chat ativo
-function setActiveChatMode(mode) {
-    chatMode = mode;
-    chatContext.mode = mode;
-
-    // Resetar passo atual
-    if (mode === 'quick-search') {
-        chatContext.quickSearchStep = 0;
-        chatContext.quickSearchData = {};
-        document.getElementById('quick-search-mode').classList.add('active');
-        document.getElementById('full-planning-mode').classList.remove('active');
-
-        // Mensagem de boas-vindas para busca rápida
-        if (!currentConversationId) {
-            document.getElementById('chat-messages').innerHTML = '';
-            addAssistantMessage(`
-                <p>Você está no modo: <strong>Busca Rápida</strong></p>
-                <p>Neste modo, podemos encontrar rapidamente os melhores voos para a sua viagem.</p>
-                <p>Como posso ajudar?</p>
-            `);
-        }
-    } else if (mode === 'full-planning') {
-        chatContext.fullPlanningStep = 0;
-        chatContext.fullPlanningData = {};
-        document.getElementById('quick-search-mode').classList.remove('active');
-        document.getElementById('full-planning-mode').classList.add('active');
-
-        // Mensagem de boas-vindas para planejamento completo
-        if (!currentConversationId) {
-            document.getElementById('chat-messages').innerHTML = '';
-            addAssistantMessage(`
-                <p>Você está no modo: <strong>Planejamento Completo</strong></p>
-                <p>Neste modo, vamos desenvolver um plano detalhado para sua viagem, incluindo voos, hospedagem e passeios.</p>
-                <p>Como posso ajudar no seu planejamento?</p>
-            `);
-        }
-    }
-}
-
-// Funções para processar respostas com base no modo de chat
-function processQuickSearchResponse(message) {
-    // Processar resposta para integrar botões de ação para compra direta
-    if (message.includes("voo") || message.includes("passagem") || message.includes("companhia aérea") || 
-        message.includes("Companhia") || message.includes("Argentina") || message.includes("primeira semana")) {
-
-        // Simular uma oferta de passagem com dados da conversa
-        const passagemHtml = `
-            <div class="flight-offer-card">
-                <div class="flight-offer-header">
-                    <div class="airline-logo">
-                        <img src="https://logodownload.org/wp-content/uploads/2016/12/latam-logo-0.png" alt="LATAM">
-                    </div>
-                    <div class="flight-price">
-                        <span class="price-value">R$ 2.450,00</span>
-                        <span class="price-installment">10x R$ 245,00 sem juros</span>
-                    </div>
-                </div>
-                <div class="flight-details">
-                    <div class="flight-route">
-                        <div class="departure">
-                            <span class="airport-code">GRU</span>
-                            <span class="time">08:20</span>
-                            <span class="date">01/06/2024</span>
-                        </div>
-                        <div class="flight-line">
-                            <div class="line"></div>
-                            <i class="fas fa-plane"></i>
-                        </div>
-                        <div class="arrival">
-                            <span class="airport-code">EZE</span>
-                            <span class="time">11:45</span>
-                            <span class="date">01/06/2024</span>
-                        </div>
-                    </div>
-                    <div class="flight-info">
-                        <span class="duration"><i class="far fa-clock"></i> 3h 25min</span>
-                        <span class="direct"><i class="fas fa-check-circle"></i> Voo direto</span>
-                    </div>
-                </div>
-                <div class="flight-actions">
-                    <button class="btn btn-primary" onclick="bookFlight('LATAM1234')">
-                        <i class="fas fa-shopping-cart"></i> Comprar agora
-                    </button>
-                    <button class="btn btn-outline" onclick="addToMonitor('flight', {id: 'LATAM1234'})">
-                        <i class="fas fa-bell"></i> Monitorar preço
-                    </button>
-                </div>
-            </div>
-        `;
-
-        // Adicionar a oferta após a resposta do assistente
-        return message + '<p>Encontrei esta opção para sua viagem:</p>' + passagemHtml;
-    }
-
-    return message;
-}
-
-function processFullPlanningResponse(message) {
-    // Processar resposta para o modo de planejamento completo
-    chatContext.fullPlanningStep = chatContext.fullPlanningStep || 0;
-
-    // Se estivermos no último passo do planejamento, adicionar opções de voo e hotel
-    if (chatContext.fullPlanningStep >= 4 && message.includes("orçamento") || message.includes("plano")) {
-        // Adicionar opções de voo e hotel ao final da mensagem
-        const opcoesHTML = `
-            <div class="full-plan-options">
-                <h4>Opções de Voo</h4>
-                <div class="flight-option-card">
-                    <div class="flight-option-header">
-                        <div class="airline">
-                            <img src="https://logodownload.org/wp-content/uploads/2016/12/latam-logo-0.png" alt="LATAM">
-                            <span>LATAM Airlines</span>
-                        </div>
-                        <div class="price">R$ 2.780,00</div>
-                    </div>
-                    <div class="flight-option-details">
-                        <div class="route-info">
-                            <div class="route">
-                                <div class="from">
-                                    <div class="code">GRU</div>
-                                    <div class="time">08:45</div>
-                                </div>
-                                <div class="arrow">
-                                    <i class="fas fa-long-arrow-alt-right"></i>
-                                </div>
-                                <div class="to">
-                                    <div class="code">EZE</div>
-                                    <div class="time">12:10</div>
-                                </div>
-                            </div>
-                            <div class="date">
-                                <i class="far fa-calendar-alt"></i> 01/06/2024
-                            </div>
-                        </div>
-                        <div class="flight-info">
-                            <div class="duration">
-                                <i class="far fa-clock"></i> 3h 25min
-                            </div>
-                            <div class="type">
-                                <i class="fas fa-plane"></i> Direto
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flight-option-actions">
-                        <button class="btn btn-primary" onclick="bookFlight('LATAM4567')">
-                            <i class="fas fa-check"></i> Selecionar este voo
-                        </button>
-                    </div>
-                </div>
-
-                <h4>Opções de Hospedagem</h4>
-                <div class="hotel-option-card">
-                    <div class="hotel-option-header">
-                        <div class="hotel-name">Hotel Alvear Palace</div>
-                        <div class="hotel-stars">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                    <div class="hotel-option-image">
-                        <img src="https://media-cdn.tripadvisor.com/media/photo-s/16/31/d0/63/alvear-palace-hotel.jpg" alt="Hotel Alvear Palace">
-                    </div>
-                    <div class="hotel-option-details">
-                        <div class="location">
-                            <i class="fas fa-map-marker-alt"></i> Recoleta, Buenos Aires
-                        </div>
-                        <div class="rating">
-                            <span class="score">9.6</span> Excelente (230 avaliações)
-                        </div>
-                        <div class="price">
-                            <span class="value">R$ 1.250,00</span> por noite
-                        </div>
-                    </div>
-                    <div class="hotel-option-actions">
-                        <button class="btn btn-primary" onclick="bookHotel('ALVEAR123')">
-                            <i class="fas fa-check"></i> Selecionar este hotel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        return message + opcoesHTML;
-    }
-
-    return message;
-}
-
-// Função para executar ações com base na resposta do backend
-function executeAction(action) {
-    if (!action) return;
-
-    switch(action.type) {
-        case 'search_flights':
-            searchFlights(action.data);
-            break;
-        case 'generate_travel_plan':
-            generateTravelPlan(action.data);
-            break;
-        default:
-            console.log('Unknown action type:', action.type);
-    }
-}
-
-// Funções para carregar dados do backend
-function loadConversations() {
-    fetch('/api/conversations')
-        .then(response => response.json())
-        .then(data => {
-            const conversationsList = document.getElementById('conversations-list');
-            conversationsList.innerHTML = '';
-
-            if (data.conversations && data.conversations.length > 0) {
-                data.conversations.forEach(conversation => {
-                    const template = document.getElementById('conversation-item-template');
-                    const clone = document.importNode(template.content, true);
-
-                    const item = clone.querySelector('.sidebar-item');
-                    item.setAttribute('data-id', conversation.id);
-
-                    const title = clone.querySelector('.sidebar-item-title');
-                    title.textContent = conversation.title;
-
-                    const subtitle = clone.querySelector('.sidebar-item-subtitle');
-                    // Formatar data para exibição
-                    const date = new Date(conversation.created_at);
-                    subtitle.textContent = date.toLocaleDateString('pt-BR');
-
-                    // Adicionar event listener para carregar conversa
-                    item.addEventListener('click', function() {
-                        loadConversation(conversation.id);
-                    });
-
-                    conversationsList.appendChild(clone);
-                });
+            console.log("Error saving profile:", error);
+            // Em modo de demonstração, simular sucesso
+            if (useLocalProcessing) {
+                userProfile = profileData;
+                alert('Perfil atualizado com sucesso! (Modo demo)');
             } else {
-                conversationsList.innerHTML = '<div class="empty-list">Nenhuma conversa encontrada</div>';
+                alert('Erro ao atualizar perfil. Por favor, tente novamente.');
             }
-        })
-        .catch(error => {
-            console.log('Error loading conversations:', error);
         });
-}
-
-function loadConversation(conversationId) {
-    if (currentConversationId === conversationId) {
-        return;
     }
 
-    fetch(`/api/conversations/${conversationId}`)
-        .then(response => response.json())
-        .then(data => {
-            currentConversationId = conversationId;
+    function updatePlansList() {
+        const plansList = document.getElementById('plans-list');
+        if (!plansList) return;
 
-            // Limpar chat
-            document.getElementById('chat-messages').innerHTML = '';
+        // Limpar lista atual
+        plansList.innerHTML = '';
 
-            // Adicionar mensagens ao chat
-            data.messages.forEach(message => {
-                if (message.is_user) {
-                    addUserMessage(message.content);
-                } else {
-                    addAssistantMessage(message.content);
-                }
+        // Template para item de plano
+        const template = document.getElementById('plan-item-template');
+
+        // Adicionar planos à lista
+        plans.forEach(plan => {
+            // Clonar o template
+            const planItem = template.content.cloneNode(true);
+
+            // Configurar o item
+            const item = planItem.querySelector('.sidebar-item');
+            item.setAttribute('data-id', plan.id);
+
+            const title = planItem.querySelector('.sidebar-item-title');
+            title.textContent = plan.title;
+
+            const subtitle = planItem.querySelector('.sidebar-item-subtitle');
+            subtitle.textContent = plan.destination;
+
+            // Adicionar evento de clique
+            item.addEventListener('click', function() {
+                loadPlan(plan.id);
             });
 
-            // Ativar seção de chat
-            document.querySelectorAll('.sidebar-nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.querySelector('.sidebar-nav-item[data-section="chat"]').classList.add('active');
-
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById('chat-section').classList.add('active');
-
-            // Destacar conversa ativa na lista
-            document.querySelectorAll('#conversations-list .sidebar-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.querySelector(`#conversations-list .sidebar-item[data-id="${conversationId}"]`).classList.add('active');
-        })
-        .catch(error => {
-            console.log('Error loading conversation:', error);
-            alert('Erro ao carregar conversa. Tente novamente.');
+            // Adicionar à lista
+            plansList.appendChild(planItem);
         });
-}
+    }
 
-function loadPlans() {
-    fetch('/api/plans')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            const plansList = document.getElementById('plans-list');
-            plansList.innerHTML = '';
+    function loadPlan(planId) {
+        const plan = plans.find(p => p.id === planId);
+        if (!plan) return;
 
-            if (data && data.length > 0) {
-                data.forEach(plan => {
-                    const template = document.getElementById('plan-item-template');
-                    const clone = document.importNode(template.content, true);
+        // Mostrar seção de detalhes do plano
+        showSection('plans-detail');
 
-                    const item = clone.querySelector('.sidebar-item');
-                    item.setAttribute('data-id', plan.id);
-
-                    const title = clone.querySelector('.sidebar-item-title');
-                    title.textContent = plan.title;
-
-                    const subtitle = clone.querySelector('.sidebar-item-subtitle');
-                    subtitle.textContent = plan.destination;
-
-                    // Adicionar event listener para carregar plano
-                    item.addEventListener('click', function() {
-                        loadPlan(plan.id);
-                    });
-
-                    plansList.appendChild(clone);
-                });
-            } else {
-                plansList.innerHTML = '<div class="empty-list">Nenhum plano de viagem encontrado</div>';
-            }
-        })
-        .catch(error => {
-            console.log('Error loading plans:', error);
-        });
-}
-
-function loadPlan(planId) {
-    fetch(`/api/plan/${planId}`)
-        .then(response => response.json())
-        .then(plan => {
-            const planDetails = document.getElementById('plan-details');
-
-            // Formatar datas
-            const startDate = plan.start_date ? new Date(plan.start_date).toLocaleDateString('pt-BR') : 'Não definida';
-            const endDate = plan.end_date ? new Date(plan.end_date).toLocaleDateString('pt-BR') : 'Não definida';
-
-            // Criar HTML para o plano
+        // Preencher detalhes do plano
+        const planDetails = document.getElementById('plan-details');
+        if (planDetails) {
             planDetails.innerHTML = `
-                <div class="plan-header">
-                    <h3>${plan.title}</h3>
-                    <div class="plan-meta">
-                        <div class="plan-meta-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span>${plan.destination}</span>
-                        </div>
-                        <div class="plan-meta-item">
-                            <i class="fas fa-calendar"></i>
-                            <span>${startDate} - ${endDate}</span>
-                        </div>
-                    </div>
+                <h3>${plan.title}</h3>
+                <div class="plan-info">
+                    <p><strong>Destino:</strong> ${plan.destination}</p>
+                    <p><strong>Data Início:</strong> ${plan.start_date || 'Não definida'}</p>
+                    <p><strong>Data Fim:</strong> ${plan.end_date || 'Não definida'}</p>
                 </div>
-
                 <div class="plan-details-content">
-                    <div class="plan-section">
-                        <h4><i class="fas fa-info-circle"></i> Detalhes</h4>
-                        <div class="plan-details-text">
-                            ${plan.details || 'Nenhum detalhe disponível.'}
-                        </div>
-                    </div>
-
-                    <div class="plan-section">
-                        <h4><i class="fas fa-plane"></i> Voos</h4>
-                        <div class="plan-flights">
-                            ${renderFlights(plan.flights)}
-                        </div>
-                    </div>
-
-                    <div class="plan-section">
-                        <h4><i class="fas fa-hotel"></i> Hospedagem</h4>
-                        <div class="plan-accommodations">
-                            ${renderAccommodations(plan.accommodations)}
-                        </div>
-                    </div>
-
-                    <div class="plan-actions">
-                        <button class="btn btn-primary" onclick="downloadPlanPDF(${plan.id})">
-                            <i class="fas fa-file-pdf"></i> Baixar PDF
-                        </button>
-                        <button class="btn btn-outline" onclick="sharePlan(${plan.id})">
-                            <i class="fas fa-share-alt"></i> Compartilhar
-                        </button>
-                    </div>
+                    ${plan.details || 'Nenhum detalhe disponível.'}
+                </div>
+                <div class="plan-actions">
+                    <button class="btn btn-primary" id="download-plan-pdf">Baixar PDF</button>
+                    <button class="btn btn-outline" id="edit-plan">Editar</button>
+                    <button class="btn btn-danger" id="delete-plan">Excluir</button>
                 </div>
             `;
 
-            // Ativar seção de detalhes do plano
-            document.querySelectorAll('.sidebar-nav-item').forEach(item => {
-                item.classList.remove('active');
+            // Adicionar eventos aos botões
+            document.getElementById('download-plan-pdf').addEventListener('click', function() {
+                downloadPlanPDF(planId);
             });
-            document.querySelector('.sidebar-nav-item[data-section="plans"]').classList.add('active');
 
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.remove('active');
+            document.getElementById('edit-plan').addEventListener('click', function() {
+                editPlan(planId);
             });
-            document.getElementById('plans-detail-section').classList.add('active');
-        })
-        .catch(error => {
-            console.log('Error loading plan:', error);
-            alert('Erro ao carregar plano. Tente novamente.');
-        });
-}
 
-function renderFlights(flights) {
-    if (!flights || flights.length === 0) {
-        return '<div class="empty-section">Nenhum voo adicionado a este plano.</div>';
-    }
-
-    let html = '';
-
-    flights.forEach(flight => {
-        // Formatar datas
-        const departureTime = flight.departure_time ? new Date(flight.departure_time).toLocaleString('pt-BR') : '';
-        const arrivalTime = flight.arrival_time ? new Date(flight.arrival_time).toLocaleString('pt-BR') : '';
-
-        html += `
-            <div class="flight-card">
-                <div class="flight-card-header">
-                    <div class="flight-airline">${flight.airline || 'Companhia não especificada'} ${flight.flight_number || ''}</div>
-                    <div class="flight-price">${flight.price ? `${flight.currency} ${flight.price}` : 'Preço não disponível'}</div>
-                </div>
-                <div class="flight-card-content">
-                    <div class="flight-route">
-                        <div class="flight-origin">
-                            <div class="flight-code">${flight.departure_location || ''}</div>
-                            <div class="flight-time">${departureTime}</div>
-                        </div>
-                        <div class="flight-divider">
-                            <i class="fas fa-plane"></i>
-                        </div>
-                        <div class="flight-destination">
-                            <div class="flight-code">${flight.arrival_location || ''}</div>
-                            <div class="flight-time">${arrivalTime}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-
-    return html;
-}
-
-function renderAccommodations(accommodations) {
-    if (!accommodations || accommodations.length === 0) {
-        return '<div class="empty-section">Nenhuma hospedagem adicionada a este plano.</div>';
-    }
-
-    let html = '';
-
-    accommodations.forEach(acc => {
-        // Formatar datas
-        const checkIn = acc.check_in ? new Date(acc.check_in).toLocaleDateString('pt-BR') : 'Não definido';
-        const checkOut = acc.check_out ? new Date(acc.check_out).toLocaleDateString('pt-BR') : 'Não definido';
-
-        // Criar estrelas para classificação
-        let stars = '';
-        if (acc.stars) {
-            for (let i = 0; i < acc.stars; i++) {
-                stars += '<i class="fas fa-star"></i>';
-            }
+            document.getElementById('delete-plan').addEventListener('click', function() {
+                deletePlan(planId);
+            });
         }
+    }
 
-        html += `
-            <div class="accommodation-card">
-                <div class="accommodation-card-header">
-                    <div class="accommodation-name">${acc.name || 'Hospedagem não especificada'}</div>
-                    <div class="accommodation-rating">${stars}</div>
-                </div>
-                <div class="accommodation-card-content">
-                    <div class="accommodation-location">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>${acc.location || 'Localização não disponível'}</span>
-                    </div>
-                    <div class="accommodation-dates">
-                        <div class="checkin">
-                            <i class="fas fa-calendar-check"></i>
-                            <span>Check-in: ${checkIn}</span>
-                        </div>
-                        <div class="checkout">
-                            <i class="fas fa-calendar-times"></i>
-                            <span>Check-out: ${checkOut}</span>
-                        </div>
-                    </div>
-                    <div class="accommodation-price">
-                        <i class="fas fa-tag"></i>
-                        <span>${acc.price_per_night ? `${acc.currency} ${acc.price_per_night}/noite` : 'Preço não disponível'}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
+    function downloadPlanPDF(planId) {
+        window.location.href = `/api/plan/${planId}/pdf`;
+    }
 
-    return html;
-}
+    function editPlan(planId) {
+        alert('Funcionalidade de edição em desenvolvimento.');
+    }
 
-function loadProfile() {
-    fetch('/api/profile')
+    function deletePlan(planId) {
+        if (confirm('Tem certeza que deseja excluir este plano?')) {
+            fetch(`/api/plan/${planId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remover plano da lista
+                    plans = plans.filter(p => p.id !== planId);
+                    updatePlansList();
+
+                    // Voltar para a lista de planos
+                    showSection('plans');
+
+                    alert('Plano excluído com sucesso!');
+                } else {
+                    alert(data.error || 'Erro ao excluir plano.');
+                }
+            })
+            .catch(error => {
+                console.log("Error deleting plan:", error);
+                // Em modo de demonstração, simular sucesso
+                if (useLocalProcessing) {
+                    plans = plans.filter(p => p.id !== planId);
+                    updatePlansList();
+                    showSection('plans');
+                    alert('Plano excluído com sucesso! (Modo demo)');
+                } else {
+                    alert('Erro ao excluir plano. Por favor, tente novamente.');
+                }
+            });
+        }
+    }
+
+    // Inicialização
+    function init() {
+        // Checar se usuário está logado
+        fetch('/api/profile')
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
+            if (response.ok) return response.json();
+            throw new Error('Não autenticado');
         })
-        .then(profile => {
-            // Preencher formulário de perfil
-            document.getElementById('profile-name').value = profile.name || '';
-            document.getElementById('profile-email').value = profile.email || '';
-            document.getElementById('profile-phone').value = profile.phone || '';
-
-            // Preencher preferências
-            if (profile.preferences) {
-                document.getElementById('profile-preferred-destinations').value = profile.preferences.preferred_destinations || '';
-
-                const accommodationType = document.getElementById('profile-accommodation-type');
-                if (profile.preferences.accommodation_type) {
-                    for (let i = 0; i < accommodationType.options.length; i++) {
-                        if (accommodationType.options[i].value === profile.preferences.accommodation_type) {
-                            accommodationType.selectedIndex = i;
-                            break;
-                        }
-                    }
-                }
-
-                const budget = document.getElementById('profile-budget');
-                if (profile.preferences.budget) {
-                    for (let i = 0; i < budget.options.length; i++) {
-                        if (budget.options[i].value === profile.preferences.budget) {
-                            budget.selectedIndex = i;
-                            break;
-                        }
-                    }
-                }
-            }
-        })
-        .catch(error => {
-            console.log('Error loading profile:', error);
-        });
-}
-
-// Funções de ação
-function searchFlights(data) {
-    // Mostrar indicador de busca
-    addAssistantMessage('Buscando as melhores opções de voos para você...');
-
-    fetch('/api/search', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            type: 'flights',
-            params: data
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.error) {
-            addAssistantMessage(`Desculpe, encontrei um problema ao buscar voos: ${result.error}`);
-            return;
-        }
-
-        if (!result.flights || result.flights.length === 0) {
-            addAssistantMessage('Desculpe, não encontrei voos disponíveis com os critérios informados. Poderia ajustar as datas ou destinos?');
-            return;
-        }
-
-        // Criar mensagem com resultados
-        let message = '<p>Encontrei estas opções de voo para você:</p>';
-        message += '<div class="flights-results">';
-
-        result.flights.forEach((flight, index) => {
-            if (index >= 3) return; // Mostrar apenas os 3 primeiros resultados
-
-            // Extrair informações do voo
-            const departureTime = new Date(flight.departure.time).toLocaleString('pt-BR');
-            const arrivalTime = new Date(flight.arrival.time).toLocaleString('pt-BR');
-
-            message += `
-                <div class="flight-result-card">
-                    <div class="flight-result-header">
-                        <div class="flight-route">${flight.departure.airport} → ${flight.arrival.airport}</div>
-                        <div class="flight-price">${flight.price}</div>
-                    </div>
-                    <div class="flight-result-details">
-                        <div class="flight-times">
-                            <span>Saída: ${departureTime}</span>
-                            <span>Chegada: ${arrivalTime}</span>
-                        </div>
-                        <div class="flight-duration">Duração: ${flight.duration.replace('PT', '').replace('H', 'h ').replace('M', 'm')}</div>
-                        <div class="flight-segments">Escalas: ${flight.segments > 1 ? (flight.segments - 1) : 'Voo direto'}</div>
-                    </div>
-                    <div class="flight-result-actions">
-                        <button class="btn btn-primary book-flight-btn" onclick="bookFlight('${flight.id}')">
-                            <i class="fas fa-shopping-cart"></i> Comprar
-                        </button>
-                        <button class="btn btn-outline add-to-monitor-btn" onclick="addToMonitor('flight', ${JSON.stringify(flight).replace(/"/g, '&quot;')})">
-                            <i class="fas fa-bell"></i> Monitorar Preço
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-
-        if (result.flights.length > 3) {
-            message += `<div class="more-results">E mais ${result.flights.length - 3} opções disponíveis...</div>`;
-        }
-
-        message += '</div>';
-
-        addAssistantMessage(message);
-    })
-    .catch(error => {
-        console.log('Error searching flights:', error);
-        addAssistantMessage('Desculpe, ocorreu um erro ao buscar os voos. Por favor, tente novamente mais tarde.');
-    });
-}
-
-function generateTravelPlan(data) {
-    // Implementação real a ser feita com base nos dados coletados
-    addAssistantMessage("Gerando seu plano de viagem completo...");
-
-    // Exemplo de geração de plano
-    setTimeout(() => {
-        const planMessage = `
-            <div class="travel-plan">
-                <h4>Seu Plano de Viagem para ${data.destinations}</h4>
-
-                <div class="travel-plan-section">
-                    <h5>Resumo</h5>
-                    <p><strong>Destinos:</strong> ${data.destinations}</p>
-                    <p><strong>Período:</strong> ${data.dateAndDuration}</p>
-                    <p><strong>Viajantes:</strong> ${data.peopleAndPreferences}</p>
-                    <p><strong>Orçamento:</strong> ${data.budget}</p>
-                </div>
-
-                <div class="travel-plan-section">
-                    <h5>Voos Recomendados</h5>
-                    <div class="flight-option">
-                        <div class="flight-header">
-                            <span class="flight-company">LATAM</span>
-                            <span class="flight-price">R$ 1.880,00</span>
-                        </div>
-                        <div class="flight-details">
-                            <p><strong>Ida:</strong> São Paulo (GRU) → Buenos Aires (EZE), 15 Jun, 08:30 - 11:45</p>
-                            <p><strong>Volta:</strong> Buenos Aires (EZE) → São Paulo (GRU), 22 Jun, 14:20 - 17:35</p>
-                        </div>
-                        <button class="btn btn-primary" onclick="bookFlight('mock-flight-1')">Reservar</button>
-                    </div>
-                </div>
-
-                <div class="travel-plan-section">
-                    <h5>Hospedagens Recomendadas</h5>
-                    <div class="hotel-option">
-                        <div class="hotel-header">
-                            <span class="hotel-name">Hotel Faena Buenos Aires</span>
-                            <span class="hotel-price">R$ 780,00/noite</span>
-                        </div>
-                        <div class="hotel-details">
-                            <p><strong>Localização:</strong> Puerto Madero, Buenos Aires</p>
-                            <p><strong>Avaliação:</strong> 4.8/5 (320 avaliações)</p>
-                        </div>
-                        <button class="btn btn-primary" onclick="bookHotel('mock-hotel-1')">Reservar</button>
-                    </div>
-                </div>
-
-                <div class="travel-plan-section">
-                    <h5>Roteiro Sugerido</h5>
-                    <div class="itinerary">
-                        <div class="itinerary-day">
-                            <h6>Dia 1: Chegada</h6>
-                            <p>Chegada em Buenos Aires, check-in no hotel e passeio pelo Puerto Madero.</p>
-                        </div>
-                        <div class="itinerary-day">
-                            <h6>Dia 2: Centro Histórico</h6>
-                            <p>Visita à Plaza de Mayo, Casa Rosada e Catedral Metropolitana.</p>
-                        </div>
-                        <div class="itinerary-day">
-                            <h6>Dia 3: San Telmo e La Boca</h6>
-                            <p>Explore os bairros históricos e visite o estádio La Bombonera.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="travel-plan-actions">
-                    <button class="btn btn-primary" onclick="saveTravelPlan()">Salvar Plano</button>
-                    <button class="btn btn-outline" onclick="downloadPlan()">Baixar PDF</button>
-                </div>
-            </div>
-        `;
-
-        addAssistantMessage(planMessage);
-    }, 2000);
-}
-
-// Funções de utilidade
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function logout() {
-    fetch('/logout')
-        .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Restaurar UI para usuário não logado
-                document.querySelector('.header-actions').innerHTML = `
-                    <button id="login-button" class="btn btn-outline"><i class="fas fa-sign-in-alt"></i> Entrar</button>
-                    <button id="signup-button" class="btn btn-primary"><i class="fas fa-user-plus"></i> Cadastrar</button>
-                `;
-
-                // Adicionar event listeners novamente
-                document.getElementById('login-button').addEventListener('click', function() {
-                    document.getElementById('login-modal').style.display = 'flex';
-                });
-
-                document.getElementById('signup-button').addEventListener('click', function() {
-                    document.getElementById('signup-modal').style.display = 'flex';
-                });
-
-                // Limpar dados
-                document.getElementById('conversations-list').innerHTML = '';
-                document.getElementById('plans-list').innerHTML = '';
-
-                // Redefinir variáveis
-                currentConversationId = null;
-
-                // Limpar chat
-                document.getElementById('chat-messages').innerHTML = '';
-                addAssistantMessage("Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?");
-            } else {
-                alert('Erro ao fazer logout');
-            }
+            userLoggedIn = true;
+            userProfile = data;
+            updateUIAfterLogin();
+            loadUserData();
         })
         .catch(error => {
-            console.error('Erro no logout:', error);
-            alert('Erro ao fazer logout. Tente novamente.');
+            // Usuário não está logado, manter UI padrão
+            console.log("Usuário não está logado:", error);
+
+            // Em modo de demonstração, carregar dados de exemplo
+            if (useLocalProcessing) {
+                // Simular conversas de exemplo
+                conversations = [
+                    {
+                        id: '1',
+                        title: 'Planejando viagem para Paris',
+                        created_at: '2023-04-15T10:30:00Z',
+                        last_updated: '2023-04-15T11:45:00Z',
+                        messages: [
+                            {
+                                id: '1-1',
+                                content: 'Olá, estou planejando uma viagem para Paris. Pode me ajudar?',
+                                is_user: true,
+                                timestamp: '2023-04-15T10:30:00Z'
+                            },
+                            {
+                                id: '1-2',
+                                content: 'Claro! Paris é um destino incrível. Quando você planeja viajar e por quanto tempo?',
+                                is_user: false,
+                                timestamp: '2023-04-15T10:31:00Z'
+                            }
+                        ]
+                    },
+                    {
+                        id: '2',
+                        title: 'Viagem para a praia',
+                        created_at: '2023-04-10T14:20:00Z',
+                        last_updated: '2023-04-10T15:30:00Z',
+                        messages: [
+                            {
+                                id: '2-1',
+                                content: 'Quero ir para alguma praia no nordeste em julho. Sugestões?',
+                                is_user: true,
+                                timestamp: '2023-04-10T14:20:00Z'
+                            },
+                            {
+                                id: '2-2',
+                                content: 'Julho é uma ótima época para visitar o nordeste! Recomendo Porto de Galinhas, Morro de São Paulo ou Jericoacoara. Você tem alguma preferência?',
+                                is_user: false,
+                                timestamp: '2023-04-10T14:22:00Z'
+                            }
+                        ]
+                    }
+                ];
+
+                // Atualizar UI
+                updateConversationsList();
+            }
         });
-}
 
-// Monitoramento de preços
-function initPriceMonitoring() {
-    // Carregar ofertas monitoradas e alertas de preço ao iniciar a aplicação
-    loadMonitoredOffers();
+        // Configurar eventos dos formulários modais
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            login(email, password);
+        });
 
-    // Verificar preços periodicamente (a cada 60 segundos)
-    setInterval(checkPrices, 60000);
-}
+        document.getElementById('signup-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const passwordConfirm = document.getElementById('signup-password-confirm').value;
+            signup(name, email, password, passwordConfirm);
+        });
 
-function loadMonitoredOffers() {
-    fetch('/api/price-monitor')
-        .then(response => {
-            if (response.status === 401) {
-                console.log('Usuário não está logado.');
-                return { flights: [], hotels: [], alerts: [] };
-            }
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        // Inicializar modo de chat
+        setChatMode('quick-search');
+
+        // Monitoramento de preços
+        loadPriceMonitors();
+        // Verificar preços a cada minuto
+        setInterval(checkPrices, 60000);
+    }
+
+    // Funções para monitoramento de preços
+    function loadPriceMonitors() {
+        fetch('/api/price-monitor')
+        .then(response => response.json())
         .then(data => {
             console.log(`Carregados: ${data.flights.length + data.hotels.length} ofertas e ${data.alerts.length} alertas`);
-
-            // Aqui poderia atualizar uma UI para monitoramento de preços
-            // Por exemplo, mostrar um contador de alertas no header
-
-            // Verificar se há alertas não lidos
-            const unreadAlerts = data.alerts.filter(alert => !alert.read);
-            if (unreadAlerts.length > 0) {
-                // Mostrar indicador de alertas
-                const headerActions = document.querySelector('.header-actions');
-                if (headerActions) {
-                    const alertIndicator = document.createElement('div');
-                    alertIndicator.className = 'alert-indicator';
-                    alertIndicator.innerHTML = `
-                        <i class="fas fa-bell"></i>
-                        <span class="alert-count">${unreadAlerts.length}</span>
-                    `;
-                    alertIndicator.addEventListener('click', showPriceAlerts);
-
-                    // Adicionar ao header se ainda não existir
-                    if (!document.querySelector('.alert-indicator')) {
-                        headerActions.prepend(alertIndicator);
-                    } else {
-                        document.querySelector('.alert-count').textContent = unreadAlerts.length;
-                    }
-                }
-            }
+            // Atualizar UI com os dados (implementação futura)
         })
         .catch(error => {
-            console.log('Usuário não está logado:', error);
+            // Usuário não logado ou outro erro
+            console.log("Carregados: 0 ofertas e 0 alertas");
         });
-}
+    }
 
-function checkPrices() {
-    console.log('Verificando preços para ofertas monitoradas');
-    fetch('/api/price-monitor/check', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (response.status === 401) {
-            return { flights: { checked: 0 }, hotels: { checked: 0 }, alerts: [] };
-        }
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Se novos alertas foram gerados, atualizar o indicador
-        if (data.alerts && data.alerts.length > 0) {
-            // Recarregar ofertas monitoradas para atualizar a UI
-            loadMonitoredOffers();
+    function checkPrices() {
+        console.log("Verificando preços para 0 ofertas monitoradas");
+        // Implementação futura
+    }
 
-            // Opcional: Mostrar notificação para o usuário
-            const alertsText = data.alerts.length === 1 ? 
-                'Um alerta de preço foi gerado!' :
-                `${data.alerts.length} alertas de preço foram gerados!`;
+    // Funções auxiliares
+    function formatDateTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleString('pt-BR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 
-            // Adicionar como mensagem do assistente se estiver em uma conversa ativa
-            if (currentConversationId) {
-                addAssistantMessage(`
-                    <div class="price-alert-notification">
-                        <i class="fas fa-bell"></i>
-                        <p>${alertsText}</p>
-                        <button class="btn btn-sm" onclick="showPriceAlerts()">Ver Alertas</button>
-                    </div>
-                `);
-            }
-        }
-    })
-    .catch(error => {
-        // Ignorar erros de autenticação
-        if (!error.message.includes('401')) {
-            console.error('Erro ao verificar preços:', error);
-        }
-    });
-}
+    function handleFlightPurchase(flightId) {
+        // Esta função será chamada quando o usuário clicar em comprar passagem
+        console.log(`Iniciando compra do voo ID: ${flightId}`);
 
-function addToMonitor(type, offerData) {
-    fetch('/api/price-monitor', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            type: type,
-            data: offerData
-        })
-    })
-    .then(response => {
-        if (response.status === 401) {
-            alert('Você precisa estar logado para monitorar preços. Por favor, faça login.');
-            document.getElementById('login-modal').style.display = 'flex';
-            return null;
-        }
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data && data.success) {
-            // Mostrar confirmação
-            alert('Oferta adicionada ao monitoramento de preços com sucesso!');
+        // Mostrar uma mensagem ao usuário
+        const message = "Redirecionando para o site da companhia aérea para finalizar sua compra...";
 
-            // Adicionar como mensagem do assistente
-            const typeText = type === 'flight' ? 'voo' : 'hotel';
-            addAssistantMessage(`
-                <div class="monitor-confirmation">
-                    <i class="fas fa-check-circle"></i>
-                    <p>Este ${typeText} foi adicionado ao monitoramento de preços. Você será notificado se o preço diminuir!</p>
-                </div>
-            `);
-        }
-    })
-    .catch(error => {
-        console.error('Erro ao adicionar ao monitoramento:', error);
-        alert('Não foi possível adicionar ao monitoramento. Tente novamente mais tarde.');
-    });
-}
+        // Simular redirecionamento (em produção, isto levaria para um link de afiliado real)
+        setTimeout(() => {
+            alert("Em um ambiente de produção, você seria redirecionado para o site parceiro para finalizar a compra.");
+            // Aqui você pode adicionar o código para redirecionar para um link de afiliado real
+            // window.open('https://parceiro.com.br/compra?flight=' + flightId, '_blank');
+        }, 1000);
 
-function showPriceAlerts() {
-    // Implementação para mostrar um modal ou página com alertas de preço
-    alert('Funcionalidade de alertas de preço em desenvolvimento!');
-}
+        return message;
+    }
 
-// Funções para reserva e compra
-function bookFlight(flightId) {
-    // Aqui você implementaria a compra direta, sem redirecionar
-    // Adicionando feedback de confirmação na interface
 
-    // Adicionar mensagem de confirmação
-    addAssistantMessage(`
-        <div class="booking-confirmation">
-            <i class="fas fa-check-circle"></i>
-            <h4>Passagem Comprada com Sucesso!</h4>
-            <p>Sua compra foi processada e confirmada. Os detalhes foram enviados para seu email.</p>
-            <p>Localizador: <strong>FL${Math.floor(Math.random() * 100000)}</strong></p>
-
-            <div class="booking-details">
-                <div class="booking-detail-item">
-                    <i class="fas fa-plane-departure"></i>
-                    <span>Embarque: Aeroporto Internacional de Guarulhos (GRU), Terminal 3</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Data/Hora: 01/06/2024 às 08:20</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-user"></i>
-                    <span>Passageiro: ${document.getElementById('profile-name').value || 'Usuário'}</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <span>Valor pago: R$ 2.450,00 (10x de R$ 245,00 sem juros)</span>
-                </div>
-            </div>
-
-            <div class="booking-actions">
-                <button class="btn btn-primary" onclick="downloadTicket('${flightId}')">
-                    <i class="fas fa-file-pdf"></i> Baixar bilhete
-                </button>
-                <button class="btn btn-outline" onclick="addToCalendar('${flightId}')">
-                    <i class="fas fa-calendar-plus"></i> Adicionar ao calendário
-                </button>
-            </div>
-        </div>
-    `);
-}
-
-function bookHotel(hotelId) {
-    // Implementação similar para reservas de hotel
-    addAssistantMessage(`
-        <div class="booking-confirmation">
-            <i class="fas fa-check-circle"></i>
-            <h4>Reserva de Hotel Confirmada!</h4>
-            <p>Sua reserva foi processada com sucesso. A confirmação foi enviada para seu email.</p>
-            <p>Número da reserva: <strong>HT${Math.floor(Math.random() * 100000)}</strong></p>
-
-            <div class="booking-details">
-                <div class="booking-detail-item">
-                    <i class="fas fa-hotel"></i>
-                    <span>Hotel: Alvear Palace</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>Endereço: Av. Alvear 1891, Recoleta, Buenos Aires</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-calendar-check"></i>
-                    <span>Check-in: 01/06/2024 a partir das 14:00</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-calendar-times"></i>
-                    <span>Check-out: 08/06/2024 até às 12:00</span>
-                </div>
-                <div class="booking-detail-item">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <span>Valor total: R$ 8.750,00 (7 noites)</span>
-                </div>
-            </div>
-
-            <div class="booking-actions">
-                <button class="btn btn-primary" onclick="downloadReservation('${hotelId}')">
-                    <i class="fas fa-file-pdf"></i> Baixar voucher
-                </button>
-                <button class="btn btn-outline" onclick="viewOnMap('${hotelId}')">
-                    <i class="fas fa-map-marked-alt"></i> Ver no mapa
-                </button>
-            </div>
-        </div>
-    `);
-}
-
-function downloadTicket(flightId) {
-    // Simulação de download do bilhete
-    alert(`Baixando bilhete para o voo ${flightId}. Em um sistema real, um PDF seria gerado.`);
-}
-
-function addToCalendar(flightId) {
-    // Simulação de adição ao calendário
-    alert(`Adicionando voo ${flightId} ao calendário. Em um sistema real, um arquivo .ics seria gerado.`);
-}
-
-function downloadReservation(hotelId) {
-    // Simulação de download do voucher
-    alert(`Baixando voucher para o hotel ${hotelId}. Em um sistema real, um PDF seria gerado.`);
-}
-
-function viewOnMap(hotelId) {
-    // Simulação de visualização no mapa
-    alert(`Abrindo localização do hotel ${hotelId} no mapa. Em um sistema real, um mapa seria exibido.`);
-}
-
-function downloadPlanPDF(planId) {
-    window.open(`/api/plan/${planId}/pdf`, '_blank');
-}
-
-function sharePlan(planId) {
-    // Implementar compartilhamento de plano
-    alert(`Compartilhamento do plano ${planId} em desenvolvimento.`);
-}
-
-// Iniciar monitoramento de preços quando a página carregar
-document.addEventListener('DOMContentLoaded', function() {
-    initPriceMonitoring();
+    // Iniciar aplicação
+    init();
 });
