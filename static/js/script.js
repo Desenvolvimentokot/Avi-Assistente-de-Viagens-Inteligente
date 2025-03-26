@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos DOM
     const sidebar = document.getElementById('sidebar');
@@ -217,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Adicionar mensagem do usuário ao chat
         addMessageToChat(message, true);
         messageInput.value = '';
-        
+
         // Ajustar altura do textarea
         messageInput.style.height = 'auto';
 
@@ -306,99 +305,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function processQuickSearchResponse(message) {
-        // Simula o processamento no modo de busca rápida
-        chatContext.quickSearchStep = chatContext.quickSearchStep || 0;
-        let response = '';
+        // Processar resposta real da API e adicionar botões interativos para compra
+        let processedResponse = message;
 
-        switch (chatContext.quickSearchStep) {
-            case 0:
-                response = "Quando você deseja viajar? (Por favor, informe a data de ida no formato DD/MM/AAAA)";
-                chatContext.quickSearchStep = 1;
-                break;
-            case 1:
-                // Simular processamento da data de ida
-                chatContext.quickSearchData.departureDate = message;
-                response = "Quando você deseja voltar? (Por favor, informe a data de volta no formato DD/MM/AAAA)";
-                chatContext.quickSearchStep = 2;
-                break;
-            case 2:
-                // Simular processamento da data de volta
-                chatContext.quickSearchData.returnDate = message;
-                response = "De onde você irá sair e para onde deseja ir? (Por favor, informe no formato ORIGEM-DESTINO, ex: SAO-RIO)";
-                chatContext.quickSearchStep = 3;
-                break;
-            case 3:
-                // Simular processamento da origem e destino
-                const parts = message.split('-');
-                if (parts.length >= 2) {
-                    chatContext.quickSearchData.origin = parts[0].trim();
-                    chatContext.quickSearchData.destination = parts[1].trim();
-
-                    // Simular resultado de busca
-                    response = `
-                        <p>Encontrei ótimas opções de voo para sua viagem!</p>
-                        <div class="search-result">
-                            <div class="search-result-item">
-                                <div class="search-result-header">
-                                    <span class="airline">LATAM</span>
-                                    <span class="price">R$ 799,00</span>
-                                </div>
-                                <div class="search-result-details">
-                                    <div class="flight-info">
-                                        <div class="departure">
-                                            <div class="time">08:30</div>
-                                            <div class="location">${chatContext.quickSearchData.origin}</div>
-                                        </div>
-                                        <div class="flight-duration">
-                                            <div class="line"></div>
-                                            <div class="duration">1h 30min</div>
-                                        </div>
-                                        <div class="arrival">
-                                            <div class="time">10:00</div>
-                                            <div class="location">${chatContext.quickSearchData.destination}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button class="btn-book">Reservar</button>
-                            </div>
-                            <div class="search-result-item">
-                                <div class="search-result-header">
-                                    <span class="airline">GOL</span>
-                                    <span class="price">R$ 849,00</span>
-                                </div>
-                                <div class="search-result-details">
-                                    <div class="flight-info">
-                                        <div class="departure">
-                                            <div class="time">10:15</div>
-                                            <div class="location">${chatContext.quickSearchData.origin}</div>
-                                        </div>
-                                        <div class="flight-duration">
-                                            <div class="line"></div>
-                                            <div class="duration">1h 45min</div>
-                                        </div>
-                                        <div class="arrival">
-                                            <div class="time">12:00</div>
-                                            <div class="location">${chatContext.quickSearchData.destination}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button class="btn-book">Reservar</button>
-                            </div>
-                        </div>
-                        <p>Deseja modificar sua busca ou ver mais opções?</p>
-                    `;
-                    chatContext.quickSearchStep = 4;
-                } else {
-                    response = "Desculpe, não consegui entender o formato. Por favor, informe novamente no formato ORIGEM-DESTINO, como SAO-RIO.";
-                }
-                break;
-            default:
-                response = "Como posso ajudar com sua viagem? Deseja fazer uma nova busca?";
-                chatContext.quickSearchStep = 0;
-                break;
+        // Verificar se a mensagem contém informações de voo
+        if (message.includes("voo") || message.includes("passagem") || message.includes("Companhia")) {
+            // Adicionar botões de compra ao final da mensagem
+            processedResponse += `\n\n<div class="action-buttons">
+                <button class="btn btn-primary flight-purchase-btn" onclick="handleFlightPurchase('voo123')">
+                    <i class="fas fa-shopping-cart"></i> Comprar esta passagem
+                </button>
+                <button class="btn btn-outline flight-compare-btn">
+                    <i class="fas fa-balance-scale"></i> Comparar preços
+                </button>
+            </div>`;
         }
 
-        return response;
+        return processedResponse;
     }
 
     function processFullPlanningResponse(message) {
@@ -438,12 +361,12 @@ document.addEventListener('DOMContentLoaded', function() {
             case 5:
                 // Simular processamento das atividades e gerar plano
                 chatContext.fullPlanningData.activities = message;
-                
+
                 // Gerar plano completo
                 response = `
                     <h3>Seu Plano de Viagem Personalizado</h3>
                     <p>Baseado nas suas preferências, elaborei um plano completo para ${chatContext.fullPlanningData.destinations}:</p>
-                    
+
                     <div class="travel-plan">
                         <div class="travel-plan-section">
                             <h4>Informações Gerais</h4>
@@ -454,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <li><strong>Orçamento:</strong> ${chatContext.fullPlanningData.budget}</li>
                             </ul>
                         </div>
-                        
+
                         <div class="travel-plan-section">
                             <h4>Voos Recomendados</h4>
                             <div class="plan-card">
@@ -469,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <button class="btn-book">Reservar</button>
                             </div>
                         </div>
-                        
+
                         <div class="travel-plan-section">
                             <h4>Hospedagem Recomendada</h4>
                             <div class="plan-card">
@@ -485,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <button class="btn-book">Reservar</button>
                             </div>
                         </div>
-                        
+
                         <div class="travel-plan-section">
                             <h4>Atividades Recomendadas</h4>
                             <ul>
@@ -496,32 +419,32 @@ document.addEventListener('DOMContentLoaded', function() {
                             </ul>
                         </div>
                     </div>
-                    
+
                     <p>Deseja salvar este plano ou fazer alguma modificação?</p>
                     <div class="plan-actions">
                         <button class="btn-save-plan">Salvar Plano</button>
                         <button class="btn-download-pdf">Baixar PDF</button>
                     </div>
                 `;
-                
+
                 // Adicionar listeners aos botões do plano (em uma aplicação real, isso seria feito de forma mais elegante)
                 setTimeout(() => {
                     const savePlanBtn = document.querySelector('.btn-save-plan');
                     const downloadPdfBtn = document.querySelector('.btn-download-pdf');
-                    
+
                     if (savePlanBtn) {
                         savePlanBtn.addEventListener('click', function() {
                             addMessageToChat("Plano salvo com sucesso! Você pode acessá-lo na seção 'Planos'.", false);
                         });
                     }
-                    
+
                     if (downloadPdfBtn) {
                         downloadPdfBtn.addEventListener('click', function() {
                             addMessageToChat("O PDF do seu plano foi gerado e está pronto para download.", false);
                         });
                     }
                 }, 100);
-                
+
                 chatContext.fullPlanningStep = 6;
                 break;
             default:
@@ -534,34 +457,49 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addMessageToChat(message, isUser) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = isUser ? 'message user' : 'message assistant';
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        messageElement.classList.add(isUser ? 'user' : 'assistant');
 
-        const avatarDiv = document.createElement('div');
-        avatarDiv.className = 'message-avatar';
+        const avatar = document.createElement('div');
+        avatar.classList.add('message-avatar');
+        avatar.innerHTML = isUser ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
 
-        // Adicionar ícone baseado em quem está falando
-        avatarDiv.innerHTML = isUser 
-            ? '<i class="fas fa-user"></i>' 
-            : '<i class="fas fa-robot"></i>';
+        const content = document.createElement('div');
+        content.classList.add('message-content');
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        contentDiv.innerHTML = `<p>${message}</p>`;
+        // Verificar se a mensagem contém HTML
+        if (message.includes('<div') || message.includes('<button')) {
+            content.innerHTML = message;
+        } else {
+            // Formatar texto simples, preservando quebras de linha
+            content.innerHTML = message.replace(/\n/g, '<br>');
+        }
 
-        messageDiv.appendChild(avatarDiv);
-        messageDiv.appendChild(contentDiv);
+        messageElement.appendChild(avatar);
+        messageElement.appendChild(content);
 
-        chatMessages.appendChild(messageDiv);
-
-        // Scroll para a última mensagem
+        chatMessages.appendChild(messageElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Inicializar botões interativos, se existirem
+        const purchaseButtons = messageElement.querySelectorAll('.flight-purchase-btn');
+        purchaseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const flightId = this.getAttribute('data-flight-id') || 'voo123';
+                const feedbackMsg = handleFlightPurchase(flightId);
+                const feedbackElement = document.createElement('div');
+                feedbackElement.classList.add('purchase-feedback');
+                feedbackElement.textContent = feedbackMsg;
+                this.parentNode.appendChild(feedbackElement);
+            });
+        });
     }
 
     function saveConversationLocal(userMessage, assistantResponse) {
         const now = new Date();
         const conversationTitle = userMessage.substring(0, 30) + (userMessage.length > 30 ? '...' : '');
-        
+
         if (!currentConversationId) {
             // Nova conversa
             currentConversationId = Date.now().toString();
@@ -585,9 +523,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 ]
             };
-            
+
             conversations.unshift(newConversation);
-            
+
             // Atualizar a lista de conversas na interface
             updateConversationsList();
         } else {
@@ -609,10 +547,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         timestamp: new Date(now.getTime() + 1000).toISOString()
                     }
                 );
-                
+
                 // Reordenar conversas (a mais recente primeiro)
                 conversations.sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
-                
+
                 // Atualizar a lista de conversas na interface
                 updateConversationsList();
             }
@@ -636,10 +574,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        
+
         // Resetar o ID da conversa atual
         currentConversationId = null;
-        
+
         // Resetar o contexto do chat
         chatContext = {
             mode: chatMode,
@@ -648,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fullPlanningStep: 0,
             fullPlanningData: {}
         };
-        
+
         // Focar no campo de mensagem
         messageInput.focus();
     }
@@ -656,34 +594,34 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateConversationsList() {
         const conversationsList = document.getElementById('conversations-list');
         if (!conversationsList) return;
-        
+
         // Limpar lista atual
         conversationsList.innerHTML = '';
-        
+
         // Template para item de conversa
         const template = document.getElementById('conversation-item-template');
-        
+
         // Adicionar conversas à lista
         conversations.forEach(conversation => {
             // Clonar o template
             const conversationItem = template.content.cloneNode(true);
-            
+
             // Configurar o item
             const item = conversationItem.querySelector('.sidebar-item');
             item.setAttribute('data-id', conversation.id);
-            
+
             const title = conversationItem.querySelector('.sidebar-item-title');
             title.textContent = conversation.title;
-            
+
             const date = new Date(conversation.last_updated);
             const subtitle = conversationItem.querySelector('.sidebar-item-subtitle');
             subtitle.textContent = date.toLocaleDateString();
-            
+
             // Adicionar evento de clique
             item.addEventListener('click', function() {
                 loadConversation(conversation.id);
             });
-            
+
             // Adicionar à lista
             conversationsList.appendChild(conversationItem);
         });
@@ -692,18 +630,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadConversation(conversationId) {
         const conversation = conversations.find(c => c.id === conversationId);
         if (!conversation) return;
-        
+
         // Definir conversa atual
         currentConversationId = conversationId;
-        
+
         // Limpar chat
         chatMessages.innerHTML = '';
-        
+
         // Adicionar mensagens
         conversation.messages.forEach(message => {
             addMessageToChat(message.content, message.is_user);
         });
-        
+
         // Focar no campo de mensagem
         messageInput.focus();
     }
@@ -793,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="user-greeting">Olá, ${userProfile.name || 'Usuário'}</span>
                 <button id="logout-button" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
             `;
-            
+
             // Adicionar evento ao botão de logout
             const logoutButton = document.getElementById('logout-button');
             if (logoutButton) {
@@ -906,12 +844,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateProfileForm() {
         if (!profileForm) return;
-        
+
         // Preencher campos do formulário com dados do perfil
         document.getElementById('profile-name').value = userProfile.name || '';
         document.getElementById('profile-email').value = userProfile.email || '';
         document.getElementById('profile-phone').value = userProfile.phone || '';
-        
+
         // Preferências
         if (userProfile.preferences) {
             document.getElementById('profile-preferred-destinations').value = userProfile.preferences.preferred_destinations || '';
@@ -927,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const preferredDestinations = document.getElementById('profile-preferred-destinations').value;
         const accommodationType = document.getElementById('profile-accommodation-type').value;
         const budget = document.getElementById('profile-budget').value;
-        
+
         const profileData = {
             name,
             email,
@@ -938,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 budget
             }
         };
-        
+
         fetch('/api/profile', {
             method: 'POST',
             headers: {
@@ -970,33 +908,33 @@ document.addEventListener('DOMContentLoaded', function() {
     function updatePlansList() {
         const plansList = document.getElementById('plans-list');
         if (!plansList) return;
-        
+
         // Limpar lista atual
         plansList.innerHTML = '';
-        
+
         // Template para item de plano
         const template = document.getElementById('plan-item-template');
-        
+
         // Adicionar planos à lista
         plans.forEach(plan => {
             // Clonar o template
             const planItem = template.content.cloneNode(true);
-            
+
             // Configurar o item
             const item = planItem.querySelector('.sidebar-item');
             item.setAttribute('data-id', plan.id);
-            
+
             const title = planItem.querySelector('.sidebar-item-title');
             title.textContent = plan.title;
-            
+
             const subtitle = planItem.querySelector('.sidebar-item-subtitle');
             subtitle.textContent = plan.destination;
-            
+
             // Adicionar evento de clique
             item.addEventListener('click', function() {
                 loadPlan(plan.id);
             });
-            
+
             // Adicionar à lista
             plansList.appendChild(planItem);
         });
@@ -1005,10 +943,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadPlan(planId) {
         const plan = plans.find(p => p.id === planId);
         if (!plan) return;
-        
+
         // Mostrar seção de detalhes do plano
         showSection('plans-detail');
-        
+
         // Preencher detalhes do plano
         const planDetails = document.getElementById('plan-details');
         if (planDetails) {
@@ -1028,16 +966,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="btn btn-danger" id="delete-plan">Excluir</button>
                 </div>
             `;
-            
+
             // Adicionar eventos aos botões
             document.getElementById('download-plan-pdf').addEventListener('click', function() {
                 downloadPlanPDF(planId);
             });
-            
+
             document.getElementById('edit-plan').addEventListener('click', function() {
                 editPlan(planId);
             });
-            
+
             document.getElementById('delete-plan').addEventListener('click', function() {
                 deletePlan(planId);
             });
@@ -1063,10 +1001,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Remover plano da lista
                     plans = plans.filter(p => p.id !== planId);
                     updatePlansList();
-                    
+
                     // Voltar para a lista de planos
                     showSection('plans');
-                    
+
                     alert('Plano excluído com sucesso!');
                 } else {
                     alert(data.error || 'Erro ao excluir plano.');
@@ -1104,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             // Usuário não está logado, manter UI padrão
             console.log("Usuário não está logado:", error);
-            
+
             // Em modo de demonstração, carregar dados de exemplo
             if (useLocalProcessing) {
                 // Simular conversas de exemplo
@@ -1150,12 +1088,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         ]
                     }
                 ];
-                
+
                 // Atualizar UI
                 updateConversationsList();
             }
         });
-        
+
         // Configurar eventos dos formulários modais
         document.getElementById('login-form').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -1163,7 +1101,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const password = document.getElementById('login-password').value;
             login(email, password);
         });
-        
+
         document.getElementById('signup-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const name = document.getElementById('signup-name').value;
@@ -1200,6 +1138,37 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Verificando preços para 0 ofertas monitoradas");
         // Implementação futura
     }
+
+    // Funções auxiliares
+    function formatDateTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleString('pt-BR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function handleFlightPurchase(flightId) {
+        // Esta função será chamada quando o usuário clicar em comprar passagem
+        console.log(`Iniciando compra do voo ID: ${flightId}`);
+
+        // Mostrar uma mensagem ao usuário
+        const message = "Redirecionando para o site da companhia aérea para finalizar sua compra...";
+
+        // Simular redirecionamento (em produção, isto levaria para um link de afiliado real)
+        setTimeout(() => {
+            alert("Em um ambiente de produção, você seria redirecionado para o site parceiro para finalizar a compra.");
+            // Aqui você pode adicionar o código para redirecionar para um link de afiliado real
+            // window.open('https://parceiro.com.br/compra?flight=' + flightId, '_blank');
+        }, 1000);
+
+        return message;
+    }
+
 
     // Iniciar aplicação
     init();

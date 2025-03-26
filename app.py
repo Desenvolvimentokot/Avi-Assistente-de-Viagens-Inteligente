@@ -117,14 +117,42 @@ def chat():
             # Atualizar contexto com novos valores de passo
             context['fullPlanningStep'] = full_planning_step
 
+        # Definir o modelo com base no modo de chat
+        model = "gpt-3.5-turbo"
+        if chat_mode == 'full-planning':
+            model = "gpt-4o"
+            
+        # Configurar contexto específico para o modo de chat
+        system_context = f"Você está no modo de chat '{chat_mode}'. "
+        
+        if chat_mode == 'quick-search':
+            system_context += f"Etapa atual: {context.get('quickSearchStep', 0)}. "
+            system_context += """
+            Neste modo sua tarefa é ajudar o usuário a encontrar voos rapidamente.
+            - Extraia dados específicos como origem, destino e período de viagem
+            - Interprete períodos aproximados (ex: 'primeira semana de novembro', 'mês de janeiro')
+            - Para cada período aproximado, defina datas exatas de início e fim
+            - Procure ser específico para determinar os melhores parâmetros de busca
+            """
+        elif chat_mode == 'full-planning':
+            system_context += f"Etapa atual: {context.get('fullPlanningStep', 0)}. "
+            system_context += """
+            Neste modo sua tarefa é desenvolver um planejamento de viagem completo.
+            - Extraia informações detalhadas sobre destinos, períodos, preferências e orçamento
+            - Elabore um plano completo incluindo voos, hospedagem e atividades
+            - Direcione o usuário através de perguntas estruturadas para coletar todos os dados necessários
+            """
+            
         # Chamar a API da OpenAI através do nosso serviço
         result = openai_service.travel_assistant(
             user_message, 
             messages_history,
-            system_context=f"Você está no modo de chat '{chat_mode}'. " + 
-                           (f"Etapa atual: {context.get('quickSearchStep', 0)}" if chat_mode == 'quick-search' else "") +
-                           (f"Etapa atual: {context.get('fullPlanningStep', 0)}" if chat_mode == 'full-planning' else "")
+            system_context=system_context
         )
+        
+        # Definir o modelo na resposta para referência futura
+        if 'response' in result:
+            result['model'] = model
 
         if 'error' in result:
             logging.error(f"Erro na API do OpenAI: {result['error']}")

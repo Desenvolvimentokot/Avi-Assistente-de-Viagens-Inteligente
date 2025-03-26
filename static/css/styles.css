@@ -333,8 +333,65 @@ body {
 }
 
 .message-content {
-    font-size: 14px;
-    line-height: 1.5;
+    flex: 1;
+    padding: 10px 15px;
+    background: var(--message-bg);
+    border-radius: 0 15px 15px 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message.user .message-content {
+    border-radius: 15px 0 15px 15px;
+    background: var(--primary-color-light);
+    color: var(--dark-text);
+}
+
+/* Estilos para botões de ação nas mensagens */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.flight-purchase-btn, .flight-compare-btn {
+    font-size: 0.9rem;
+    padding: 8px 15px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.flight-purchase-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+}
+
+.flight-purchase-btn:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}
+
+.flight-compare-btn {
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.flight-compare-btn:hover {
+    background-color: rgba(var(--primary-rgb), 0.1);
+}
+
+.purchase-feedback {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background-color: #d4edda;
+    color: #155724;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 
 .message-content p {

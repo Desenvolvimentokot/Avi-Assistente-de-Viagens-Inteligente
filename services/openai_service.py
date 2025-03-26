@@ -9,7 +9,7 @@ class OpenAIService:
         self.api_url = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-4o'
         
-    def create_chat_completion(self, messages, temperature=0.7, max_tokens=1000):
+    def create_chat_completion(self, messages, temperature=0.7, max_tokens=1000, model=None):
         """
         Cria uma resposta usando a API de chat do OpenAI
         
@@ -17,6 +17,7 @@ class OpenAIService:
         - messages: lista de mensagens no formato esperado pela API
         - temperature: controle de aleatoriedade (0.0 a 1.0)
         - max_tokens: número máximo de tokens na resposta
+        - model: modelo específico a ser usado (se None, usa o padrão da classe)
         """
         if not self.api_key:
             logging.error("API key da OpenAI não configurada")
@@ -27,8 +28,11 @@ class OpenAIService:
             'Authorization': f'Bearer {self.api_key}'
         }
         
+        # Usar o modelo especificado ou o padrão da classe
+        use_model = model if model else self.model
+        
         data = {
-            'model': self.model,
+            'model': use_model,
             'messages': messages,
             'temperature': temperature,
             'max_tokens': max_tokens
@@ -63,21 +67,20 @@ class OpenAIService:
             logging.error(f"Erro inesperado ao chamar a API OpenAI: {str(e)}")
             return {'error': f'Erro inesperado: {str(e)}'}
     
-    def travel_assistant(self, user_message, conversation_history=None):
+    def travel_assistant(self, user_message, conversation_history=None, system_context=""):
         """
         Especialização do assistente para planejamento de viagens
         
         Parâmetros:
         - user_message: mensagem do usuário
         - conversation_history: histórico da conversa
+        - system_context: contexto adicional para o sistema
         """
         if conversation_history is None:
             conversation_history = []
         
         # Criação do sistema de mensagens com o contexto de assistente de viagem
-        system_message = {
-            "role": "system",
-            "content": """Você é Flai, um assistente virtual especializado em planejamento de viagens.
+        base_system_content = """Você é Flai, um assistente virtual especializado em planejamento de viagens.
             
             Suas responsabilidades incluem:
             
@@ -88,6 +91,13 @@ class OpenAIService:
             5. Responder dúvidas sobre destinos, clima, cultura local, e dicas de viagem
             6. Montar itinerários personalizados com base nas necessidades do usuário
             
+            Instruções de processamento:
+            
+            - Analise cuidadosamente as menções de datas como períodos aproximados (ex: "primeira semana de novembro", "no mês de janeiro")
+            - Quando um período aproximado for mencionado, identifique o intervalo de datas exato correspondente
+            - Extraia dados específicos como origem, destino, datas, número de pessoas e preferências
+            - Identifique e armazene informações importantes mesmo que o usuário as mencione em diferentes mensagens
+            
             Instruções específicas:
             
             - Responda sempre em português brasileiro
@@ -96,7 +106,16 @@ class OpenAIService:
             - Quando falar de preços, utilize o Real (R$) como moeda
             - Sugira destinos específicos e com detalhes quando o usuário pedir recomendações
             - Não seja excessivamente prolixo, seja conciso e direto quando necessário
+            - Quando apresentar opções de voos ou hotéis, indique claramente como o usuário pode realizar a compra
             """
+            
+        # Adicionar contexto específico do sistema, se fornecido
+        if system_context:
+            base_system_content += f"\n\n{system_context}"
+            
+        system_message = {
+            "role": "system",
+            "content": base_system_content
         }
         
         # Montagem do histórico de conversa no formato esperado pela API
