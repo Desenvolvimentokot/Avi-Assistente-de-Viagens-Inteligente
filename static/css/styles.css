@@ -534,6 +534,116 @@ button, input, select, textarea {
     font-size: 14px;
 }
 
+/* Estilos para o monitoramento de preços */
+.price-monitoring-container {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-top: var(--spacing-md);
+    overflow: hidden;
+}
+
+.price-monitoring-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.price-monitoring-header h3 {
+    margin-bottom: var(--spacing-xs);
+}
+
+.price-monitoring-header p {
+    color: var(--light-text);
+    font-size: 14px;
+}
+
+.monitored-offers-list {
+    padding: var(--spacing-md);
+}
+
+.monitored-offer-item {
+    display: flex;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--light-bg);
+    position: relative;
+    transition: transform 0.3s, opacity 0.3s;
+}
+
+.monitored-offer-item.removing {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.monitored-offer-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-light);
+    color: var(--white);
+    border-radius: 50%;
+    margin-right: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.monitored-offer-content {
+    flex: 1;
+}
+
+.monitored-offer-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.monitored-offer-info {
+    color: var(--light-text);
+    font-size: 14px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.monitored-offer-price {
+    margin: var(--spacing-xs) 0;
+}
+
+.current-price {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.lowest-price {
+    display: inline-block;
+    margin-left: var(--spacing-md);
+    font-size: 12px;
+    color: var(--accent-color);
+}
+
+.monitored-offer-date {
+    font-size: 12px;
+    color: var(--light-text);
+}
+
+.remove-monitor-btn {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    background: none;
+    border: none;
+    color: var(--light-text);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.remove-monitor-btn:hover {
+    color: #ff3860;
+}
+
 /* Profile styles */
 .profile-container {
     background-color: var(--white);

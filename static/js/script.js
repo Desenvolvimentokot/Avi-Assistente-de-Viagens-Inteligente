@@ -698,6 +698,44 @@ function showSection(section) {
         if (newProfileForm) {
             newProfileForm.addEventListener('submit', handleProfileSubmit);
         }
+        
+        // Adicionar event listeners aos botões de remoção de monitoramento
+        const removeButtons = document.querySelectorAll('.remove-monitor-btn');
+        removeButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                const type = btn.dataset.type;
+                const id = btn.dataset.id;
+                
+                // Confirmar com o usuário
+                if (confirm('Tem certeza que deseja parar de monitorar esta oferta?')) {
+                    // Remover do monitoramento
+                    const removed = removePriceMonitor(type, id);
+                    
+                    if (removed) {
+                        // Remover o elemento da interface
+                        const offerItem = btn.closest('.monitored-offer-item');
+                        offerItem.classList.add('removing');
+                        
+                        // Animação de remoção
+                        setTimeout(() => {
+                            offerItem.remove();
+                            
+                            // Se não houver mais ofertas, mostrar estado vazio
+                            if (monitoredOffers.length === 0) {
+                                document.getElementById('monitored-offers-list').innerHTML = `
+                                    <div class="empty-state">
+                                        <p>Você ainda não está monitorando nenhuma oferta.</p>
+                                        <p>Busque voos ou hotéis no chat e clique em "Monitorar Preço" para receber notificações quando os preços caírem.</p>
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                    }
+                }
+            });
+        });
     }
     
     activeSection = section;
