@@ -1,11 +1,10 @@
 # This file will be used in the future for database models
 # For now, we're using mock data stored in app.py
 
-'''
-Example model structure for future implementation:
-
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSON
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -15,11 +14,30 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(20))
     password_hash = db.Column(db.String(256))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # User preferences
     preferred_destinations = db.Column(db.String(200))
     accommodation_type = db.Column(db.String(50))
     budget = db.Column(db.String(20))
+    
+    # Relationships
+    conversations = db.relationship('Conversation', backref='user', lazy=True, cascade="all, delete-orphan")
+    travel_plans = db.relationship('TravelPlan', backref='user', lazy=True, cascade="all, delete-orphan")
+    price_monitors = db.relationship('PriceMonitor', backref='user', lazy=True, cascade="all, delete-orphan")
+    
+    # Métodos necessários para Flask-Login
+    def is_authenticated(self):
+        return True
+        
+    def is_active(self):
+        return True
+        
+    def is_anonymous(self):
+        return False
+        
+    def get_id(self):
+        return str(self.id)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -31,16 +49,18 @@ class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     title = db.Column(db.String(200))
-    last_updated = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    messages = db.relationship('Message', backref='conversation', lazy=True)
+    # Relationships
+    messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan", order_by="Message.timestamp")
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(db.Integer, db.ForeignKey('conversation.id'))
     is_user = db.Column(db.Boolean, default=True)  # True if user message, False if assistant
     content = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class TravelPlan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,10 +70,12 @@ class TravelPlan(db.Model):
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
     details = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Additional details for travel plans
-    flights = db.relationship('Flight', backref='travel_plan', lazy=True)
-    accommodations = db.relationship('Accommodation', backref='travel_plan', lazy=True)
+    # Relationships
+    flights = db.relationship('Flight', backref='travel_plan', lazy=True, cascade="all, delete-orphan")
+    accommodations = db.relationship('Accommodation', backref='travel_plan', lazy=True, cascade="all, delete-orphan")
 
 class Flight(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,6 +87,11 @@ class Flight(db.Model):
     departure_time = db.Column(db.DateTime)
     arrival_time = db.Column(db.DateTime)
     price = db.Column(db.Float)
+    currency = db.Column(db.String(3), default='BRL')
+    booking_link = db.Column(db.String(500))
+    
+    # Para armazenar os dados completos da oferta
+    offer_data = db.Column(JSON, nullable=True)
 
 class Accommodation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -74,5 +101,51 @@ class Accommodation(db.Model):
     check_in = db.Column(db.Date)
     check_out = db.Column(db.Date)
     price_per_night = db.Column(db.Float)
+    currency = db.Column(db.String(3), default='BRL')
     stars = db.Column(db.Integer)
-'''
+    booking_link = db.Column(db.String(500))
+    
+    # Para armazenar os dados completos da oferta
+    offer_data = db.Column(JSON, nullable=True)
+
+# Sistema de monitoramento de preços
+class PriceMonitor(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    type = db.Column(db.String(10))  # 'flight' ou 'hotel'
+    
+    # Identificadores e detalhes
+    item_id = db.Column(db.String(100)) # ID do item na API externa (voo ou hotel)
+    name = db.Column(db.String(200))    # Nome amigável (companhia aérea + número do voo, ou nome do hotel)
+    description = db.Column(db.String(500)) # Descrição (origem-destino, ou localização do hotel)
+    
+    # Informações de preço
+    original_price = db.Column(db.Float)
+    current_price = db.Column(db.Float)
+    lowest_price = db.Column(db.Float)
+    currency = db.Column(db.String(3), default='BRL')
+    
+    # Datas
+    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    last_checked = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Dados completos para rechecagem
+    offer_data = db.Column(JSON)
+    
+    # Relacionamento
+    price_history = db.relationship('PriceHistory', backref='monitor', lazy=True, cascade="all, delete-orphan")
+    price_alerts = db.relationship('PriceAlert', backref='monitor', lazy=True, cascade="all, delete-orphan")
+
+class PriceHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    monitor_id = db.Column(db.Integer, db.ForeignKey('price_monitor.id'))
+    price = db.Column(db.Float)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PriceAlert(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    monitor_id = db.Column(db.Integer, db.ForeignKey('price_monitor.id'))
+    old_price = db.Column(db.Float)
+    new_price = db.Column(db.Float)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    read = db.Column(db.Boolean, default=False)

@@ -3,11 +3,14 @@ import logging
 import json
 import uuid
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash
 
-# Importação dos serviços
+# Importação dos serviços e modelos
 from services.amadeus_service import AmadeusService
 from services.openai_service import OpenAIService
+from models import db, User, Conversation, Message, TravelPlan, PriceMonitor, PriceHistory, PriceAlert
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -16,106 +19,275 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
+# Configure database
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
+
+# Configure login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 # Inicializa os serviços
 amadeus_service = AmadeusService()
 openai_service = OpenAIService()
 
-# Dados temporários (serão substituídos por banco de dados)
-conversations = [
-    {"id": 1, "title": "Viagem para Paris", "last_updated": "15/10/2023"},
-    {"id": 2, "title": "Final de semana em Barcelona", "last_updated": "28/09/2023"},
-    {"id": 3, "title": "Planejamento de férias de verão", "last_updated": "10/08/2023"}
-]
-
-# Armazena mensagens das conversas
-conversation_messages = {
-    1: [
-        {"is_user": True, "content": "Olá, estou planejando uma viagem para Paris.", "timestamp": "2023-10-15T10:30:00"},
-        {"is_user": False, "content": "Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?", "timestamp": "2023-10-15T10:30:15"}
-    ]
-}
-
-# Dados de viagens
-plans = [
-    {
-        "id": 1,
-        "title": "Final de semana em Barcelona",
-        "destination": "Barcelona, Espanha",
-        "start_date": "15/12/2023",
-        "end_date": "17/12/2023",
-        "details": "Um fim de semana para explorar a arquitetura e a culinária de Barcelona."
-    },
-    {
-        "id": 2,
-        "title": "Verão na Grécia",
-        "destination": "Atenas e Santorini, Grécia",
-        "start_date": "10/06/2024",
-        "end_date": "20/06/2024",
-        "details": "Férias de 10 dias explorando Atenas e relaxando em Santorini."
-    }
-]
-
-# Dados do perfil do usuário
-user_profile = {
-    "name": "João Silva",
-    "email": "joao.silva@exemplo.com",
-    "phone": "+55 11 98765-4321",
-    "preferences": {
-        "preferred_destinations": "Praia, Montanha",
-        "accommodation_type": "Hotel",
-        "budget": "Médio"
-    }
-}
-
-# Sistema de monitoramento de preços
-monitored_offers = {
-    "flights": [],
-    "hotels": []
-}
-
-price_alerts = []
+# Cria as tabelas do banco de dados
+with app.app_context():
+    db.create_all()
+    
+    # Criar um usuário padrão se não existir nenhum
+    if User.query.count() == 0:
+        default_user = User(
+            name="João Silva",
+            email="joao.silva@exemplo.com",
+            phone="+55 11 98765-4321",
+            preferred_destinations="Praia, Montanha",
+            accommodation_type="Hotel",
+            budget="Médio"
+        )
+        default_user.set_password("senha123")
+        db.session.add(default_user)
+        
+        # Adicionar uma conversa inicial
+        conv = Conversation(
+            user=default_user,
+            title="Viagem para Paris",
+            last_updated=datetime.utcnow()
+        )
+        db.session.add(conv)
+        
+        # Adicionar mensagens à conversa
+        msg1 = Message(
+            conversation=conv,
+            is_user=True,
+            content="Olá, estou planejando uma viagem para Paris.",
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(msg1)
+        
+        msg2 = Message(
+            conversation=conv,
+            is_user=False,
+            content="Paris é um destino maravilhoso! A melhor época para visitar é na primavera (abril a junho) ou no outono (setembro a novembro). Gostaria que eu sugerisse algumas acomodações ou atividades?",
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(msg2)
+        
+        # Adicionar um plano de viagem
+        plan = TravelPlan(
+            user=default_user,
+            title="Final de semana em Barcelona",
+            destination="Barcelona, Espanha",
+            start_date=datetime.strptime("2023-12-15", "%Y-%m-%d").date(),
+            end_date=datetime.strptime("2023-12-17", "%Y-%m-%d").date(),
+            details="Um fim de semana para explorar a arquitetura e a culinária de Barcelona."
+        )
+        db.session.add(plan)
+        
+        db.session.commit()
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"error": "Email e senha são obrigatórios"}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if user and user.check_password(password):
+        login_user(user)
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email
+            }
+        })
+    
+    return jsonify({"error": "Email ou senha inválidos"}), 401
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return jsonify({"success": True})
+
 @app.route('/api/conversations')
+@login_required
 def get_conversations():
-    return jsonify(conversations)
+    user_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
+    
+    result = []
+    for conv in user_conversations:
+        result.append({
+            "id": conv.id,
+            "title": conv.title,
+            "last_updated": conv.last_updated.strftime("%d/%m/%Y")
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/conversation/<int:conversation_id>/messages')
+@login_required
+def get_conversation_messages(conversation_id):
+    conv = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
+    if not conv:
+        return jsonify({"error": "Conversa não encontrada"}), 404
+    
+    messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
+    
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg.id,
+            "is_user": msg.is_user,
+            "content": msg.content,
+            "timestamp": msg.timestamp.isoformat()
+        })
+    
+    return jsonify(result)
 
 @app.route('/api/plans')
+@login_required
 def get_plans():
-    return jsonify(plans)
+    user_plans = TravelPlan.query.filter_by(user_id=current_user.id).order_by(TravelPlan.updated_at.desc()).all()
+    
+    result = []
+    for plan in user_plans:
+        result.append({
+            "id": plan.id,
+            "title": plan.title,
+            "destination": plan.destination,
+            "start_date": plan.start_date.strftime("%d/%m/%Y") if plan.start_date else None,
+            "end_date": plan.end_date.strftime("%d/%m/%Y") if plan.end_date else None,
+            "details": plan.details
+        })
+    
+    return jsonify(result)
 
 @app.route('/api/plan/<int:plan_id>')
+@login_required
 def get_plan(plan_id):
-    plan = next((p for p in plans if p["id"] == plan_id), None)
-    if plan:
-        return jsonify(plan)
-    return jsonify({"error": "Plano não encontrado"}), 404
+    plan = TravelPlan.query.filter_by(id=plan_id, user_id=current_user.id).first()
+    
+    if not plan:
+        return jsonify({"error": "Plano não encontrado"}), 404
+    
+    # Buscar voos associados
+    flights_data = []
+    for flight in plan.flights:
+        flights_data.append({
+            "id": flight.id,
+            "airline": flight.airline,
+            "flight_number": flight.flight_number,
+            "departure_location": flight.departure_location,
+            "arrival_location": flight.arrival_location,
+            "departure_time": flight.departure_time.isoformat() if flight.departure_time else None,
+            "arrival_time": flight.arrival_time.isoformat() if flight.arrival_time else None,
+            "price": flight.price,
+            "currency": flight.currency
+        })
+    
+    # Buscar acomodações associadas
+    accommodations_data = []
+    for acc in plan.accommodations:
+        accommodations_data.append({
+            "id": acc.id,
+            "name": acc.name,
+            "location": acc.location,
+            "check_in": acc.check_in.strftime("%d/%m/%Y") if acc.check_in else None,
+            "check_out": acc.check_out.strftime("%d/%m/%Y") if acc.check_out else None,
+            "price_per_night": acc.price_per_night,
+            "currency": acc.currency,
+            "stars": acc.stars
+        })
+    
+    result = {
+        "id": plan.id,
+        "title": plan.title,
+        "destination": plan.destination,
+        "start_date": plan.start_date.strftime("%d/%m/%Y") if plan.start_date else None,
+        "end_date": plan.end_date.strftime("%d/%m/%Y") if plan.end_date else None,
+        "details": plan.details,
+        "flights": flights_data,
+        "accommodations": accommodations_data
+    }
+    
+    return jsonify(result)
 
 @app.route('/api/profile')
+@login_required
 def get_profile():
-    return jsonify(user_profile)
+    user = current_user
+    
+    profile = {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "phone": user.phone,
+        "preferences": {
+            "preferred_destinations": user.preferred_destinations,
+            "accommodation_type": user.accommodation_type,
+            "budget": user.budget
+        }
+    }
+    
+    return jsonify(profile)
 
 @app.route('/api/profile', methods=['POST'])
+@login_required
 def update_profile():
-    global user_profile
+    user = current_user
     data = request.json
     
     # Update only the provided fields
     if 'name' in data:
-        user_profile['name'] = data['name']
+        user.name = data['name']
     if 'email' in data:
-        user_profile['email'] = data['email']
+        user.email = data['email']
     if 'phone' in data:
-        user_profile['phone'] = data['phone']
+        user.phone = data['phone']
     if 'preferences' in data:
-        user_profile['preferences'] = data['preferences']
+        preferences = data['preferences']
+        if 'preferred_destinations' in preferences:
+            user.preferred_destinations = preferences['preferred_destinations']
+        if 'accommodation_type' in preferences:
+            user.accommodation_type = preferences['accommodation_type']
+        if 'budget' in preferences:
+            user.budget = preferences['budget']
     
-    return jsonify({"success": True, "profile": user_profile})
+    db.session.commit()
+    
+    return jsonify({
+        "success": True, 
+        "profile": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "phone": user.phone,
+            "preferences": {
+                "preferred_destinations": user.preferred_destinations,
+                "accommodation_type": user.accommodation_type,
+                "budget": user.budget
+            }
+        }
+    })
 
 @app.route('/api/chat', methods=['POST'])
+@login_required
 def chat():
     data = request.json
     user_message = data.get('message', '')
@@ -123,8 +295,20 @@ def chat():
     
     # Obter histórico da conversa, se existir
     messages_history = []
-    if conversation_id and conversation_id in conversation_messages:
-        messages_history = conversation_messages[conversation_id]
+    
+    if conversation_id:
+        conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
+        if not conversation:
+            return jsonify({"error": "Conversa não encontrada"}), 404
+            
+        # Buscar mensagens da conversa
+        messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
+        for msg in messages:
+            messages_history.append({
+                "is_user": msg.is_user,
+                "content": msg.content,
+                "timestamp": msg.timestamp.isoformat()
+            })
     
     try:
         # Chamar a API da OpenAI através do nosso serviço
@@ -137,45 +321,44 @@ def chat():
                 "error": result['error']
             }), 500
         
-        # Adicionar a mensagem do usuário e a resposta ao histórico
-        now = datetime.now().isoformat()
-        
-        # Adicionar mensagem do usuário ao histórico
-        new_user_message = {
-            "is_user": True,
-            "content": user_message,
-            "timestamp": now
-        }
-        
-        # Adicionar resposta do assistente ao histórico
-        assistant_response = result['response']
-        new_assistant_message = {
-            "is_user": False,
-            "content": assistant_response,
-            "timestamp": now
-        }
-        
-        # Se for uma nova conversa, criar um ID e título
+        # Se for uma nova conversa, criar uma nova entrada no banco de dados
         if not conversation_id:
-            new_id = max([c['id'] for c in conversations], default=0) + 1
             title = user_message[:30] + "..." if len(user_message) > 30 else user_message
-            conversations.append({
-                "id": new_id,
-                "title": title,
-                "last_updated": datetime.now().strftime("%d/%m/%Y")
-            })
-            conversation_id = new_id
-            conversation_messages[conversation_id] = []
+            new_conversation = Conversation(
+                user_id=current_user.id,
+                title=title,
+                created_at=datetime.utcnow(),
+                last_updated=datetime.utcnow()
+            )
+            db.session.add(new_conversation)
+            db.session.flush()  # Para obter o ID da nova conversa
+            conversation_id = new_conversation.id
+            conversation = new_conversation
+        else:
+            # Atualizar o timestamp da conversa existente
+            conversation.last_updated = datetime.utcnow()
         
-        # Adicionar as novas mensagens ao histórico
-        conversation_messages[conversation_id].append(new_user_message)
-        conversation_messages[conversation_id].append(new_assistant_message)
+        # Adicionar mensagem do usuário ao banco de dados
+        user_msg = Message(
+            conversation_id=conversation_id,
+            is_user=True,
+            content=user_message,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(user_msg)
         
-        # Atualizar o timestamp da última atualização da conversa
-        for conv in conversations:
-            if conv['id'] == conversation_id:
-                conv['last_updated'] = datetime.now().strftime("%d/%m/%Y")
-                break
+        # Adicionar resposta do assistente ao banco de dados
+        assistant_response = result['response']
+        assistant_msg = Message(
+            conversation_id=conversation_id,
+            is_user=False,
+            content=assistant_response,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(assistant_msg)
+        
+        # Commit das alterações
+        db.session.commit()
         
         return jsonify({
             "response": assistant_response,
@@ -355,19 +538,72 @@ def search():
         }), 500
 
 @app.route('/api/price-monitor', methods=['GET'])
+@login_required
 def get_monitored_offers():
     """Retorna todas as ofertas monitoradas"""
+    user_monitors = PriceMonitor.query.filter_by(user_id=current_user.id).all()
+    user_alerts = PriceAlert.query.join(PriceMonitor).filter(PriceMonitor.user_id == current_user.id).order_by(PriceAlert.date.desc()).all()
+    
+    flights = []
+    hotels = []
+    
+    # Organizar monitores por tipo
+    for monitor in user_monitors:
+        item = {
+            "id": monitor.id,
+            "type": monitor.type,
+            "name": monitor.name,
+            "description": monitor.description,
+            "original_price": monitor.original_price,
+            "current_price": monitor.current_price,
+            "lowest_price": monitor.lowest_price,
+            "currency": monitor.currency,
+            "date_added": monitor.date_added.isoformat(),
+            "last_checked": monitor.last_checked.isoformat(),
+            "data": monitor.offer_data
+        }
+        
+        # Adicionar histórico de preços
+        price_history = []
+        for history in monitor.price_history:
+            price_history.append({
+                "date": history.date.isoformat(),
+                "price": history.price
+            })
+        item["price_history"] = price_history
+        
+        if monitor.type == 'flight':
+            flights.append(item)
+        else:
+            hotels.append(item)
+    
+    # Processar alertas
+    alerts = []
+    for alert in user_alerts:
+        monitor = alert.monitor
+        alerts.append({
+            "id": alert.id,
+            "monitor_id": alert.monitor_id,
+            "type": monitor.type,
+            "name": monitor.name,
+            "description": monitor.description,
+            "old_price": alert.old_price,
+            "new_price": alert.new_price,
+            "currency": monitor.currency,
+            "date": alert.date.isoformat(),
+            "read": alert.read
+        })
+    
     return jsonify({
-        "flights": monitored_offers["flights"],
-        "hotels": monitored_offers["hotels"],
-        "alerts": price_alerts
+        "flights": flights,
+        "hotels": hotels,
+        "alerts": alerts
     })
 
 @app.route('/api/price-monitor', methods=['POST'])
+@login_required
 def add_monitored_offer():
     """Adiciona uma oferta ao monitoramento de preços"""
-    global monitored_offers
-    
     try:
         data = request.json
         offer_type = data.get('type')  # 'flight' ou 'hotel'
@@ -378,45 +614,44 @@ def add_monitored_offer():
             
         if offer_type not in ['flight', 'hotel']:
             return jsonify({"error": "Tipo de oferta inválido. Use 'flight' ou 'hotel'"}), 400
-            
-        # Gerar ID único para a oferta
-        monitor_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
         
-        # Adicionar metadados do monitoramento
-        monitored_offer = {
-            "id": monitor_id,
-            "type": offer_type,
-            "date_added": now,
-            "last_checked": now,
-            "original_price": None,
-            "current_price": None,
-            "lowest_price": None,
-            "price_history": [],
-            "data": offer_data
-        }
+        now = datetime.utcnow()
+        name = ""
+        description = ""
+        price = None
+        currency = "BRL"
         
-        # Extrair e formatar o preço atual
+        # Extrair dados específicos com base no tipo de oferta
         if offer_type == 'flight':
+            # Nome: Companhia aérea + número do voo
+            if 'airline' in offer_data and 'flight_number' in offer_data:
+                name = f"{offer_data['airline']} {offer_data['flight_number']}"
+            
+            # Descrição: Origem-Destino
+            if 'departure' in offer_data and 'arrival' in offer_data:
+                description = f"{offer_data['departure']} → {offer_data['arrival']}"
+            
+            # Preço: extrair valor numérico e moeda
             if 'price' in offer_data:
                 price_str = offer_data['price']
-                # Extrair valor numérico e moeda
                 parts = price_str.split(' ')
                 if len(parts) == 2:
                     try:
                         price = float(parts[0])
                         currency = parts[1]
-                        monitored_offer['original_price'] = price
-                        monitored_offer['current_price'] = price
-                        monitored_offer['lowest_price'] = price
-                        monitored_offer['currency'] = currency
-                        monitored_offer['price_history'].append({
-                            "date": now,
-                            "price": price
-                        })
                     except ValueError:
                         pass
+                        
         elif offer_type == 'hotel':
+            # Nome: Nome do hotel
+            if 'name' in offer_data:
+                name = offer_data['name']
+            
+            # Descrição: Localização
+            if 'location' in offer_data:
+                description = offer_data['location']
+            
+            # Preço: extrair valor numérico e moeda
             if 'price_per_night' in offer_data:
                 price_str = offer_data['price_per_night']
                 parts = price_str.split(' ')
@@ -424,65 +659,85 @@ def add_monitored_offer():
                     try:
                         price = float(parts[0])
                         currency = parts[1]
-                        monitored_offer['original_price'] = price
-                        monitored_offer['current_price'] = price
-                        monitored_offer['lowest_price'] = price
-                        monitored_offer['currency'] = currency
-                        monitored_offer['price_history'].append({
-                            "date": now,
-                            "price": price
-                        })
                     except ValueError:
                         pass
         
-        # Adicionar a oferta à lista de monitoramento
-        if offer_type == 'flight':
-            monitored_offers['flights'].append(monitored_offer)
-        else:
-            monitored_offers['hotels'].append(monitored_offer)
-            
+        # Se não conseguimos extrair um preço, retornar erro
+        if price is None:
+            return jsonify({
+                "error": "Não foi possível extrair o preço da oferta"
+            }), 400
+        
+        # Criar a entrada de monitoramento no banco de dados
+        monitor = PriceMonitor(
+            user_id=current_user.id,
+            type=offer_type,
+            item_id=str(offer_data.get('id', '')),
+            name=name,
+            description=description,
+            original_price=price,
+            current_price=price,
+            lowest_price=price,
+            currency=currency,
+            date_added=now,
+            last_checked=now,
+            offer_data=offer_data
+        )
+        db.session.add(monitor)
+        db.session.flush()  # Para obter o ID
+        
+        # Adicionar o primeiro registro de histórico de preço
+        price_history = PriceHistory(
+            monitor_id=monitor.id,
+            price=price,
+            date=now
+        )
+        db.session.add(price_history)
+        
+        # Commit das alterações
+        db.session.commit()
+        
         return jsonify({
             "success": True,
             "message": "Oferta adicionada ao monitoramento com sucesso",
-            "monitor_id": monitor_id
+            "monitor_id": monitor.id
         })
         
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Erro ao adicionar oferta ao monitoramento: {str(e)}")
         return jsonify({
             "error": "Ocorreu um erro ao adicionar a oferta ao monitoramento",
             "details": str(e)
         }), 500
 
-@app.route('/api/price-monitor/<monitor_id>', methods=['DELETE'])
+@app.route('/api/price-monitor/<int:monitor_id>', methods=['DELETE'])
+@login_required
 def remove_monitored_offer(monitor_id):
     """Remove uma oferta do monitoramento de preços"""
-    global monitored_offers
-    
     try:
-        # Buscar e remover da lista de voos
-        for i, offer in enumerate(monitored_offers['flights']):
-            if offer['id'] == monitor_id:
-                monitored_offers['flights'].pop(i)
-                return jsonify({
-                    "success": True,
-                    "message": "Oferta de voo removida do monitoramento com sucesso"
-                })
-                
-        # Buscar e remover da lista de hotéis
-        for i, offer in enumerate(monitored_offers['hotels']):
-            if offer['id'] == monitor_id:
-                monitored_offers['hotels'].pop(i)
-                return jsonify({
-                    "success": True,
-                    "message": "Oferta de hotel removida do monitoramento com sucesso"
-                })
-                
+        # Buscar o monitor no banco de dados
+        monitor = PriceMonitor.query.filter_by(id=monitor_id, user_id=current_user.id).first()
+        
+        if not monitor:
+            return jsonify({
+                "error": "Oferta monitorada não encontrada"
+            }), 404
+        
+        # Definir o tipo para a mensagem de sucesso
+        offer_type = "voo" if monitor.type == "flight" else "hotel"
+        
+        # Remover o monitor e seus dados associados (histórico e alertas serão removidos em cascata)
+        db.session.delete(monitor)
+        db.session.commit()
+        
         return jsonify({
-            "error": "Oferta não encontrada"
-        }), 404
+            "success": True,
+            "message": f"Oferta de {offer_type} removida do monitoramento com sucesso"
+        })
         
     except Exception as e:
+        db.session.rollback()
         logging.error(f"Erro ao remover oferta do monitoramento: {str(e)}")
         return jsonify({
             "error": "Ocorreu um erro ao remover a oferta do monitoramento",
