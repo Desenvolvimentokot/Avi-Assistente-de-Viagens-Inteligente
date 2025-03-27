@@ -789,8 +789,19 @@ def search_best_prices(travel_info):
         # Buscar melhores preços no Amadeus
         best_prices = []
         
+        try:
+            # Tentar buscar preços reais do Amadeus
+            amadeus_prices = amadeus_service.search_best_prices(amadeus_params)
+            if 'error' not in amadeus_prices and amadeus_prices.get('best_prices', []):
+                return amadeus_prices
+        except Exception as e:
+            logger.error(f"Erro ao buscar preços no Amadeus: {str(e)}")
+        
         # Usar dados simulados se as APIs falharem
         best_prices = amadeus_service.get_simulated_best_prices(amadeus_params)
         
         logger.info(f"Usando {len(best_prices)} preços simulados")
         return {"best_prices": best_prices, "source": "simulado", "is_simulated": True}
+    except Exception as e:
+        logger.error(f"Erro na busca de melhores preços: {str(e)}")
+        return {"error": f"Erro ao buscar melhores preços: {str(e)}", "is_simulated": True}
