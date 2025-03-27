@@ -25,8 +25,17 @@ db = SQLAlchemy(app)
 
 # Importar os serviços após a inicialização da aplicação
 from services.amadeus_service import AmadeusService
-from services.openai_service import OpenAIService
-from services.busca_rapida_service import BuscaRapidaService
+try:
+    from services.openai_service import OpenAIService
+except ImportError:
+    logger.warning("OpenAIService não disponível")
+    OpenAIService = None
+
+try:
+    from services.busca_rapida_service import BuscaRapidaService
+except ImportError:
+    logger.warning("BuscaRapidaService não disponível")
+    BuscaRapidaService = None
 
 # Rota principal
 @app.route('/')

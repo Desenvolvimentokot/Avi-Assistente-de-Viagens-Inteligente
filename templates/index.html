@@ -1,58 +1,66 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flai - Assistente de Viagens</title>
+    <title>Flai - Assistente de Viagens Inteligente</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
     <header>
-        <h1>Flai</h1>
-        <p>Seu assistente de viagens inteligente</p>
+        <div class="container">
+            <h1>Flai</h1>
+            <p>Seu assistente de viagens inteligente</p>
+        </div>
     </header>
 
-    <main>
+    <main class="container">
         <section class="search-section">
             <h2>Busca de Voos</h2>
             <form id="flight-search-form">
                 <div class="form-group">
-                    <label for="origin">Origem:</label>
-                    <input type="text" id="origin" name="origin" placeholder="MAD" required>
+                    <label for="origin">Origem (código IATA):</label>
+                    <input type="text" id="origin" name="origin" placeholder="Ex: GRU" required>
                 </div>
-
+                
                 <div class="form-group">
-                    <label for="destination">Destino:</label>
-                    <input type="text" id="destination" name="destination" placeholder="BCN" required>
+                    <label for="destination">Destino (código IATA):</label>
+                    <input type="text" id="destination" name="destination" placeholder="Ex: JFK" required>
                 </div>
-
+                
                 <div class="form-group">
-                    <label for="departure-date">Data de Partida:</label>
+                    <label for="departure-date">Data de Ida:</label>
                     <input type="date" id="departure-date" name="departure_date" required>
                 </div>
-
+                
                 <div class="form-group">
-                    <label for="return-date">Data de Retorno:</label>
-                    <input type="date" id="return-date" name="return_date" required>
+                    <label for="return-date">Data de Volta:</label>
+                    <input type="date" id="return-date" name="return_date">
                 </div>
-
+                
                 <div class="form-group">
-                    <label for="adults">Adultos:</label>
-                    <input type="number" id="adults" name="adults" min="1" value="1" required>
+                    <label for="adults">Número de Adultos:</label>
+                    <input type="number" id="adults" name="adults" min="1" value="1">
                 </div>
-
-                <button type="submit" id="search-button">Buscar Voos</button>
+                
+                <button type="submit" class="btn-primary">Buscar Voos</button>
             </form>
         </section>
-
-        <section id="results-section" class="hidden">
+        
+        <section class="results-section" id="results-container">
             <h2>Resultados da Busca</h2>
-            <div id="flight-results"></div>
+            <div id="flight-results">
+                <!-- Os resultados serão exibidos aqui -->
+                <p>Faça uma busca para ver os resultados.</p>
+            </div>
         </section>
     </main>
 
     <footer>
-        <p>&copy; 2023 Flai - Todos os direitos reservados</p>
+        <div class="container">
+            <p>&copy; 2024 Flai - Assistente de Viagens Inteligente</p>
+        </div>
     </footer>
 
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>

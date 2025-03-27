@@ -1,9 +1,7 @@
 
 import logging
 import sys
-from sqlalchemy import inspect, text
-from app import app, db
-from models import User
+import os
 from werkzeug.security import generate_password_hash
 
 # Configure logging
@@ -15,6 +13,10 @@ def setup_database():
     Configura o banco de dados inicial com as tabelas e dados necessários
     """
     try:
+        # Importar após configuração para evitar problemas de importação circular
+        from app import app, db
+        from models import User
+        
         # Criar todas as tabelas definidas nos modelos
         with app.app_context():
             db.create_all()
@@ -29,7 +31,7 @@ def setup_database():
                     test_user = User(
                         name="Usuário de Teste",
                         email="teste@example.com",
-                        password="senha123"
+                        password=generate_password_hash("senha123")
                     )
                     db.session.add(test_user)
                     db.session.commit()
