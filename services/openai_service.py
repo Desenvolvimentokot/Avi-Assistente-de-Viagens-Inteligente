@@ -217,7 +217,6 @@ class OpenAIService:
             - Não seja excessivamente prolixo, seja conciso e direto quando necessário
             - Quando apresentar opções de voos ou hotéis, indique claramente como o usuário pode realizar a compra
         """
-            """
             
         # Adicionar contexto específico do sistema, se fornecido
         if system_context:
