@@ -195,6 +195,8 @@ body {
     overflow-y: auto;
     padding: 20px;
     max-height: calc(100vh - 160px);
+    width: calc(100% - 20px); /* Added to match intended width */
+    overflow: hidden; /* Added to prevent scrollbars */
 }
 
 .chat-messages {
@@ -204,6 +206,7 @@ body {
     flex-direction: column;
     gap: 15px;
     padding-bottom: 20px;
+    height: calc(100% - 120px); /* Adjusted height to accommodate new elements */
 }
 
 .message {
@@ -274,7 +277,92 @@ body {
     text-decoration: underline;
 }
 
+.message.bot-message p {
+    background-color: #f0f2f5;
+    color: #000;
+}
+
+/* Estilos para o botão de compra */
+#buy-button {
+    text-align: center;
+    margin: 10px 0;
+    padding: 0 20px;
+}
+
+.purchase-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.purchase-button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
 /* Typing indicator */
+.typing-indicator {
+    padding: 15px;
+    display: inline-block;
+}
+
+.dot-flashing {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%; /* Changed to 50% for better dot appearance */
+    background-color: #9E9E9E;
+    color: #9E9E9E;
+    animation: dot-flashing 1s infinite linear alternate;
+    animation-delay: 0.5s;
+}
+
+.dot-flashing::before, .dot-flashing::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+}
+
+.dot-flashing::before {
+    left: -15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%; /* Changed to 50% for better dot appearance */
+    background-color: #9E9E9E;
+    color: #9E9E9E;
+    animation: dot-flashing 1s infinite alternate;
+    animation-delay: 0s;
+}
+
+.dot-flashing::after {
+    left: 15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%; /* Changed to 50% for better dot appearance */
+    background-color: #9E9E9E;
+    color: #9E9E9E;
+    animation: dot-flashing 1s infinite alternate;
+    animation-delay: 1s;
+}
+
+@keyframes dot-flashing {
+    0% {
+        background-color: #9E9E9E;
+    }
+    50%, 100% {
+        background-color: #ebe6ff;
+    }
+}
+
+/* Typing dots (original style kept for comparison) */
 .typing-dots {
     display: flex;
     gap: 4px;
@@ -297,6 +385,7 @@ body {
     0%, 80%, 100% { transform: scale(0.6); opacity: 0.6; }
     40% { transform: scale(1); opacity: 1; }
 }
+
 
 /* Área de input de mensagem */
 .message-input-container {
@@ -753,4 +842,8 @@ body {
         text-align: center;
         padding: 10px;
     }
+}
+
+.input-container button:hover {
+    background-color: #0056b3;
 }
