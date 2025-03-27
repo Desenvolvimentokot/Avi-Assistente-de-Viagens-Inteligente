@@ -32,7 +32,17 @@ Lembre-se:
 4. Forneça dicas úteis sobre a viagem quando apropriado
 5. Explique que a compra é feita diretamente no site da companhia aérea operadora do voo
 
-Se você não tiver todos os dados necessários, peça educadamente as informações que faltam ao cliente.
-
 Importante: Se os dados forem simulados (is_simulated=true), informe ao cliente que são preços aproximados baseados em tendências de mercado, não valores em tempo real.
 """
+
+def get_prompt(user_query, additional_context="", is_simulated=""):
+    prompt = f"""
+{BUSCA_RAPIDA_PROMPT}
+
+Pergunta do cliente: {user_query}
+
+{additional_context}
+
+{is_simulated}
+"""
+    return prompt

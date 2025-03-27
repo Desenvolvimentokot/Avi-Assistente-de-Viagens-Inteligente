@@ -243,6 +243,12 @@ class AmadeusService:
         if self.use_mock_data:
             return "MOCK_TOKEN"
             
+        # Verificar credenciais antes de fazer a requisição
+        if not self.api_key or not self.api_secret:
+            logging.error("Credenciais do Amadeus não configuradas corretamente")
+            self.use_mock_data = True
+            return None
+            
         url = "https://test.api.amadeus.com/v1/security/oauth2/token"
         payload = {
             "grant_type": "client_credentials",
@@ -252,7 +258,14 @@ class AmadeusService:
         
         try:
             logging.info(f"Obtendo token do Amadeus com chave: {self.api_key[:5]}... e secret: {self.api_secret[:3]}...")
-            response = requests.post(url, data=payload)
+            
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            
+            response = requests.post(url, headers=headers, data=payload)
+            
+            logging.info(f"Resposta Amadeus status: {response.status_code}")
             
             if response.status_code != 200:
                 logging.error(f"Erro ao obter token do Amadeus: Status {response.status_code}")
@@ -282,27 +295,50 @@ class AmadeusService:
         - adults: número de adultos (default: 1)
         - currencyCode: moeda (default: "BRL")
         """
+        logging.info(f"Iniciando busca de voos com params: {params}")
+        
         if self.use_mock_data:
-            return self._get_mock_flights(params)
+            logging.warning("Usando dados simulados para voos")
+            mock_data = self._get_mock_flights(params)
+            logging.info(f"Retornando {len(mock_data.get('data', []))} voos simulados")
+            return mock_data
             
         url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
         
         # Preparar cabeçalhos com o token de autenticação
         token = self.get_token()
+        if not token:
+            logging.error("Sem token de autenticação, usando dados simulados")
+            self.use_mock_data = True
+            return self._get_mock_flights(params)
+            
         headers = {
             "Authorization": f"Bearer {token}"
         }
         
         try:
+            logging.info(f"Enviando requisição para Amadeus: {url}")
             response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
             
-            return response.json()
+            logging.info(f"Resposta Amadeus status: {response.status_code}")
+            
+            if response.status_code != 200:
+                logging.error(f"Erro na API do Amadeus: {response.status_code}")
+                logging.error(f"Detalhes: {response.text}")
+                self.use_mock_data = True
+                return self._get_mock_flights(params)
+            
+            json_data = response.json()
+            logging.info(f"Dados recebidos do Amadeus com {len(json_data.get('data', []))} voos")
+            
+            return json_data
         except Exception as e:
             logging.error(f"Erro ao buscar voos: {str(e)}")
+            self.use_mock_data = True
             
-            # Se ocorrer um erro, retorna o erro formatado
-            return {"error": str(e)}
+            # Se ocorrer um erro, retorna os dados simulados
+            logging.info("Usando dados simulados após erro")
+            return self._get_mock_flights(params)
     
     def search_hotels(self, params):
         """
@@ -526,3 +562,43 @@ class AmadeusService:
             mock_data["data"].append(hotel_offer)
         
         return mock_data
+        
+    def test_connection(self):
+        """Testa a conexão com a API do Amadeus e retorna um diagnóstico"""
+        results = {
+            "success": False,
+            "credentials_set": bool(self.api_key and self.api_secret),
+            "token": None,
+            "error": None,
+            "using_mock_data": self.use_mock_data
+        }
+        
+        try:
+            token = self.get_token()
+            results["token"] = bool(token)
+            
+            if token:
+                # Teste simples com uma API que não precisa de parâmetros complexos
+                url = "https://test.api.amadeus.com/v1/reference-data/locations/cities"
+                headers = {
+                    "Authorization": f"Bearer {token}"
+                }
+                params = {
+                    "keyword": "PAR",
+                    "max": 1
+                }
+                
+                response = requests.get(url, headers=headers, params=params)
+                results["status_code"] = response.status_code
+                
+                if response.status_code == 200:
+                    results["success"] = True
+                else:
+                    results["error"] = response.text
+            else:
+                results["error"] = "Falha ao obter token de autenticação"
+                
+        except Exception as e:
+            results["error"] = str(e)
+            
+        return results
