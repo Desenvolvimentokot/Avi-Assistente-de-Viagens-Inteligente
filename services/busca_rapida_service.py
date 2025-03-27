@@ -37,6 +37,7 @@ def process_message(message, history=None):
 
         # Extrair informações de viagem da mensagem e histórico
         travel_info = extract_travel_info(message, history)
+        logger.info(f"Informações de viagem extraídas: {travel_info}")
 
         # Se temos informações suficientes para fazer uma busca, adicionar ao contexto
         additional_context = ""
@@ -44,14 +45,27 @@ def process_message(message, history=None):
         best_prices_data = None
 
         if is_ready_for_search(travel_info):
+            logger.info("Informações suficientes para busca encontradas")
+            
             # Buscar voos específicos se temos datas específicas
             if travel_info.get('departure_date') and not travel_info.get('is_flexible'):
+                logger.info(f"Buscando voos para data específica: {travel_info['departure_date']}")
                 flight_data = search_flights(travel_info)
+                logger.info(f"Resultados da busca de voos: {flight_data.keys() if isinstance(flight_data, dict) else 'Nenhum'}")
 
                 if 'error' not in flight_data:
                     flights = flight_data.get('flights', [])
+                    is_simulated = flight_data.get('is_simulated', False)
+                    
+                    if is_simulated:
+                        logger.warning("Usando dados simulados devido a falha na API real")
+                    
                     if flights:
+                        logger.info(f"Encontrados {len(flights)} voos. Preços: {[f['price'] for f in flights[:3]]}")
                         additional_context += f"\n\nEncontrei {len(flights)} voos para {travel_info['destination']} saindo de {travel_info['origin']} em {travel_info['departure_date']}.\n"
+                        
+                        if is_simulated:
+                            additional_context += "\n(NOTA: Estes são dados aproximados baseados em tendências de mercado, não preços em tempo real.)\n"
 
                         # Adicionar detalhes dos 3 melhores voos
                         top_flights = flights[:3]
@@ -68,22 +82,35 @@ def process_message(message, history=None):
                                 arr_time = datetime.fromisoformat(arrival_time.replace('Z', '+00:00'))
                                 departure_time = dep_time.strftime("%d/%m/%Y %H:%M")
                                 arrival_time = arr_time.strftime("%d/%m/%Y %H:%M")
-                            except:
-                                pass
+                            except Exception as e:
+                                logger.warning(f"Erro ao formatar datas: {str(e)}")
 
                             additional_context += f"\nOpção {i+1}: {airline} - {departure_time} a {arrival_time} - {price} {currency}"
 
                             # Adicionar o link de afiliado
                             additional_context += f"\nLink para compra: [[LINK_COMPRA:{flight.get('affiliate_link', '')}]]"
+                else:
+                    logger.error(f"Erro na busca de voos: {flight_data.get('error', 'Erro desconhecido')}")
 
             # Buscar melhores preços se a data é flexível
             if travel_info.get('is_flexible') and travel_info.get('date_range_start') and travel_info.get('date_range_end'):
+                logger.info(f"Buscando melhores preços para o período: {travel_info['date_range_start']} a {travel_info['date_range_end']}")
                 best_prices_data = search_best_prices(travel_info)
+                logger.info(f"Resultados da busca de melhores preços: {best_prices_data.keys() if isinstance(best_prices_data, dict) else 'Nenhum'}")
 
                 if 'error' not in best_prices_data:
                     best_prices = best_prices_data.get('best_prices', [])
+                    is_simulated = best_prices_data.get('is_simulated', False)
+                    
+                    if is_simulated:
+                        logger.warning("Usando dados simulados devido a falha na API real")
+                    
                     if best_prices:
+                        logger.info(f"Encontradas {len(best_prices)} ofertas. Preços: {[p['price'] for p in best_prices[:3]]}")
                         additional_context += f"\n\nEncontrei as melhores ofertas para {travel_info['destination']} saindo de {travel_info['origin']} no período solicitado.\n"
+                        
+                        if is_simulated:
+                            additional_context += "\n(NOTA: Estes são dados aproximados baseados em tendências de mercado, não preços em tempo real.)\n"
 
                         # Adicionar as 3 melhores ofertas
                         top_prices = best_prices[:3]
@@ -96,18 +123,23 @@ def process_message(message, history=None):
                             try:
                                 flight_date = datetime.fromisoformat(date)
                                 date = flight_date.strftime("%d/%m/%Y")
-                            except:
-                                pass
+                            except Exception as e:
+                                logger.warning(f"Erro ao formatar data: {str(e)}")
 
                             additional_context += f"\nOferta {i+1}: {date} - {price} {currency}"
 
                             # Adicionar o link de afiliado
                             additional_context += f"\nLink para compra: [[LINK_COMPRA:{price_info.get('affiliate_link', '')}]]"
+                else:
+                    logger.error(f"Erro na busca de melhores preços: {best_prices_data.get('error', 'Erro desconhecido')}")
 
         # Chamar o assistente da OpenAI com o contexto adicional
         updated_context = system_context
         if additional_context:
+            logger.info("Adicionando contexto de resultados de busca ao prompt do OpenAI")
             updated_context += additional_context
+        else:
+            logger.info("Nenhum resultado de busca para adicionar ao contexto")
 
         result = openai_service.travel_assistant(
             user_message=message,
@@ -453,13 +485,139 @@ def search_flights(travel_info):
             'currency': 'BRL'
         }
 
-        # Buscar voos no Skyscanner
-        logger.info(f"Buscando voos no Skyscanner com parâmetros: {params}")
+        logger.info(f"Iniciando busca de voos com parâmetros: {params}")
+        
+        # Tentar primeiro o Skyscanner
+        logger.info("Tentando buscar voos via Skyscanner")
         skyscanner_flights = skyscanner_service.search_flights(params)
         
         # Verificar se a busca foi bem-sucedida
         if 'error' in skyscanner_flights:
-            logger.error(f"Erro ao buscar voos no Skyscanner: {skyscanner_flights['error']}")
+            logger.warning(f"Erro ao buscar voos no Skyscanner: {skyscanner_flights['error']}")
+            
+            # Tentar a API da Amadeus como fallback
+            logger.info("Tentando buscar voos via Amadeus como fallback")
+            try:
+                # Mapear parâmetros para o formato da Amadeus
+                amadeus_params = {
+                    'originLocationCode': params['origin'],
+                    'destinationLocationCode': params['destination'],
+                    'departureDate': params['departure_date'],
+                    'adults': params['adults'],
+                    'currencyCode': params['currency']
+                }
+                
+                if params.get('return_date'):
+                    amadeus_params['returnDate'] = params['return_date']
+                
+                # Importar o serviço Amadeus
+                from services.amadeus_service import AmadeusService
+                amadeus_service = AmadeusService()
+                
+                amadeus_flights = amadeus_service.search_flights(amadeus_params)
+                
+                if 'error' not in amadeus_flights:
+                    # Processar os resultados do Amadeus
+                    flights = []
+                    
+                    # Obter dados dos voos
+                    for flight in amadeus_flights.get('data', []):
+                        try:
+                            # Extrair informações básicas
+                            flight_id = flight.get('id', '')
+                            price_info = flight.get('price', {})
+                            price = price_info.get('total', '0')
+                            currency = price_info.get('currency', 'BRL')
+                            
+                            # Extrair informações de itinerário
+                            itineraries = flight.get('itineraries', [])
+                            if not itineraries:
+                                continue
+                                
+                            itinerary = itineraries[0]
+                            segments = itinerary.get('segments', [])
+                            
+                            if not segments:
+                                continue
+                                
+                            # Detalhes da partida
+                            first_segment = segments[0]
+                            departure_info = first_segment.get('departure', {})
+                            origin_code = departure_info.get('iataCode', params.get('origin'))
+                            departure_at = departure_info.get('at', '')
+                            
+                            # Detalhes da chegada
+                            last_segment = segments[-1]
+                            arrival_info = last_segment.get('arrival', {})
+                            destination_code = arrival_info.get('iataCode', params.get('destination'))
+                            arrival_at = arrival_info.get('at', '')
+                            
+                            # Companhia aérea
+                            carrier_code = first_segment.get('carrierCode', '')
+                            
+                            # Mapear códigos de companhias para nomes (simplificado)
+                            airline_map = {
+                                'LA': 'LATAM',
+                                'G3': 'GOL',
+                                'AD': 'Azul',
+                                'EK': 'Emirates',
+                                'AF': 'Air France',
+                                'BA': 'British Airways',
+                                'AA': 'American Airlines',
+                                'UA': 'United Airlines',
+                                'DL': 'Delta Airlines',
+                                'IB': 'Iberia',
+                                'LH': 'Lufthansa',
+                            }
+                            
+                            airline = airline_map.get(carrier_code, carrier_code)
+                            
+                            # Gerar link de afiliado
+                            departure_date = departure_at.split('T')[0] if 'T' in departure_at else ''
+                            return_date = params.get('return_date')
+                            
+                            affiliate_link = skyscanner_service._generate_affiliate_link(
+                                origin_code, 
+                                destination_code, 
+                                departure_date, 
+                                return_date
+                            )
+                            
+                            # Formar o objeto de voo
+                            formatted_flight = {
+                                "id": flight_id,
+                                "price": float(price),
+                                "currency": currency,
+                                "departure": {
+                                    "airport": origin_code,
+                                    "time": departure_at
+                                },
+                                "arrival": {
+                                    "airport": destination_code,
+                                    "time": arrival_at
+                                },
+                                "duration": itinerary.get('duration', ''),
+                                "segments": len(segments),
+                                "airline": airline,
+                                "affiliate_link": affiliate_link
+                            }
+                            
+                            flights.append(formatted_flight)
+                            
+                        except Exception as segment_e:
+                            logger.error(f"Erro ao processar segmento de voo Amadeus: {str(segment_e)}")
+                    
+                    # Ordenar por preço
+                    flights.sort(key=lambda x: x["price"])
+                    
+                    logger.info(f"Encontrados {len(flights)} voos via Amadeus")
+                    return {"flights": flights, "source": "amadeus"}
+                else:
+                    logger.error(f"Erro ao buscar voos na Amadeus: {amadeus_flights.get('error', 'Erro desconhecido')}")
+            except Exception as amadeus_e:
+                logger.error(f"Erro ao usar API da Amadeus: {str(amadeus_e)}")
+            
+            # Se nenhuma das APIs funcionou, retornar erro original do Skyscanner
             return skyscanner_flights
             
         # Se não houver voos encontrados, retornar mensagem informativa
@@ -468,87 +626,12 @@ def search_flights(travel_info):
             return {"message": "Nenhum voo encontrado para os parâmetros especificados"}
             
         # Registrar o número de voos encontrados
-        logger.info(f"Encontrados {len(skyscanner_flights.get('flights', []))} voos")
+        logger.info(f"Encontrados {len(skyscanner_flights.get('flights', []))} voos via Skyscanner")
         
         return skyscanner_flights
 
-        # Obter resultados do Amadeus e mapear para links de afiliados do Skyscanner
-        flights = amadeus_flights.get('data', [])
-
-        # Formatar os resultados e combinar com links de afiliados do Skyscanner
-        formatted_flights = []
-
-        for flight in flights:
-            # Extrair informações básicas do voo do Amadeus
-            flight_id = flight.get('id', '')
-            price_info = flight.get('price', {})
-            price = price_info.get('total', '0')
-            currency = price_info.get('currency', 'BRL')
-
-            # Extrair informações de itinerário
-            itineraries = flight.get('itineraries', [])
-            if not itineraries:
-                continue
-
-            itinerary = itineraries[0]
-            segments = itinerary.get('segments', [])
-
-            if not segments:
-                continue
-
-            # Detalhes do primeiro segmento para partida
-            first_segment = segments[0]
-            departure_info = first_segment.get('departure', {})
-            origin_code = departure_info.get('iataCode', params.get('origin'))
-            departure_at = departure_info.get('at', '')
-
-            # Detalhes do último segmento para chegada
-            last_segment = segments[-1]
-            arrival_info = last_segment.get('arrival', {})
-            destination_code = arrival_info.get('iataCode', params.get('destination'))
-            arrival_at = arrival_info.get('at', '')
-
-            # Obter código da companhia aérea
-            carrier_code = first_segment.get('carrierCode', '')
-            airline = carrier_code  # Idealmente, mapear para o nome da companhia
-
-            # Gerar link de afiliado do Skyscanner
-            departure_date = departure_at.split('T')[0] if 'T' in departure_at else ''
-            return_date = params.get('return_date')
-
-            affiliate_link = skyscanner_service._generate_affiliate_link(
-                origin_code, 
-                destination_code, 
-                departure_date, 
-                return_date
-            )
-
-            # Formar o objeto de voo formatado
-            formatted_flight = {
-                "id": flight_id,
-                "price": price,
-                "currency": currency,
-                "departure": {
-                    "airport": origin_code,
-                    "time": departure_at
-                },
-                "arrival": {
-                    "airport": destination_code,
-                    "time": arrival_at
-                },
-                "duration": itinerary.get('duration', ''),
-                "segments": len(segments),
-                "airline": airline,
-                "affiliate_link": affiliate_link
-            }
-
-            formatted_flights.append(formatted_flight)
-
-        # Retornar os resultados formatados
-        return {"flights": formatted_flights}
-
     except Exception as e:
-        logger.errologger.error(f"Erro ao buscar voos: {str(e)}")
+        logger.error(f"Erro ao buscar voos: {str(e)}")
         return {"error": f"Erro ao buscar voos: {str(e)}"}
 
 def search_best_prices(travel_info):
@@ -556,12 +639,27 @@ def search_best_prices(travel_info):
     Busca melhores preços para um período flexível
     """
     try:
-        return skyscanner_service.get_best_price_options(
+        logger.info(f"Buscando melhores preços para {travel_info.get('origin')} -> {travel_info.get('destination')}")
+        
+        # Tentar primeiro o Skyscanner
+        result = skyscanner_service.get_best_price_options(
             origin=travel_info.get('origin'),
             destination=travel_info.get('destination'),
             date_range_start=travel_info.get('date_range_start'),
             date_range_end=travel_info.get('date_range_end')
         )
+        
+        if 'error' in result:
+            logger.warning(f"Erro ao buscar preços no Skyscanner: {result['error']}")
+            
+            # Tentar usar a API da Amadeus como fallback
+            try:
+                logger.info("Tentando API da Amadeus como fallback para preços")
+                # Implementar chamada à API da Amadeus aqui se necessário
+            except Exception as amadeus_e:
+                logger.error(f"Erro ao usar API da Amadeus para preços: {str(amadeus_e)}")
+                
+        return result
 
     except Exception as e:
         logger.error(f"Erro ao buscar melhores preços: {str(e)}")

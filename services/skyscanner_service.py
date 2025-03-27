@@ -33,32 +33,126 @@ class SkyscannerService:
         - Dicionário com os resultados da busca
         """
         try:
-            # Simulação de resposta para desenvolvimento
-            # Em produção, substituir por chamada real à API
-            logger.info(f"Buscando voos no Skyscanner com parâmetros: {params}")
-
-            # Dados simulados
+            # Extrair parâmetros
             origin = params.get('origin', '')
             destination = params.get('destination', '')
             departure_date = params.get('departure_date', '')
             return_date = params.get('return_date', '')
-
+            adults = params.get('adults', 1)
+            currency = params.get('currency', 'BRL')
+            
             # Validar parâmetros mínimos
             if not origin or not destination or not departure_date:
                 return {"error": "Parâmetros insuficientes para busca de voos"}
-
-            # Gerar dados simulados para desenvolvimento
-            flights = self._generate_simulated_flights(
-                origin, 
-                destination, 
-                departure_date, 
-                return_date
-            )
-
+                
+            logger.info(f"Buscando voos no Skyscanner com parâmetros: {params}")
+            
+            # Fazer a requisição para a API Skyscanner
+            url = f"{self.base_url}/v{self.api_version}/flights/browse/quotes"
+            headers = {
+                'x-rapidapi-key': self.auth_token,
+                'x-rapidapi-host': 'skyscanner-skyscanner-flight-search-v1.p.rapidapi.com',
+                'content-type': 'application/json'
+            }
+            
+            query_params = {
+                'originPlace': f"{origin}-sky",
+                'destinationPlace': f"{destination}-sky",
+                'outboundPartialDate': departure_date,
+                'inboundPartialDate': return_date,
+                'adults': adults,
+                'currency': currency
+            }
+            
+            # Tentar fazer a chamada à API real
+            response = requests.get(url, headers=headers, params=query_params)
+            
+            # Se houver erro na API, usar fallback para dados simulados
+            if response.status_code != 200:
+                logger.warning(f"Erro na API Skyscanner (status {response.status_code}), usando dados de fallback")
+                if hasattr(self, '_generate_simulated_flights'):
+                    logger.info("Usando dados simulados como fallback")
+                    flights = self._generate_simulated_flights(
+                        origin, 
+                        destination, 
+                        departure_date, 
+                        return_date
+                    )
+                    return {"flights": flights, "is_simulated": True}
+                else:
+                    return {"error": f"Erro na API Skyscanner: {response.status_code} - {response.text}"}
+            
+            # Processar resultados reais da API
+            data = response.json()
+            quotes = data.get('Quotes', [])
+            carriers = data.get('Carriers', [])
+            places = data.get('Places', [])
+            
+            # Mapear IDs de companhias aéreas para nomes
+            carrier_map = {c['CarrierId']: c['Name'] for c in carriers}
+            # Mapear IDs de lugares para nomes
+            place_map = {p['PlaceId']: p['Name'] for p in places}
+            
+            # Formatar os resultados para o nosso formato padrão
+            flights = []
+            for quote in quotes:
+                # Extrair informações da cotação
+                outbound = quote.get('OutboundLeg', {})
+                inbound = quote.get('InboundLeg', {}) if return_date else None
+                
+                # Obter IDs das companhias
+                carrier_ids = outbound.get('CarrierIds', [])
+                carrier_id = carrier_ids[0] if carrier_ids else None
+                
+                # Obter nome da companhia
+                airline = carrier_map.get(carrier_id, "Companhia não especificada")
+                
+                # Criar objeto de voo
+                flight = {
+                    "id": f"flight_{quote.get('QuoteId')}",
+                    "price": quote.get('MinPrice'),
+                    "currency": currency,
+                    "departure": {
+                        "airport": origin,
+                        "time": outbound.get('DepartureDate')
+                    },
+                    "arrival": {
+                        "airport": destination,
+                        "time": None  # A API de cotações não fornece hora de chegada
+                    },
+                    "airline": airline,
+                    "is_direct": quote.get('Direct', False),
+                    "affiliate_link": self._generate_affiliate_link(
+                        origin, 
+                        destination, 
+                        departure_date, 
+                        return_date
+                    )
+                }
+                
+                flights.append(flight)
+            
+            # Ordenar por preço
+            flights.sort(key=lambda x: x["price"])
+            
             return {"flights": flights}
 
         except Exception as e:
             logger.error(f"Erro ao buscar voos no Skyscanner: {str(e)}")
+            # Em caso de falha na API, tentar usar dados simulados como último recurso
+            try:
+                if hasattr(self, '_generate_simulated_flights'):
+                    logger.info("Usando dados simulados como fallback após erro")
+                    flights = self._generate_simulated_flights(
+                        params.get('origin', ''), 
+                        params.get('destination', ''), 
+                        params.get('departure_date', ''), 
+                        params.get('return_date', '')
+                    )
+                    return {"flights": flights, "is_simulated": True, "error_message": str(e)}
+            except:
+                pass
+                
             return {"error": f"Erro ao buscar voos: {str(e)}"}
 
     def get_best_price_options(self, origin, destination, date_range_start, date_range_end):
@@ -79,18 +173,84 @@ class SkyscannerService:
             if not origin or not destination or not date_range_start or not date_range_end:
                 return {"error": "Parâmetros insuficientes para busca de melhores preços"}
 
-            # Gerar dados simulados para desenvolvimento
-            best_prices = self._generate_simulated_best_prices(
-                origin,
-                destination,
-                date_range_start,
-                date_range_end
-            )
-
+            logger.info(f"Buscando melhores preços para {origin} -> {destination} entre {date_range_start} e {date_range_end}")
+            
+            # Fazer a requisição para a API Skyscanner
+            url = f"{self.base_url}/v{self.api_version}/flights/browse/calendar"
+            headers = {
+                'x-rapidapi-key': self.auth_token,
+                'x-rapidapi-host': 'skyscanner-skyscanner-flight-search-v1.p.rapidapi.com',
+                'content-type': 'application/json'
+            }
+            
+            query_params = {
+                'originPlace': f"{origin}-sky",
+                'destinationPlace': f"{destination}-sky",
+                'outboundPartialDate': date_range_start,
+                'inboundPartialDate': date_range_end,
+                'currency': 'BRL'
+            }
+            
+            # Tentar fazer a chamada à API real
+            response = requests.get(url, headers=headers, params=query_params)
+            
+            # Se houver erro na API, usar fallback para dados simulados
+            if response.status_code != 200:
+                logger.warning(f"Erro na API Skyscanner (status {response.status_code}), usando dados de fallback")
+                if hasattr(self, '_generate_simulated_best_prices'):
+                    logger.info("Usando dados simulados como fallback")
+                    best_prices = self._generate_simulated_best_prices(
+                        origin, destination, date_range_start, date_range_end
+                    )
+                    return {"best_prices": best_prices, "is_simulated": True}
+                else:
+                    return {"error": f"Erro na API Skyscanner: {response.status_code} - {response.text}"}
+            
+            # Processar resultados reais da API
+            data = response.json()
+            quotes = data.get('Quotes', [])
+            best_prices = []
+            
+            # Transformar resultados no formato padronizado
+            for quote in quotes:
+                price = quote.get('MinPrice')
+                date = quote.get('OutboundLeg', {}).get('DepartureDate')
+                
+                # Formatar a data para ISO
+                try:
+                    formatted_date = date.split('T')[0] if date and 'T' in date else date
+                except:
+                    formatted_date = date
+                
+                best_price = {
+                    "date": formatted_date,
+                    "price": price,
+                    "currency": "BRL",
+                    "affiliate_link": self._generate_affiliate_link(
+                        origin, destination, formatted_date
+                    )
+                }
+                
+                best_prices.append(best_price)
+            
+            # Ordenar por preço
+            best_prices.sort(key=lambda x: x["price"])
+            
             return {"best_prices": best_prices}
 
         except Exception as e:
             logger.error(f"Erro ao buscar melhores preços no Skyscanner: {str(e)}")
+            # Em caso de falha na API, tentar usar dados simulados como último recurso
+            try:
+                if hasattr(self, '_generate_simulated_best_prices'):
+                    logger.info("Usando dados simulados como fallback após erro")
+                    best_prices = self._generate_simulated_best_prices(
+                        origin, destination, date_range_start, date_range_end
+                    )
+                    return {"best_prices": best_prices, "is_simulated": True, "error_message": str(e)}
+            except:
+                pass
+                
             return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
 
     def _generate_affiliate_link(self, origin, destination, departure_date, return_date=None):
