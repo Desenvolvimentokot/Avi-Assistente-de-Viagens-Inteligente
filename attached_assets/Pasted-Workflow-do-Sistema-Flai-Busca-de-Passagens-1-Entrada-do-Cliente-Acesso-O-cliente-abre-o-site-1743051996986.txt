@@ -1,0 +1,116 @@
+Workflow do Sistema Flai – Busca de Passagens
+1. Entrada do Cliente
+Acesso:
+O cliente abre o site e informa sua intenção, por exemplo: "Quero comprar uma passagem para Miami" ou "Preciso de passagens para a Argentina."
+
+2. Interação Inicial com o Flai (GPT)
+Coleta de Necessidades:
+O Flai inicia uma conversa para entender os detalhes:
+
+Pergunta: "Para quando você deseja viajar?" (captura data de ida, ou período genérico como "julho")
+
+Pergunta: "Qual a data de volta?" (se aplicável)
+
+Pergunta: "De onde você vai sair?" e "Para onde deseja ir?"
+
+(Opcional) Pergunta sobre preferências (ex.: classe, flexibilidade de datas)
+
+Confirmação:
+O Flai repete os dados coletados para que o cliente confirme se estão corretos.
+
+3. Processamento Inicial e Criação do Perfil
+Masterização dos Dados:
+O sistema consolida as informações fornecidas para formar um perfil de busca.
+
+Sugestão de Flexibilidade:
+Se o cliente informar apenas um mês ou período genérico, o Flai pergunta se ele deseja que o sistema busque as melhores ofertas durante todo o período, procurando dias com preços mais baixos.
+
+4. Consulta à Amadeus API
+Envio da Requisição:
+O sistema, com base no perfil, consulta a API da Amadeus para obter todas as ofertas disponíveis para a rota e datas informadas.
+
+Análise de Dados:
+A Amadeus retorna os dados brutos: companhias aéreas, itinerários, horários e preços.
+
+5. Interpretação e Organização dos Dados pelo Flai
+Recepção e Organização:
+O Flai (através do GPT e lógica de backend) processa as informações:
+
+Identifica quais companhias aéreas oferecem as passagens e seus valores.
+
+Analisa as variações de preço (ex.: identificar dias com preços mais baixos ou se o preço atual está acima ou abaixo da média).
+
+6. Mapeamento com Sites Afiliados
+Integração com Programas de Afiliados:
+O sistema utiliza uma camada extra para mapear as ofertas da Amadeus com os links de afiliados dos parceiros:
+
+Para cada oferta identificada, o sistema consulta as APIs ou banco de dados dos parceiros para verificar quais sites possuem a oferta com preço semelhante ou melhor.
+
+7. Seleção das Melhores Ofertas
+Comparação e Equivalência:
+O Flai compara as ofertas retornadas pela Amadeus com as dos parceiros afiliados, identificando:
+
+A oferta que corresponde exatamente ao pedido do cliente.
+
+Uma oferta alternativa – com datas próximas – que proporcione maior economia.
+
+Análise de Preço Comparativo:
+O sistema inclui uma análise comparativa:
+
+"Essa passagem está 50% mais barata do que o preço médio" ou
+
+"O preço está um pouco acima da média, considere ajustar as datas para melhores ofertas."
+
+8. Geração dos Links de Afiliados
+Criação dos Links:
+O sistema gera dois links:
+
+Link 1: Para a oferta exata solicitada.
+
+Link 2: Para a alternativa que oferece economia (mesmo que com datas ligeiramente ajustadas).
+
+9. Retorno da Informação para o Cliente
+Apresentação das Opções no Chat:
+O Flai retorna uma mensagem ao cliente, detalhando:
+
+As informações da passagem (datas, preço, companhia aérea, etc.).
+
+A análise comparativa do preço (ex.: "Essa passagem está X% abaixo da média – ótimo momento para comprar" ou "Está um pouco acima, talvez considere ajustar as datas").
+
+Os dois links de afiliados para que o cliente escolha a melhor opção.
+
+10. Confirmação e Feedback Final
+Perguntas de Confirmação:
+O Flai pergunta:
+
+"Essas opções fazem sentido para você?"
+
+"Você gostaria de ajustar alguma data ou precisa de mais informações?"
+
+Iteração:
+Se o cliente solicitar ajustes, o processo é reiniciado com novas perguntas ou refinamentos, até que o cliente esteja satisfeito com a oferta.
+
+Resumo Visual do Workflow
+Entrada do Cliente: Solicitação inicial.
+
+Interação Inicial com o Flai: Coleta de dados (datas, origem/destino, etc.).
+
+Processamento e Criação do Perfil: Consolidação das informações.
+
+Consulta à Amadeus API: Busca de ofertas.
+
+Organização dos Dados pelo Flai: Processamento e análise das ofertas.
+
+Mapeamento com Sites Afiliados: Verificação de ofertas com links de afiliados.
+
+Seleção das Melhores Ofertas: Comparação entre oferta exata e alternativa econômica.
+
+Geração dos Links de Afiliados: Criação dos dois links.
+
+Retorno para o Cliente: Exibição detalhada das opções com análise comparativa.
+
+Confirmação e Iteração: Feedback final e ajustes conforme necessário.
+
+Esse workflow garante que o sistema capte todas as informações do cliente, interprete os dados da API da Amadeus, mapeie com os links de afiliados e ofereça duas opções de passagens, sempre enfatizando os benefícios e a economia potencial. Envie esse workflow ao seu time ou ferramenta de automação (como o Replit Agent ou Claude) para que implementem a lógica de forma robusta e consistente.
+
+Se precisar de mais ajustes ou detalhes, estou aqui para ajudar!
