@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Instanciar serviços
 openai_service = OpenAIService()
-skyscanner_service = SkyscannerService()
+skyscanner_service = SkyscannerService())
 
 def process_message(message, history=None):
     """
@@ -453,26 +453,24 @@ def search_flights(travel_info):
             'currency': 'BRL'
         }
 
-        # Primeiro buscamos no Amadeus para obter as opções de voos
-        from services.amadeus_service import AmadeusService
-        amadeus_service = AmadeusService()
-
-        # Preparar parâmetros para a API Amadeus
-        amadeus_params = {
-            'originLocationCode': params.get('origin'),
-            'destinationLocationCode': params.get('destination'),
-            'departureDate': params.get('departure_date'),
-            'returnDate': params.get('return_date'),
-            'adults': params.get('adults', 1),
-            'currencyCode': params.get('currency', 'BRL')
-        }
-
-        # Buscar voos no Amadeus
-        amadeus_flights = amadeus_service.search_flights(amadeus_params)
-
-        if 'error' in amadeus_flights:
-            logger.error(f"Erro ao buscar voos no Amadeus, usando Skyscanner como fallback: {amadeus_flights['error']}")
-            # Se falhar, usar Skyscanner como fallback
+        # Buscar voos no Skyscanner
+        logger.info(f"Buscando voos no Skyscanner com parâmetros: {params}")
+        skyscanner_flights = skyscanner_service.search_flights(params)
+        
+        # Verificar se a busca foi bem-sucedida
+        if 'error' in skyscanner_flights:
+            logger.error(f"Erro ao buscar voos no Skyscanner: {skyscanner_flights['error']}")
+            return skyscanner_flights
+            
+        # Se não houver voos encontrados, retornar mensagem informativa
+        if not skyscanner_flights.get('flights'):
+            logger.info("Nenhum voo encontrado para os parâmetros especificados")
+            return {"message": "Nenhum voo encontrado para os parâmetros especificados"}
+            
+        # Registrar o número de voos encontrados
+        logger.info(f"Encontrados {len(skyscanner_flights.get('flights', []))} voos")
+        
+        return skyscanner_flightsr Skyscanner como fallback
             return skyscanner_service.search_flights(params)
 
         # Obter resultados do Amadeus e mapear para links de afiliados do Skyscanner
@@ -551,7 +549,7 @@ def search_flights(travel_info):
         return {"flights": formatted_flights}
 
     except Exception as e:
-        logger.error(f"Erro ao buscar voos: {str(e)}")
+        logger.errologger.error(f"Erro ao buscar voos: {str(e)}")
         return {"error": f"Erro ao buscar voos: {str(e)}"}
 
 def search_best_prices(travel_info):
@@ -568,4 +566,93 @@ def search_best_prices(travel_info):
 
     except Exception as e:
         logger.error(f"Erro ao buscar melhores preços: {str(e)}")
+        return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
+
+def process_message(user_message, conversation_history=None):
+    """
+    Processa a mensagem do usuário e retorna uma resposta adequada
+    utilizando o fluxo de busca rápida de passagens
+    """
+    if conversation_history is None:
+        conversation_history = []
+    
+    try:
+        # Analisar a mensagem do usuário usando o GPT para extrair informações de viagem
+        system_context = BUSCA_RAPIDA_PROMPT
+        
+        # Preparar mensagem para o GPT
+        prompt_messages = [
+            {"role": "system", "content": system_context},
+            {"role": "user", "content": user_message}
+        ]
+        
+        # Adicionar histórico da conversa, se existir
+        for msg in conversation_history:
+            if msg.get('is_user'):
+                prompt_messages.append({"role": "user", "content": msg.get('content', '')})
+            else:
+                prompt_messages.append({"role": "assistant", "content": msg.get('content', '')})
+        
+        # Chamar o OpenAI para analisar a mensagem
+        logger.info("Enviando mensagem para análise pelo OpenAI")
+        response = openai_service.create_chat_completion(prompt_messages)
+        
+        if 'error' in response:
+            logger.error(f"Erro na chamada à API OpenAI: {response['error']}")
+            return {"response": f"Desculpe, estou tendo problemas para processar sua solicitação. Por favor, tente novamente em alguns instantes."}
+        
+        # Extrair a resposta do GPT
+        gpt_response = response['choices'][0]['message']['content']
+        
+        # Verificar se a resposta contém o marcador JSON com informações de viagem
+        travel_info_match = re.search(r'```json\s*\n(.*?)\n\s*```', gpt_response, re.DOTALL)
+        
+        if travel_info_match:
+            # Extrair e processar as informações da viagem
+            travel_info_json = travel_info_match.group(1)
+            try:
+                travel_info = json.loads(travel_info_json)
+                logger.info(f"Informações de viagem extraídas: {travel_info}")
+                
+                # Verificar se temos informações suficientes para buscar voos
+                if is_flight_search_ready(travel_info):
+                    # Buscar voos conforme as informações extraídas
+                    if has_flexible_dates(travel_info):
+                        logger.info("Buscando melhores preços para datas flexíveis")
+                        search_results = search_best_prices(travel_info)
+                    else:
+                        logger.info("Buscando voos para datas específicas")
+                        search_results = search_flights(travel_info)
+                    
+                    # Processar os resultados com o GPT para formatar uma resposta amigável
+                    if 'error' not in search_results:
+                        prompt_with_results = [
+                            {"role": "system", "content": system_context},
+                            {"role": "user", "content": user_message},
+                            {"role": "assistant", "content": gpt_response},
+                            {"role": "user", "content": f"Aqui estão os resultados da busca: ```json\n{json.dumps(search_results, ensure_ascii=False)}\n```\nPor favor, formate esses resultados de maneira amigável e apresente as melhores opções para o usuário, incluindo os links para compra quando disponíveis. Se houver links de afiliados, use o formato [[LINK_COMPRA:URL]] para exibi-los."}
+                        ]
+                        
+                        final_response = openai_service.create_chat_completion(prompt_with_results)
+                        if 'error' not in final_response:
+                            return {"response": final_response['choices'][0]['message']['content']}
+                    
+                    # Se houve erro na busca ou no processamento final
+                    if 'error' in search_results:
+                        logger.error(f"Erro na busca: {search_results['error']}")
+                        return {"response": f"Desculpe, encontrei um problema ao buscar as passagens: {search_results['error']}. Poderia fornecer mais detalhes sobre sua viagem para que eu possa tentar novamente?"}
+                
+                # Se não tivermos informações suficientes, retornar a resposta original do GPT
+                return {"response": gpt_response}
+                
+            except json.JSONDecodeError:
+                logger.error(f"Erro ao decodificar JSON das informações de viagem: {travel_info_json}")
+                return {"response": gpt_response}
+        else:
+            # Se não tiver marcador JSON, é uma resposta normal do GPT
+            return {"response": gpt_response}
+            
+    except Exception as e:
+        logger.error(f"Erro no processamento da mensagem: {str(e)}")
+        return {"response": "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde."}r melhores preços: {str(e)}")
         return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
