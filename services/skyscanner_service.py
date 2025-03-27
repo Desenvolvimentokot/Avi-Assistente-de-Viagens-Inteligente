@@ -268,18 +268,30 @@ class SkyscannerService:
         """
         base_url = "https://www.skyscanner.com.br/transport/flights"
 
+        # Verificar se os parâmetros são válidos
+        if not origin or not destination:
+            # Link genérico se não houver origem/destino
+            return f"https://www.skyscanner.com.br/?affilid={self.affiliate_id}"
+
         # Formatar as datas para o padrão do Skyscanner (YYMMDD)
         try:
             dep_formatted = datetime.strptime(departure_date, "%Y-%m-%d").strftime("%y%m%d")
         except:
-            dep_formatted = "231201"  # Data padrão se houver erro
+            # Usar data atual + 30 dias se formato inválido
+            dep_formatted = (datetime.now() + timedelta(days=30)).strftime("%y%m%d")
 
         ret_formatted = ""
         if return_date:
             try:
                 ret_formatted = "/" + datetime.strptime(return_date, "%Y-%m-%d").strftime("%y%m%d")
             except:
-                ret_formatted = "/231208"  # Data padrão se houver erro
+                # Usar data de ida + 7 dias se formato inválido
+                try:
+                    ida_date = datetime.strptime(departure_date, "%Y-%m-%d")
+                    ret_formatted = "/" + (ida_date + timedelta(days=7)).strftime("%y%m%d")
+                except:
+                    # Fallback para data atual + 37 dias
+                    ret_formatted = "/" + (datetime.now() + timedelta(days=37)).strftime("%y%m%d")
 
         # Montar a URL
         url = f"{base_url}/{origin}/{destination}/{dep_formatted}{ret_formatted}/?adults=1&adultsv2=1&cabinclass=economy&children=0&inboundaltsenabled=false&infants=0&outboundaltsenabled=false&preferdirects=false&ref=home&rtn={1 if return_date else 0}"
@@ -288,6 +300,40 @@ class SkyscannerService:
         url += f"&affilid={self.affiliate_id}"
 
         return url
+    
+    def get_airline_direct_link(self, airline, origin, destination, departure_date, return_date=None):
+        """
+        Gera um link direto para o site da companhia aérea
+        
+        Parâmetros:
+        - airline: nome da companhia aérea
+        - origin: código IATA da origem
+        - destination: código IATA do destino
+        - departure_date: data de ida (formato YYYY-MM-DD)
+        - return_date: data de volta (opcional, formato YYYY-MM-DD)
+        
+        Retorno:
+        - URL direta para o site da companhia
+        """
+        airline_links = {
+            'LATAM': f"https://www.latamairlines.com/br/pt/ofertas-voos?origin={origin}&destination={destination}&outbound={departure_date}&inbound={return_date or ''}&adt=1&chd=0&inf=0",
+            'GOL': f"https://www.voegol.com.br/pt/selecao-voos?origin={origin}&destination={destination}&departure={departure_date}&return={return_date or ''}&adults=1&children=0&infants=0",
+            'Azul': f"https://www.voeazul.com.br/br/pt/home?s_cid=sem:latam:google:G_Brand_Brasil_Termos_Curtos:azul",
+            'Emirates': f"https://www.emirates.com/br/portuguese/",
+            'Air France': f"https://wwws.airfrance.fr/",
+            'British Airways': f"https://www.britishairways.com/travel/home/public/en_br",
+            'American Airlines': f"https://www.aa.com/homePage.do?locale=pt_BR",
+            'Delta Airlines': f"https://www.delta.com/",
+            'Iberia': f"https://www.iberia.com/br/",
+            'Lufthansa': f"https://www.lufthansa.com/br/pt/homepage",
+        }
+        
+        # Obter link direto da companhia ou usar Skyscanner como fallback
+        direct_link = airline_links.get(airline)
+        if direct_link:
+            return direct_link
+        else:
+            return self._generate_affiliate_link(origin, destination, departure_date, return_date)
 
     def _generate_simulated_flights(self, origin, destination, departure_date, return_date=None):
         """

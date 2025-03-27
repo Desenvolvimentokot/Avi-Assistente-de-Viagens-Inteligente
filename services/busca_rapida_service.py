@@ -472,7 +472,7 @@ def is_ready_for_search(travel_info):
 
 def search_flights(travel_info):
     """
-    Busca voos através do serviço Skyscanner
+    Busca voos através do serviço Skyscanner com fallback para Amadeus
     """
     try:
         # Preparar parâmetros para a API
@@ -487,148 +487,234 @@ def search_flights(travel_info):
 
         logger.info(f"Iniciando busca de voos com parâmetros: {params}")
         
+        # Inicializar o serviço Amadeus - já preparado para uso imediato
+        from services.amadeus_service import AmadeusService
+        amadeus_service = AmadeusService()
+        
         # Tentar primeiro o Skyscanner
         logger.info("Tentando buscar voos via Skyscanner")
         skyscanner_flights = skyscanner_service.search_flights(params)
         
-        # Verificar se a busca foi bem-sucedida
-        if 'error' in skyscanner_flights:
-            logger.warning(f"Erro ao buscar voos no Skyscanner: {skyscanner_flights['error']}")
+        # Verificar se a busca do Skyscanner foi bem-sucedida
+        skyscanner_success = 'error' not in skyscanner_flights and skyscanner_flights.get('flights', [])
+        
+        # Se não tiver resultados do Skyscanner, usar o Amadeus diretamente
+        if not skyscanner_success:
+            logger.warning(f"Sem resultados do Skyscanner ou erro encontrado: {skyscanner_flights.get('error', 'Sem voos encontrados')}")
+            logger.info("Buscando voos via Amadeus")
             
-            # Tentar a API da Amadeus como fallback
-            logger.info("Tentando buscar voos via Amadeus como fallback")
-            try:
-                # Mapear parâmetros para o formato da Amadeus
-                amadeus_params = {
-                    'originLocationCode': params['origin'],
-                    'destinationLocationCode': params['destination'],
-                    'departureDate': params['departure_date'],
-                    'adults': params['adults'],
-                    'currencyCode': params['currency']
-                }
+            # Mapear parâmetros para o formato da Amadeus
+            amadeus_params = {
+                'originLocationCode': params['origin'],
+                'destinationLocationCode': params['destination'],
+                'departureDate': params['departure_date'],
+                'adults': params['adults'],
+                'currencyCode': params['currency']
+            }
+            
+            if params.get('return_date'):
+                amadeus_params['returnDate'] = params['return_date']
+            
+            # Buscar voos na Amadeus
+            amadeus_flights = amadeus_service.search_flights(amadeus_params)
+            
+            if 'error' not in amadeus_flights:
+                # Processar os resultados do Amadeus
+                flights = []
                 
-                if params.get('return_date'):
-                    amadeus_params['returnDate'] = params['return_date']
-                
-                # Importar o serviço Amadeus
-                from services.amadeus_service import AmadeusService
-                amadeus_service = AmadeusService()
-                
-                amadeus_flights = amadeus_service.search_flights(amadeus_params)
-                
-                if 'error' not in amadeus_flights:
-                    # Processar os resultados do Amadeus
-                    flights = []
-                    
-                    # Obter dados dos voos
-                    for flight in amadeus_flights.get('data', []):
-                        try:
-                            # Extrair informações básicas
-                            flight_id = flight.get('id', '')
-                            price_info = flight.get('price', {})
-                            price = price_info.get('total', '0')
-                            currency = price_info.get('currency', 'BRL')
+                # Obter dados dos voos
+                for flight in amadeus_flights.get('data', []):
+                    try:
+                        # Extrair informações básicas
+                        flight_id = flight.get('id', '')
+                        price_info = flight.get('price', {})
+                        price = price_info.get('total', '0')
+                        currency = price_info.get('currency', 'BRL')
+                        
+                        # Extrair informações de itinerário
+                        itineraries = flight.get('itineraries', [])
+                        if not itineraries:
+                            continue
                             
-                            # Extrair informações de itinerário
+                        itinerary = itineraries[0]
+                        segments = itinerary.get('segments', [])
+                        
+                        if not segments:
+                            continue
+                            
+                        # Detalhes da partida
+                        first_segment = segments[0]
+                        departure_info = first_segment.get('departure', {})
+                        origin_code = departure_info.get('iataCode', params.get('origin'))
+                        departure_at = departure_info.get('at', '')
+                        
+                        # Detalhes da chegada
+                        last_segment = segments[-1]
+                        arrival_info = last_segment.get('arrival', {})
+                        destination_code = arrival_info.get('iataCode', params.get('destination'))
+                        arrival_at = arrival_info.get('at', '')
+                        
+                        # Companhia aérea
+                        carrier_code = first_segment.get('carrierCode', '')
+                        
+                        # Mapear códigos de companhias para nomes (simplificado)
+                        airline_map = {
+                            'LA': 'LATAM',
+                            'G3': 'GOL',
+                            'AD': 'Azul',
+                            'EK': 'Emirates',
+                            'AF': 'Air France',
+                            'BA': 'British Airways',
+                            'AA': 'American Airlines',
+                            'UA': 'United Airlines',
+                            'DL': 'Delta Airlines',
+                            'IB': 'Iberia',
+                            'LH': 'Lufthansa',
+                        }
+                        
+                        airline = airline_map.get(carrier_code, carrier_code)
+                        
+                        # Gerar links específicos das companhias aéreas
+                        airline_links = {
+                            'LATAM': f"https://www.latamairlines.com/br/pt/ofertas-voos?origin={origin_code}&destination={destination_code}&outbound={departure_at.split('T')[0]}&inbound={params.get('return_date', '')}&adt=1&chd=0&inf=0",
+                            'GOL': f"https://www.voegol.com.br/pt/selecao-voos?origin={origin_code}&destination={destination_code}&departure={departure_at.split('T')[0]}&return={params.get('return_date', '')}&adults=1&children=0&infants=0",
+                            'Azul': f"https://www.voeazul.com.br/br/en/home?s_cid=sem:latam:google:G_Brand_Brasil_Termos_Curtos:azul",
+                            'Emirates': f"https://www.emirates.com/br/portuguese/",
+                            'Air France': f"https://wwws.airfrance.fr/",
+                            'British Airways': f"https://www.britishairways.com/travel/home/public/en_br",
+                            'American Airlines': f"https://www.aa.com/homePage.do?locale=pt_BR",
+                            'Delta Airlines': f"https://www.delta.com/",
+                            'Iberia': f"https://www.iberia.com/br/",
+                            'Lufthansa': f"https://www.lufthansa.com/br/pt/homepage",
+                        }
+                        
+                        # Definir o link de compra preferencial (primeiro da companhia aérea, depois o Skyscanner como fallback)
+                        airline_link = airline_links.get(airline)
+                        skyscanner_link = skyscanner_service._generate_affiliate_link(
+                            origin_code, 
+                            destination_code, 
+                            departure_at.split('T')[0] if 'T' in departure_at else '',
+                            params.get('return_date')
+                        )
+                        
+                        # Preferir link da companhia aérea se disponível
+                        purchase_link = airline_link if airline_link else skyscanner_link
+                        
+                        # Formar o objeto de voo
+                        formatted_flight = {
+                            "id": flight_id,
+                            "price": float(price),
+                            "currency": currency,
+                            "departure": {
+                                "airport": origin_code,
+                                "time": departure_at
+                            },
+                            "arrival": {
+                                "airport": destination_code,
+                                "time": arrival_at
+                            },
+                            "duration": itinerary.get('duration', ''),
+                            "segments": len(segments),
+                            "airline": airline,
+                            "affiliate_link": purchase_link,
+                            "direct_airline_link": airline_link,
+                            "skyscanner_link": skyscanner_link,
+                            "source": "amadeus"
+                        }
+                        
+                        flights.append(formatted_flight)
+                        
+                    except Exception as segment_e:
+                        logger.error(f"Erro ao processar segmento de voo Amadeus: {str(segment_e)}")
+                
+                # Ordenar por preço
+                flights.sort(key=lambda x: x["price"])
+                
+                logger.info(f"Encontrados {len(flights)} voos via Amadeus")
+                return {"flights": flights, "source": "amadeus"}
+            else:
+                logger.error(f"Erro ao buscar voos na Amadeus: {amadeus_flights.get('error', 'Erro desconhecido')}")
+                
+                # Se dados simulados estiverem disponíveis, usar como último recurso
+                try:
+                    logger.info("Usando dados simulados como último recurso")
+                    flights = amadeus_service._get_mock_flights(amadeus_params).get('data', [])
+                    processed_flights = []
+                    
+                    # Processar dados simulados para o formato padrão
+                    for flight in flights:
+                        try:
                             itineraries = flight.get('itineraries', [])
                             if not itineraries:
                                 continue
                                 
-                            itinerary = itineraries[0]
-                            segments = itinerary.get('segments', [])
-                            
+                            segments = itineraries[0].get('segments', [])
                             if not segments:
                                 continue
                                 
-                            # Detalhes da partida
                             first_segment = segments[0]
                             departure_info = first_segment.get('departure', {})
-                            origin_code = departure_info.get('iataCode', params.get('origin'))
-                            departure_at = departure_info.get('at', '')
+                            arrival_info = segments[-1].get('arrival', {})
                             
-                            # Detalhes da chegada
-                            last_segment = segments[-1]
-                            arrival_info = last_segment.get('arrival', {})
-                            destination_code = arrival_info.get('iataCode', params.get('destination'))
-                            arrival_at = arrival_info.get('at', '')
+                            price_info = flight.get('price', {})
+                            price = price_info.get('total', '0')
                             
-                            # Companhia aérea
-                            carrier_code = first_segment.get('carrierCode', '')
-                            
-                            # Mapear códigos de companhias para nomes (simplificado)
-                            airline_map = {
-                                'LA': 'LATAM',
-                                'G3': 'GOL',
-                                'AD': 'Azul',
-                                'EK': 'Emirates',
-                                'AF': 'Air France',
-                                'BA': 'British Airways',
-                                'AA': 'American Airlines',
-                                'UA': 'United Airlines',
-                                'DL': 'Delta Airlines',
-                                'IB': 'Iberia',
-                                'LH': 'Lufthansa',
-                            }
-                            
-                            airline = airline_map.get(carrier_code, carrier_code)
-                            
-                            # Gerar link de afiliado
-                            departure_date = departure_at.split('T')[0] if 'T' in departure_at else ''
-                            return_date = params.get('return_date')
-                            
-                            affiliate_link = skyscanner_service._generate_affiliate_link(
-                                origin_code, 
-                                destination_code, 
-                                departure_date, 
-                                return_date
-                            )
-                            
-                            # Formar o objeto de voo
-                            formatted_flight = {
-                                "id": flight_id,
+                            processed_flight = {
+                                "id": flight.get('id', ''),
                                 "price": float(price),
-                                "currency": currency,
+                                "currency": "BRL",
                                 "departure": {
-                                    "airport": origin_code,
-                                    "time": departure_at
+                                    "airport": departure_info.get('iataCode', params.get('origin')),
+                                    "time": departure_info.get('at', '')
                                 },
                                 "arrival": {
-                                    "airport": destination_code,
-                                    "time": arrival_at
+                                    "airport": arrival_info.get('iataCode', params.get('destination')),
+                                    "time": arrival_info.get('at', '')
                                 },
-                                "duration": itinerary.get('duration', ''),
-                                "segments": len(segments),
-                                "airline": airline,
-                                "affiliate_link": affiliate_link
+                                "airline": "Companhia Simulada",
+                                "affiliate_link": f"https://www.skyscanner.com.br/transport/flights/{params.get('origin')}/{params.get('destination')}/?adults=1&adultsv2=1",
+                                "source": "simulado"
                             }
                             
-                            flights.append(formatted_flight)
+                            processed_flights.append(processed_flight)
                             
-                        except Exception as segment_e:
-                            logger.error(f"Erro ao processar segmento de voo Amadeus: {str(segment_e)}")
+                        except Exception as sim_e:
+                            logger.error(f"Erro ao processar voo simulado: {str(sim_e)}")
+                            
+                    if processed_flights:
+                        logger.info(f"Usando {len(processed_flights)} voos simulados como último recurso")
+                        return {"flights": processed_flights, "source": "simulado", "is_simulated": True}
                     
-                    # Ordenar por preço
-                    flights.sort(key=lambda x: x["price"])
+                except Exception as mock_e:
+                    logger.error(f"Erro ao usar dados simulados: {str(mock_e)}")
                     
-                    logger.info(f"Encontrados {len(flights)} voos via Amadeus")
-                    return {"flights": flights, "source": "amadeus"}
-                else:
-                    logger.error(f"Erro ao buscar voos na Amadeus: {amadeus_flights.get('error', 'Erro desconhecido')}")
-            except Exception as amadeus_e:
-                logger.error(f"Erro ao usar API da Amadeus: {str(amadeus_e)}")
+        # Se a busca do Skyscanner foi bem-sucedida, adicionar links diretos das companhias aéreas
+        if skyscanner_success:
+            flights = skyscanner_flights.get('flights', [])
+            for flight in flights:
+                airline = flight.get('airline', '')
+                origin = params.get('origin', '')
+                destination = params.get('destination', '')
+                departure_date = params.get('departure_date', '')
+                return_date = params.get('return_date', '')
+                
+                # Gerar links específicos das companhias aéreas
+                airline_links = {
+                    'LATAM': f"https://www.latamairlines.com/br/pt/ofertas-voos?origin={origin}&destination={destination}&outbound={departure_date}&inbound={return_date}&adt=1&chd=0&inf=0",
+                    'GOL': f"https://www.voegol.com.br/pt/selecao-voos?origin={origin}&destination={destination}&departure={departure_date}&return={return_date}&adults=1&children=0&infants=0",
+                    'Azul': f"https://www.voeazul.com.br/br/en/home?s_cid=sem:latam:google:G_Brand_Brasil_Termos_Curtos:azul",
+                    # Adicionar mais companhias conforme necessário
+                }
+                
+                # Adicionar link direto da companhia aérea se disponível
+                flight['direct_airline_link'] = airline_links.get(airline)
+                flight['source'] = "skyscanner"
             
-            # Se nenhuma das APIs funcionou, retornar erro original do Skyscanner
+            logger.info(f"Encontrados {len(flights)} voos via Skyscanner")
             return skyscanner_flights
             
-        # Se não houver voos encontrados, retornar mensagem informativa
-        if not skyscanner_flights.get('flights'):
-            logger.info("Nenhum voo encontrado para os parâmetros especificados")
-            return {"message": "Nenhum voo encontrado para os parâmetros especificados"}
-            
-        # Registrar o número de voos encontrados
-        logger.info(f"Encontrados {len(skyscanner_flights.get('flights', []))} voos via Skyscanner")
-        
-        return skyscanner_flights
+        # Se chegou aqui, nenhuma API funcionou
+        return {"error": "Não foi possível encontrar voos disponíveis. Por favor, tente outra data ou destino.", "is_simulated": True}
 
     except Exception as e:
         logger.error(f"Erro ao buscar voos: {str(e)}")
