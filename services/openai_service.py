@@ -109,7 +109,8 @@ class OpenAIService:
             return {"response": assistant_response}
         except Exception as e:
             logging.error(f"Erro ao processar resposta da OpenAI: {str(e)}")
-            return {'error': f'Erro ao processar resposta: {str(e)}'}a um erro
+            return {'error': f'Erro ao processar resposta: {str(e)}'}
+        
         fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
         
         try:
