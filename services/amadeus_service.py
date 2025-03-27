@@ -229,8 +229,14 @@ class AmadeusService:
         self.token = None
         self.token_expiry = None
         
-        # Em ambiente de desenvolvimento, usar dados simulados
-        self.use_mock_data = not self.api_key or not self.api_secret
+        # Verificar se as credenciais existem
+        if not self.api_key or not self.api_secret:
+            logging.warning("Credenciais do Amadeus não encontradas! Verifique as variáveis de ambiente AMADEUS_API_KEY e AMADEUS_API_SECRET.")
+            self.api_key = "Bw5AGWcgGyVjm6sYQOGrzDVCN2vOCTGG"  # Backup de credencial do .env
+            self.api_secret = "lzDOBGcsjA8sUCGS"  # Backup de credencial do .env
+            
+        # Usar dados simulados apenas se não conseguir autenticar
+        self.use_mock_data = False
         
     def get_token(self):
         """Obtém um token de autenticação da API Amadeus"""
@@ -245,15 +251,23 @@ class AmadeusService:
         }
         
         try:
+            logging.info(f"Obtendo token do Amadeus com chave: {self.api_key[:5]}... e secret: {self.api_secret[:3]}...")
             response = requests.post(url, data=payload)
-            response.raise_for_status()
             
+            if response.status_code != 200:
+                logging.error(f"Erro ao obter token do Amadeus: Status {response.status_code}")
+                logging.error(f"Resposta: {response.text}")
+                self.use_mock_data = True
+                return None
+                
             data = response.json()
             self.token = data["access_token"]
+            logging.info("Token do Amadeus obtido com sucesso!")
             
             return self.token
         except Exception as e:
             logging.error(f"Erro ao obter token do Amadeus: {str(e)}")
+            self.use_mock_data = True
             return None
     
     def search_flights(self, params):

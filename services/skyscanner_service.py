@@ -10,17 +10,20 @@ logger = logging.getLogger(__name__)
 
 class SkyscannerService:
     def __init__(self):
-        # Escolher uma das duas credenciais disponíveis
-        self.account_sid = "IRHRCerDjfGB6142175YvFpgXdE5wSp6P1"  # Primeira credencial
-        self.auth_token = "W_TRSD7aw.iBVsC9HGQvAENiDfihdHLC"
+        # Tentar obter credenciais das variáveis de ambiente
+        self.account_sid = os.environ.get('SKYSCANNER_ACCOUNT_SID', "IRHRCerDjfGB6142175YvFpgXdE5wSp6P1")
+        self.auth_token = os.environ.get('SKYSCANNER_AUTH_TOKEN', "W_TRSD7aw.iBVsC9HGQvAENiDfihdHLC")
         self.api_version = "14"
 
-        # Segunda credencial disponível como fallback
-        self.account_sid_alt = "IRTogmim4RSd6142175V4NQgY4ynvMngL1"
-        self.auth_token_alt = "E-UvnxtTNyBQbtgMUE36KURd.sNnQXou"
+        # Credenciais alternativas para fallback
+        self.account_sid_alt = os.environ.get('SKYSCANNER_ACCOUNT_SID_ALT', "IRTogmim4RSd6142175V4NQgY4ynvMngL1")
+        self.auth_token_alt = os.environ.get('SKYSCANNER_AUTH_TOKEN_ALT', "E-UvnxtTNyBQbtgMUE36KURd.sNnQXou")
 
+        # Registrar uso das credenciais
+        logging.info(f"Inicializando serviço Skyscanner com credencial: {self.account_sid[:5]}...")
+        
         self.base_url = "https://partners.api.skyscanner.net/apiservices"
-        self.affiliate_id = "flai-travel-assistant"  # ID de afiliado para os links de compra
+        self.affiliate_id = os.environ.get('SKYSCANNER_AFFILIATE_ID', "flai-travel-assistant")
 
     def search_flights(self, params):
         """

@@ -475,6 +475,15 @@ def search_flights(travel_info):
     Busca voos através do serviço Skyscanner com fallback para Amadeus
     """
     try:
+        # Inicializar serviços de API
+        from services.skyscanner_service import SkyscannerService
+        from services.amadeus_service import AmadeusService
+        
+        skyscanner_service = SkyscannerService()
+        amadeus_service = AmadeusService()
+        
+        logging.info("Serviços de API inicializados: Skyscanner e Amadeus")
+        
         # Preparar parâmetros para a API
         params = {
             'origin': travel_info.get('origin'),
@@ -484,12 +493,14 @@ def search_flights(travel_info):
             'adults': travel_info.get('adults', 1),
             'currency': 'BRL'
         }
+        
+        logging.info(f"Iniciando busca com parâmetros: {params}")
 
         logger.info(f"Iniciando busca de voos com parâmetros: {params}")
         
-        # Inicializar o serviço Amadeus - já preparado para uso imediato
-        from services.amadeus_service import AmadeusService
-        amadeus_service = AmadeusService()
+        # Testar se temos credenciais válidas em ambos os serviços
+        has_amadeus_token = amadeus_service.get_token() is not None
+        logger.info(f"Amadeus API disponível: {has_amadeus_token}")
         
         # Tentar primeiro o Skyscanner
         logger.info("Tentando buscar voos via Skyscanner")
@@ -502,6 +513,11 @@ def search_flights(travel_info):
         if not skyscanner_success:
             logger.warning(f"Sem resultados do Skyscanner ou erro encontrado: {skyscanner_flights.get('error', 'Sem voos encontrados')}")
             logger.info("Buscando voos via Amadeus")
+            
+            # Verificar se o token do Amadeus está disponível
+            if not has_amadeus_token:
+                logger.warning("Token do Amadeus não disponível, tentando obter novo token...")
+                has_amadeus_token = amadeus_service.get_token() is not None
             
             # Mapear parâmetros para o formato da Amadeus
             amadeus_params = {
