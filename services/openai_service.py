@@ -171,12 +171,23 @@ class OpenAIService:
         if conversation_history is None:
             conversation_history = []
         
-        # Criação do sistema de mensagens com o contexto de assistente de viagem
-        base_system_content = """Você é Flai, um assistente virtual especializado em planejamento de viagens.
+        # Importar os prompts do Avi
+        from services.prompts.avi_system_prompt import AVI_SYSTEM_PROMPT
+        from services.prompts.busca_rapida_prompt import BUSCA_RAPIDA_PROMPT
+        from services.prompts.planejamento_completo_prompt import PLANEJAMENTO_COMPLETO_PROMPT
+        
+        # Identificar o contexto atual com base na mensagem e histórico
+        # Por padrão, usamos o prompt base
+        current_prompt = AVI_SYSTEM_PROMPT
+        
+        # Verificar se há um contexto específico de modo de busca
+        if "busca rápida" in user_message.lower() or any("busca rápida" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):
+            current_prompt += "\n\n" + BUSCA_RAPIDA_PROMPT
+        elif "planejamento completo" in user_message.lower() or any("planejamento completo" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):
+            current_prompt += "\n\n" + PLANEJAMENTO_COMPLETO_PROMPT
             
-            Suas responsabilidades incluem:
-            
-            1. Ajudar os usuários a planejar viagens completas
+        # Criação do sistema de mensagens com o contexto da Avi
+        base_system_content = current_promptr os usuários a planejar viagens completas
             2. Recomendar destinos com base nos interesses e preferências do usuário
             3. Sugerir acomodações, restaurantes, atrações e atividades
             4. Fornecer informações sobre voos, transporte local e requisitos de viagem

@@ -14,18 +14,19 @@ body {
 
 /* Variáveis de cores */
 :root {
-    --primary-color: #4a6da7;        /* Azul viagem - cor principal */
-    --secondary-color: #f39c12;      /* Laranja mochila - destaque */
-    --background-color: #f8f9fa;     /* Fundo claro - boa visibilidade */
-    --sidebar-color: #2d4a77;        /* Azul escuro para sidebar */
-    --text-color: #333333;           /* Texto escuro para contraste */
-    --border-color: #d1d9e6;         /* Borda suave */
-    --hover-color: #e9ecef;          /* Hover sutíl */
-    --active-color: #5d89c3;         /* Azul ativo mais vibrante */
-    --error-color: #d35400;          /* Laranja escuro para erros */
-    --success-color: #27ae60;        /* Verde sucesso */
-    --chat-user-color: #e8f0fb;      /* Azul bem claro para mensagens do usuário */
-    --chat-bot-color: #fff9e6;       /* Amarelo bem claro para mensagens do bot */
+    --primary-color: #2e86de;      /* Azul principal - mais vibrante mas não muito forte */
+    --secondary-color: #0c2461;    /* Azul escuro para contraste */
+    --accent-color: #ff9f43;       /* Laranja quente para CTA e destaques */
+    --background-color: #f5f6fa;   /* Fundo claro neutro */
+    --text-color: #2f3542;         /* Texto principal - quase preto */
+    --light-text: #ffffff;         /* Texto em fundos escuros */
+    --light-gray: #dfe4ea;         /* Cinza claro para bordas e separadores */
+    --sidebar-width: 260px;
+    --header-height: 60px;
+    --border-color: #e9ecef;
+    --success-color: #58b19f;      /* Verde para status positivos */
+    --warning-color: #ffda79;      /* Amarelo para avisos */
+    --error-color: #ff6b6b;        /* Vermelho para erros */
 }
 
 /* Layout principal */
