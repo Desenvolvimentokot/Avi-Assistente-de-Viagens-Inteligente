@@ -744,28 +744,53 @@ def search_best_prices(travel_info):
     """
     try:
         logger.info(f"Buscando melhores preços para {travel_info.get('origin')} -> {travel_info.get('destination')}")
-
-        if travel_info_match:
-            # Extrair e processar as informações da viagem
-            travel_info_json = travel_info_match.group(1)
-            try:
-                travel_info = json.loads(travel_info_json)
-                logger.info(f"Informações de viagem extraídas: {travel_info}")
-
-                # Verificar se temos informações suficientes para buscar voos
-                if is_flight_search_ready(travel_info):
-                    # Buscar voos conforme as informações extraídas
-                    if has_flexible_dates(travel_info):
-                        logger.info("Buscando melhores preços para datas flexíveis")
-                        search_results = search_best_prices(travel_info)
-                    else:
-                        logger.info("Buscando voos para datas específicas")
-                        search_results = search_flights(travel_info)
-
-                    # Processar os resultados com o GPT para formatar uma resposta amigável
-                    if 'error' not in search_results:
-                        prompt_with_results = [
-                            {"role": "system", "content": system_context},
-                            {"role": "user", "content": user_message},
-                            {"role": "assistant", "content": gpt_response},
-                            {"role": "user", "content": f"Aqui estão os resultados da busca: ```json\n{json.dumps(search_results, ensure_ascii=False)}\n
+        
+        # Inicializar serviços de API
+        from services.skyscanner_service import SkyscannerService
+        from services.amadeus_service import AmadeusService
+        
+        skyscanner_service = SkyscannerService()
+        amadeus_service = AmadeusService()
+        
+        logger.info("Serviços de API inicializados")
+        
+        # Preparar parâmetros para a API
+        params = {
+            'origin': travel_info.get('origin'),
+            'destination': travel_info.get('destination'),
+            'departure_date': travel_info.get('date_range_start'),
+            'return_date': travel_info.get('date_range_end'),
+            'adults': travel_info.get('adults', 1),
+            'currency': 'BRL'
+        }
+        
+        logger.info(f"Iniciando busca com parâmetros: {params}")
+        
+        # Tentar primeiro o Skyscanner
+        skyscanner_prices = skyscanner_service.search_best_prices(params)
+        
+        # Verificar se a busca do Skyscanner foi bem-sucedida
+        if 'error' not in skyscanner_prices and skyscanner_prices.get('best_prices', []):
+            return skyscanner_prices
+            
+        # Se não tiver resultados do Skyscanner, usar o Amadeus
+        logger.warning(f"Sem resultados do Skyscanner: {skyscanner_prices.get('error', 'Sem ofertas encontradas')}")
+        
+        # Mapear parâmetros para o formato do Amadeus
+        amadeus_params = {
+            'originLocationCode': params['origin'],
+            'destinationLocationCode': params['destination'],
+            'departureDate': params['departure_date'],
+            'returnDate': params.get('return_date'),
+            'adults': params['adults'],
+            'currencyCode': params['currency']
+        }
+        
+        # Buscar melhores preços no Amadeus
+        best_prices = []
+        
+        # Usar dados simulados se as APIs falharem
+        best_prices = amadeus_service.get_simulated_best_prices(amadeus_params)
+        
+        logger.info(f"Usando {len(best_prices)} preços simulados")
+        return {"best_prices": best_prices, "source": "simulado", "is_simulated": True}
