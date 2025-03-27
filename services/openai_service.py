@@ -3,67 +3,248 @@ import logging
 import requests
 import json
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 class OpenAIService:
-    """
-    Serviço para interagir com a API OpenAI para processamento de linguagem natural
-    """
-
     def __init__(self):
+        self.api_key = os.environ.get('OPENAI_API_KEY')
+        self.api_url = 'https://api.openai.com/v1/chat/completions'
+        self.model = 'gpt-4o'
+        
+    def create_chat_completion(self, messages, temperature=0.7, max_tokens=1000, model=None):
         """
-        Inicializa o serviço OpenAI com a chave de API e configurações
-        """
-        self.api_key = os.environ.get("OPENAI_API_KEY")
-        self.base_url = "https://api.openai.com/v1"
-
-        if not self.api_key:
-            logger.warning("OPENAI_API_KEY não configurada. Configure nos Secrets do Replit.")
-
-    def generate_text(self, prompt, model="gpt-3.5-turbo", max_tokens=500):
-        """
-        Gera texto usando a API OpenAI
-
-        Args:
-            prompt (str): O texto para continuar ou responder
-            model (str): O modelo a ser usado (padrão: gpt-3.5-turbo)
-            max_tokens (int): Número máximo de tokens a serem gerados
-
-        Returns:
-            str: Texto gerado ou mensagem de erro
+        Cria uma resposta usando a API de chat do OpenAI
+        
+        Parâmetros:
+        - messages: lista de mensagens no formato esperado pela API
+        - temperature: controle de aleatoriedade (0.0 a 1.0)
+        - max_tokens: número máximo de tokens na resposta
+        - model: modelo específico a ser usado (se None, usa o padrão da classe)
         """
         if not self.api_key:
-            return "Chave da API OpenAI não configurada"
-
+            logging.error("API key da OpenAI não configurada")
+            return {'error': 'API key da OpenAI não configurada. Por favor, configure a chave nas variáveis de ambiente.'}
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.api_key}'
+        }
+        
+        # Usar o modelo especificado ou o padrão da classe
+        use_model = model if model else self.model
+        
+        data = {
+            'model': use_model,
+            'messages': messages,
+            'temperature': temperature,
+            'max_tokens': max_tokens
+        }
+        
+        # Preparar resposta de fallback para caso ocorra erro
+        fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
+        
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-
-            data = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens
-            }
-
+            logging.info(f"Enviando requisição para OpenAI API...")
             response = requests.post(
-                f"{self.base_url}/chat/completions",
+                self.api_url,
                 headers=headers,
-                json=data
+                json=data,
+                timeout=30  # Adicionar timeout para evitar esperas indefinidas
             )
-
             response.raise_for_status()
-            result = response.json()
-
-            if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"].strip()
-            else:
-                return "Nenhuma resposta gerada"
-
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Erro na chamada à API OpenAI: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logging.error(f"Resposta da API: {e.response.text}")
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get('error', {}).get('message', str(e))
+                    logging.error(f"Mensagem de erro da API: {error_message}")
+                    return {'error': f'Erro na API OpenAI: {error_message}'}
+                except:
+                    pass
+            return {'error': f'Erro de comunicação com a API OpenAI: {str(e)}'}
         except Exception as e:
-            error_message = f"Erro ao gerar texto com OpenAI: {str(e)}"
-            logger.error(error_message)
-            return error_message
+            logging.error(f"Erro inesperado ao chamar a API OpenAI: {str(e)}")
+            return {'error': f'Erro inesperado: {str(e)}'}
+    
+    def travel_assistant(self, user_message, conversation_history=None, system_context=None):
+        """
+        Cria uma resposta personalizada para o assistente de viagens
+        
+        Parâmetros:
+        - user_message: mensagem do usuário
+        - conversation_history: histórico da conversa anterior
+        - system_context: contexto específico para o assistente
+        """
+        if conversation_history is None:
+            conversation_history = []
+            
+        # Preparar mensagens para a API
+        messages = []
+        
+        # Adicionar contexto do sistema se fornecido
+        if system_context:
+            messages.append({
+                "role": "system",
+                "content": system_context
+            })
+        else:
+            # Contexto padrão do assistente de viagens
+            messages.append({
+                "role": "system",
+                "content": "Você é Flai, um assistente de viagens especializado em ajudar os usuários a encontrar voos."
+            })
+        
+        # Adicionar histórico da conversa
+        for msg in conversation_history:
+            if isinstance(msg, dict):
+                # Formato esperado: {"is_user": bool, "content": string}
+                if msg.get('is_user', False):
+                    messages.append({
+                        "role": "user",
+                        "content": msg.get('content', '')
+                    })
+                else:
+                    messages.append({
+                        "role": "assistant",
+                        "content": msg.get('content', '')
+                    })
+        
+        # Adicionar mensagem atual do usuário
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+        
+        # Chamar a API
+        response = self.create_chat_completion(messages, temperature=0.7)
+        
+        # Verificar se houve erro
+        if 'error' in response:
+            return response
+        
+        # Extrair e retornar resposta
+        try:
+            assistant_response = response['choices'][0]['message']['content']
+            return {"response": assistant_response}
+        except Exception as e:
+            logging.error(f"Erro ao processar resposta da OpenAI: {str(e)}")
+            return {'error': f'Erro ao processar resposta: {str(e)}'}
+        
+        fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
+        
+        try:
+            logging.info(f"Enviando requisição para OpenAI API: {json.dumps(data)[:200]}...")
+            response = requests.post(
+                self.api_url,
+                headers=headers,
+                json=data,
+                timeout=30  # Adicionar timeout para evitar esperas indefinidas
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Erro na chamada à API OpenAI: {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                logging.error(f"Resposta da API: {e.response.text}")
+                try:
+                    error_json = e.response.json()
+                    error_message = error_json.get('error', {}).get('message', str(e))
+                    logging.error(f"Mensagem de erro da API: {error_message}")
+                    return {'error': f'Erro na API OpenAI: {error_message}'}
+                except:
+                    pass
+            return {'error': f'Erro de comunicação com a API OpenAI: {str(e)}'}
+        except Exception as e:
+            logging.error(f"Erro inesperado ao chamar a API OpenAI: {str(e)}")
+            return {'error': f'Erro inesperado: {str(e)}'}
+    
+    def travel_assistant(self, user_message, conversation_history=None, system_context=""):
+        """
+        Especialização do assistente para planejamento de viagens
+        
+        Parâmetros:
+        - user_message: mensagem do usuário
+        - conversation_history: histórico da conversa
+        - system_context: contexto adicional para o sistema
+        """
+        if conversation_history is None:
+            conversation_history = []
+        
+        # Criação do sistema de mensagens com o contexto de assistente de viagem
+        base_system_content = """Você é Flai, um assistente virtual especializado em planejamento de viagens.
+            
+            Suas responsabilidades incluem:
+            
+            1. Ajudar os usuários a planejar viagens completas
+            2. Recomendar destinos com base nos interesses e preferências do usuário
+            3. Sugerir acomodações, restaurantes, atrações e atividades
+            4. Fornecer informações sobre voos, transporte local e requisitos de viagem
+            5. Responder dúvidas sobre destinos, clima, cultura local, e dicas de viagem
+            6. Montar itinerários personalizados com base nas necessidades do usuário
+            
+            Instruções de processamento:
+            
+            - Analise cuidadosamente as menções de datas como períodos aproximados (ex: "primeira semana de novembro", "no mês de janeiro")
+            - Quando um período aproximado for mencionado, identifique o intervalo de datas exato correspondente
+            - Extraia dados específicos como origem, destino, datas, número de pessoas e preferências
+            - Identifique e armazene informações importantes mesmo que o usuário as mencione em diferentes mensagens
+            
+            Instruções específicas:
+            
+            - Responda sempre em português brasileiro
+            - Seja amigável, prestativo e entusiasmado sobre viagens
+            - Personalize suas respostas de acordo com as preferências do usuário
+            - Quando falar de preços, utilize o Real (R$) como moeda
+            - Sugira destinos específicos e com detalhes quando o usuário pedir recomendações
+            - Não seja excessivamente prolixo, seja conciso e direto quando necessário
+            - Quando apresentar opções de voos ou hotéis, indique claramente como o usuário pode realizar a compra
+            """
+            
+        # Adicionar contexto específico do sistema, se fornecido
+        if system_context:
+            base_system_content += f"\n\n{system_context}"
+            
+        system_message = {
+            "role": "system",
+            "content": base_system_content
+        }
+        
+        # Montagem do histórico de conversa no formato esperado pela API
+        api_messages = [system_message]
+        
+        for msg in conversation_history:
+            if msg.get('is_user'):
+                api_messages.append({
+                    "role": "user",
+                    "content": msg.get('content', '')
+                })
+            else:
+                api_messages.append({
+                    "role": "assistant", 
+                    "content": msg.get('content', '')
+                })
+        
+        # Adição da mensagem atual do usuário
+        api_messages.append({
+            "role": "user",
+            "content": user_message
+        })
+        
+        # Chamada à API
+        response = self.create_chat_completion(api_messages)
+        
+        if 'error' in response:
+            return response
+        
+        try:
+            # Extração da resposta do assistente
+            assistant_response = response['choices'][0]['message']['content']
+            return {'response': assistant_response}
+        except (KeyError, IndexError) as e:
+            logging.error(f"Erro ao processar resposta da OpenAI: {str(e)}")
+            return {'error': 'Erro ao processar resposta da API'}
+
+# Exemplo de uso:
+# openai_service = OpenAIService()
+# result = openai_service.travel_assistant("Quero planejar uma viagem para a Europa em dezembro. O que sugere?")

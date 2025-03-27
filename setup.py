@@ -1,7 +1,9 @@
 
 import logging
 import sys
-import os
+from sqlalchemy import inspect, text
+from app import app, db
+from models import User
 from werkzeug.security import generate_password_hash
 
 # Configure logging
@@ -13,30 +15,28 @@ def setup_database():
     Configura o banco de dados inicial com as tabelas e dados necessários
     """
     try:
-        # Importar após configuração para evitar problemas de importação circular
-        from app import app, db
-        from models import User
-        
         # Criar todas as tabelas definidas nos modelos
         with app.app_context():
-            # Limpar completamente todas as tabelas e recriar
-            db.drop_all()
             db.create_all()
             logger.info("Tabelas criadas com sucesso.")
             
-            # Criar usuário de teste
-            try:
-                test_user = User(
-                    name="Usuário de Teste",
-                    email="teste@example.com",
-                    password=generate_password_hash("senha123")
-                )
-                db.session.add(test_user)
-                db.session.commit()
-                logger.info("Usuário de teste criado com sucesso.")
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Erro ao criar usuário de teste: {str(e)}")
+            # Verificar se existem usuários
+            user_count = User.query.count()
+            
+            # Criar usuário de teste se não houver nenhum
+            if user_count == 0:
+                try:
+                    test_user = User(
+                        name="Usuário de Teste",
+                        email="teste@example.com",
+                        password="senha123"
+                    )
+                    db.session.add(test_user)
+                    db.session.commit()
+                    logger.info("Usuário de teste criado com sucesso.")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"Erro ao criar usuário de teste: {str(e)}")
                     
     except Exception as e:
         logger.error(f"Erro ao configurar banco de dados: {str(e)}")

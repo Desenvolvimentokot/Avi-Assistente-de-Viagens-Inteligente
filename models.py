@@ -1,26 +1,41 @@
-from app import db
+
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-class User(db.Model):
-    """
-    Modelo para os usuários do sistema
-    """
+db = SQLAlchemy()
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Preferências do usuário
+    phone = db.Column(db.String(20), nullable=True)
+    preferred_destinations = db.Column(db.String(255), nullable=True)
+    accommodation_type = db.Column(db.String(50), nullable=True)
+    budget = db.Column(db.Float, nullable=True)
+
+    conversations = db.relationship('Conversation', backref='user', lazy=True)
+    travel_plans = db.relationship('TravelPlan', backref='user', lazy=True)
+    price_monitors = db.relationship('PriceMonitor', backref='user', lazy=True)
+
+    def __init__(self, name, email, password):
+        self.name = name
+        self.email = email
+        self.set_password(password)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f'<User {self.email}>'
-
-    def verify_password(self, password):
-        """
-        Verifica se a senha fornecida corresponde à senha armazenada
-        """
-        return check_password_hash(self.password, password)
+        return f'<User {self.name}>'
 
 class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)

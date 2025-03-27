@@ -1,23 +1,28 @@
-# Flai - Assistente de Viagens Inteligente
+# Flai - Travel Planning Assistant
 
-## Configuração da API Amadeus
+Flai is a ChatGPT-inspired travel planning assistant that helps users plan their trips with a clean, modern interface.
 
-Este projeto utiliza a API Amadeus para busca de voos. As credenciais já estão armazenadas nos Secrets do Replit:
+## Features
 
-- `AMADEUS_API_KEY`: Chave de API do Amadeus
-- `AMADEUS_API_SECRET`: Segredo da API do Amadeus
+- ChatGPT-like interface for conversational travel planning
+- Save and manage travel plans
+- User profile management
+- Mock integrations with GPT and Amadeus APIs (for flight and hotel search)
 
-### Funcionalidades da Integração Amadeus
+## Project Structure
 
-1. **Autenticação OAuth 2.0**: O sistema gera automaticamente tokens de acesso para a API Amadeus.
-2. **Busca de Ofertas de Voos**: Endpoint `/api/search-flights` permite buscar voos com os seguintes parâmetros:
-   - `origin`: Código IATA do aeroporto de origem (ex: GRU para Guarulhos)
-   - `destination`: Código IATA do aeroporto de destino (ex: JFK para Nova York)
-   - `departure_date`: Data de partida no formato YYYY-MM-DD
-   - `return_date`: Data de retorno no formato YYYY-MM-DD (opcional)
-   - `adults`: Número de adultos (padrão: 1)
+- `app.py` - Flask backend with routes for the API endpoints
+- `main.py` - Entry point for running the Flask application
+- `models.py` - Database models (placeholder for future implementation)
+- `static/` - Directory containing static assets
+  - `css/styles.css` - Main stylesheet
+  - `js/script.js` - JavaScript for frontend functionality
+- `templates/` - Directory containing HTML templates
+  - `index.html` - Main application page
 
-### Exemplo de Uso
+## Running the Application
 
-```
-GET /api/search-flights?origin=GRU&destination=JFK&departure_date=2025-04-18&return_date=2025-04-28&adults=2
+1. Ensure you have Python and Flask installed
+2. Run the application:
+```bash
+python main.py

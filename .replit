@@ -8,7 +8,7 @@ deploymentTarget = "autoscale"
 run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [workflows]
-runButton = "Iniciar Flai"
+runButton = "Iniciar aplicação"
 
 [[workflows.workflow]]
 name = "Project"
@@ -41,16 +41,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python setup.py && python main.py"
-
-[[workflows.workflow]]
-name = "Iniciar Flai"
-author = 40513312
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python setup.py && python main.py"
+args = "python setup.py && gunicorn --bind 0.0.0.0:5000 --workers 1 --reuse-port --reload app:app"
 
 [[ports]]
 localPort = 5000
