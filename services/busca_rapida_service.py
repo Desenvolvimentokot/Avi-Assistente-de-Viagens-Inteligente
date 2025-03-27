@@ -743,7 +743,7 @@ def search_best_prices(travel_info):
     Busca melhores preços para um período flexível
     """
     try:
-        logger.info(f"Buscando melhores preços para {travel_info.get('origin')} -> {travel_info.get('destination')json\s*\n(.*?)\n\s*```', gpt_response, re.DOTALL)
+        logger.info(f"Buscando melhores preços para {travel_info.get('origin')} -> {travel_info.get('destination')}")
 
         if travel_info_match:
             # Extrair e processar as informações da viagem
