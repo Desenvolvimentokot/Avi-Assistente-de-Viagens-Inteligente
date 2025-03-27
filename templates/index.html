@@ -6,7 +6,7 @@
     <title>Avi - Assistente de Viagens Inteligente</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
     <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
 </head>
@@ -14,9 +14,9 @@
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="logo" style="color: white;">
-                <img src="{{ url_for('static', filename='img/favicon.png') }}" alt="Avi" style="width: 24px; height: 24px; margin-right: 8px;">
-                <span>Avi</span>
+            <div class="logo" style="color: white; display: flex; justify-content: center; align-items: center;">
+                <img src="{{ url_for('static', filename='img/favicon.png') }}" alt="Avi" style="width: 32px; height: 32px; margin-right: 8px;">
+                <span>AVI</span>
             </div>
             <div class="nav-items">
                 <div class="nav-item" id="chat-tab">

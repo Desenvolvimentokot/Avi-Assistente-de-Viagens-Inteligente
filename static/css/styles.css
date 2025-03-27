@@ -37,8 +37,10 @@ body {
     font-size: 24px;
     font-weight: bold;
     display: flex;
+    justify-content: center;
     align-items: center;
     color: #ffffff;
+    text-align: center;
 }
 
 .logo i {
