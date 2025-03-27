@@ -187,7 +187,13 @@ class OpenAIService:
             current_prompt += "\n\n" + PLANEJAMENTO_COMPLETO_PROMPT
             
         # Criação do sistema de mensagens com o contexto da Avi
-        base_system_content = current_promptr os usuários a planejar viagens completas
+        base_system_content = current_prompt
+        
+        # Adicionar funcionalidades específicas
+        base_system_content += """
+            Funcionalidades da Avi:
+            
+            1. Ajudar os usuários a planejar viagens completas
             2. Recomendar destinos com base nos interesses e preferências do usuário
             3. Sugerir acomodações, restaurantes, atrações e atividades
             4. Fornecer informações sobre voos, transporte local e requisitos de viagem
@@ -210,6 +216,7 @@ class OpenAIService:
             - Sugira destinos específicos e com detalhes quando o usuário pedir recomendações
             - Não seja excessivamente prolixo, seja conciso e direto quando necessário
             - Quando apresentar opções de voos ou hotéis, indique claramente como o usuário pode realizar a compra
+        """
             """
             
         # Adicionar contexto específico do sistema, se fornecido
