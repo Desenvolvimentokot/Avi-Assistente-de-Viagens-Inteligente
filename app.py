@@ -42,7 +42,7 @@ openai_service = OpenAIService()
 # Rota principal
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', title='Avi - Assistente de Viagens Inteligente')
 
 # API para chat
 @app.route('/api/chat', methods=['POST'])
