@@ -19,26 +19,24 @@ def setup_database():
         
         # Criar todas as tabelas definidas nos modelos
         with app.app_context():
+            # Limpar completamente todas as tabelas e recriar
+            db.drop_all()
             db.create_all()
             logger.info("Tabelas criadas com sucesso.")
             
-            # Verificar se existem usuários
-            user_count = User.query.count()
-            
-            # Criar usuário de teste se não houver nenhum
-            if user_count == 0:
-                try:
-                    test_user = User(
-                        name="Usuário de Teste",
-                        email="teste@example.com",
-                        password=generate_password_hash("senha123")
-                    )
-                    db.session.add(test_user)
-                    db.session.commit()
-                    logger.info("Usuário de teste criado com sucesso.")
-                except Exception as e:
-                    db.session.rollback()
-                    logger.error(f"Erro ao criar usuário de teste: {str(e)}")
+            # Criar usuário de teste
+            try:
+                test_user = User(
+                    name="Usuário de Teste",
+                    email="teste@example.com",
+                    password=generate_password_hash("senha123")
+                )
+                db.session.add(test_user)
+                db.session.commit()
+                logger.info("Usuário de teste criado com sucesso.")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Erro ao criar usuário de teste: {str(e)}")
                     
     except Exception as e:
         logger.error(f"Erro ao configurar banco de dados: {str(e)}")
