@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Instanciar serviços
 openai_service = OpenAIService()
-skyscanner_service = SkyscannerService())
+skyscanner_service = SkyscannerService()
 
 def process_message(message, history=None):
     """
@@ -470,8 +470,7 @@ def search_flights(travel_info):
         # Registrar o número de voos encontrados
         logger.info(f"Encontrados {len(skyscanner_flights.get('flights', []))} voos")
         
-        return skyscanner_flightsr Skyscanner como fallback
-            return skyscanner_service.search_flights(params)
+        return skyscanner_flights
 
         # Obter resultados do Amadeus e mapear para links de afiliados do Skyscanner
         flights = amadeus_flights.get('data', [])
@@ -654,5 +653,4 @@ def process_message(user_message, conversation_history=None):
             
     except Exception as e:
         logger.error(f"Erro no processamento da mensagem: {str(e)}")
-        return {"response": "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde."}r melhores preços: {str(e)}")
-        return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
+        return {"response": "Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente mais tarde."}

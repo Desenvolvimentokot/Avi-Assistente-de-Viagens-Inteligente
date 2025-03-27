@@ -38,7 +38,78 @@ class OpenAIService:
             'max_tokens': max_tokens
         }
         
-        # Adicionar mensagem de fallback caso ocorra um erro
+        # Adicionar mensagem de fallback caso ocorra erro
+        try:
+            response = requests.post(self.api_url, headers=headers, json=data)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logging.error(f"Erro na chamada à API OpenAI: {str(e)}")
+            return {'error': f'Erro na chamada à API: {str(e)}'}
+    
+    def travel_assistant(self, user_message, conversation_history=None, system_context=None):
+        """
+        Cria uma resposta personalizada para o assistente de viagens
+        
+        Parâmetros:
+        - user_message: mensagem do usuário
+        - conversation_history: histórico da conversa anterior
+        - system_context: contexto específico para o assistente
+        """
+        if conversation_history is None:
+            conversation_history = []
+            
+        # Preparar mensagens para a API
+        messages = []
+        
+        # Adicionar contexto do sistema se fornecido
+        if system_context:
+            messages.append({
+                "role": "system",
+                "content": system_context
+            })
+        else:
+            # Contexto padrão do assistente de viagens
+            messages.append({
+                "role": "system",
+                "content": "Você é Flai, um assistente de viagens especializado em ajudar os usuários a encontrar voos."
+            })
+        
+        # Adicionar histórico da conversa
+        for msg in conversation_history:
+            if isinstance(msg, dict):
+                # Formato esperado: {"is_user": bool, "content": string}
+                if msg.get('is_user', False):
+                    messages.append({
+                        "role": "user",
+                        "content": msg.get('content', '')
+                    })
+                else:
+                    messages.append({
+                        "role": "assistant",
+                        "content": msg.get('content', '')
+                    })
+        
+        # Adicionar mensagem atual do usuário
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+        
+        # Chamar a API
+        response = self.create_chat_completion(messages, temperature=0.7)
+        
+        # Verificar se houve erro
+        if 'error' in response:
+            return response
+        
+        # Extrair e retornar resposta
+        try:
+            assistant_response = response['choices'][0]['message']['content']
+            return {"response": assistant_response}
+        except Exception as e:
+            logging.error(f"Erro ao processar resposta da OpenAI: {str(e)}")
+            return {'error': f'Erro ao processar resposta: {str(e)}'}a um erro
         fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
         
         try:

@@ -1,308 +1,264 @@
-
 import os
-import requests
 import logging
+import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SkyscannerService:
     def __init__(self):
-        # Credenciais da API Skyscanner
-        self.account_sid = "IRHRCerDjfGB6142175YvFpgXdE5wSp6P1"
+        # Escolher uma das duas credenciais disponíveis
+        self.account_sid = "IRHRCerDjfGB6142175YvFpgXdE5wSp6P1"  # Primeira credencial
         self.auth_token = "W_TRSD7aw.iBVsC9HGQvAENiDfihdHLC"
+        self.api_version = "14"
+
+        # Segunda credencial disponível como fallback
+        self.account_sid_alt = "IRTogmim4RSd6142175V4NQgY4ynvMngL1"
+        self.auth_token_alt = "E-UvnxtTNyBQbtgMUE36KURd.sNnQXou"
+
         self.base_url = "https://partners.api.skyscanner.net/apiservices"
-        
-        # Configurar logging
-        self.logger = logging.getLogger(__name__)
-    
+        self.affiliate_id = "flai-travel-assistant"  # ID de afiliado para os links de compra
+
     def search_flights(self, params):
         """
-        Busca voos usando a API do Skyscanner
-        
-        Params:
-        - origin: código IATA da origem (exemplo: "GRU")
-        - destination: código IATA do destino (exemplo: "MIA")
-        - departure_date: data de partida (formato YYYY-MM-DD)
-        - return_date: data de retorno (opcional, formato YYYY-MM-DD)
-        - adults: número de adultos (default: 1)
-        - currency: moeda (default: "BRL")
+        Busca voos utilizando a API do Skyscanner
+
+        Parâmetros:
+        - params: dicionário contendo parâmetros de busca (origem, destino, datas, etc.)
+
+        Retorno:
+        - Dicionário com os resultados da busca
         """
         try:
-            self.logger.info(f"Buscando voos com parâmetros: {params}")
-            
-            # Formatação dos parâmetros conforme necessário pela API Skyscanner
-            origin = params.get('origin')
-            destination = params.get('destination')
-            departure_date = params.get('departure_date')
-            return_date = params.get('return_date')
-            adults = params.get('adults', 1)
-            currency = params.get('currency', 'BRL')
-            
-            # URL para a busca de voos (endpoint específico do Skyscanner)
-            url = f"{self.base_url}/v3/flights/live/search/create"
-            
-            # Cabeçalhos de autenticação
-            headers = {
-                "x-api-key": self.account_sid,
-                "Authorization": f"Bearer {self.auth_token}",
-                "Content-Type": "application/json"
-            }
-            
-            # Montar o payload para a requisição
-            payload = {
-                "query": {
-                    "market": "BR",
-                    "locale": "pt-BR",
-                    "currency": currency,
-                    "queryLegs": [
-                        {
-                            "originPlaceId": {"iata": origin},
-                            "destinationPlaceId": {"iata": destination},
-                            "date": {"year": int(departure_date[:4]), 
-                                    "month": int(departure_date[5:7]), 
-                                    "day": int(departure_date[8:10])}
-                        }
-                    ],
-                    "adults": adults,
-                    "childrenAges": []
-                }
-            }
-            
-            # Adicionar trecho de retorno, se aplicável
-            if return_date:
-                return_leg = {
-                    "originPlaceId": {"iata": destination},
-                    "destinationPlaceId": {"iata": origin},
-                    "date": {"year": int(return_date[:4]), 
-                            "month": int(return_date[5:7]), 
-                            "day": int(return_date[8:10])}
-                }
-                payload["query"]["queryLegs"].append(return_leg)
-            
-            # Fazer a requisição à API
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            
-            # Processar e retornar os resultados
-            result = response.json()
-            
-            # Formatação do resultado para o formato padronizado da aplicação
-            return self._format_flights_response(result)
-        
+            # Simulação de resposta para desenvolvimento
+            # Em produção, substituir por chamada real à API
+            logger.info(f"Buscando voos no Skyscanner com parâmetros: {params}")
+
+            # Dados simulados
+            origin = params.get('origin', '')
+            destination = params.get('destination', '')
+            departure_date = params.get('departure_date', '')
+            return_date = params.get('return_date', '')
+
+            # Validar parâmetros mínimos
+            if not origin or not destination or not departure_date:
+                return {"error": "Parâmetros insuficientes para busca de voos"}
+
+            # Gerar dados simulados para desenvolvimento
+            flights = self._generate_simulated_flights(
+                origin, 
+                destination, 
+                departure_date, 
+                return_date
+            )
+
+            return {"flights": flights}
+
         except Exception as e:
-            self.logger.error(f"Erro ao buscar voos via Skyscanner: {str(e)}")
-            return {"error": f"Erro na busca de voos: {str(e)}"}
-    
-    def _format_flights_response(self, api_response):
-        """
-        Formata a resposta da API do Skyscanner para o formato padronizado da aplicação
-        """
-        try:
-            formatted_flights = []
-            
-            # Extrair itinerários e preços da resposta da API
-            if 'content' in api_response and 'results' in api_response['content']:
-                itineraries = api_response['content'].get('itineraries', {})
-                legs = api_response['content'].get('legs', {})
-                segments = api_response['content'].get('segments', {})
-                places = api_response['content'].get('places', {})
-                carriers = api_response['content'].get('carriers', {})
-                
-                # Processar cada itinerário
-                for itinerary_id, itinerary in itineraries.items():
-                    price_options = itinerary.get('priceOptions', [])
-                    if price_options:
-                        # Usar o preço mais baixo disponível
-                        price_option = price_options[0]
-                        price = price_option.get('price', {}).get('amount', 0)
-                        currency = price_option.get('price', {}).get('unit', 'BRL')
-                        
-                        # Obter informações sobre os trechos (legs)
-                        leg_ids = itinerary.get('legIds', [])
-                        if leg_ids:
-                            leg_id = leg_ids[0]
-                            leg = legs.get(leg_id, {})
-                            
-                            # Origem e destino
-                            origin_place_id = leg.get('originPlaceId')
-                            destination_place_id = leg.get('destinationPlaceId')
-                            
-                            origin = places.get(origin_place_id, {}).get('iata')
-                            destination = places.get(destination_place_id, {}).get('iata')
-                            
-                            # Horários
-                            departure_time = leg.get('departureDateTime', {})
-                            departure_str = f"{departure_time.get('year')}-{departure_time.get('month'):02d}-{departure_time.get('day'):02d}T{departure_time.get('hour'):02d}:{departure_time.get('minute'):02d}:00"
-                            
-                            arrival_time = leg.get('arrivalDateTime', {})
-                            arrival_str = f"{arrival_time.get('year')}-{arrival_time.get('month'):02d}-{arrival_time.get('day'):02d}T{arrival_time.get('hour'):02d}:{arrival_time.get('minute'):02d}:00"
-                            
-                            # Duração em minutos
-                            duration = leg.get('durationInMinutes', 0)
-                            
-                            # Informações da companhia aérea
-                            segment_ids = leg.get('segmentIds', [])
-                            airlines = []
-                            for segment_id in segment_ids:
-                                segment = segments.get(segment_id, {})
-                                carrier_id = segment.get('marketingCarrierId')
-                                if carrier_id and carrier_id in carriers:
-                                    airlines.append(carriers[carrier_id].get('name', ''))
-                            
-                            airline = airlines[0] if airlines else 'Desconhecida'
-                            
-                            # Gerar link de afiliado do Skyscanner
-                            affiliate_link = self._generate_affiliate_link(origin, destination, departure_str[:10], arrival_str[:10])
-                            
-                            # Formatar o voo
-                            flight = {
-                                "id": itinerary_id,
-                                "price": f"{price}",
-                                "currency": currency,
-                                "departure": {
-                                    "airport": origin,
-                                    "time": departure_str
-                                },
-                                "arrival": {
-                                    "airport": destination,
-                                    "time": arrival_str
-                                },
-                                "duration": f"PT{duration}M",
-                                "segments": len(segment_ids),
-                                "airline": airline,
-                                "affiliate_link": affiliate_link
-                            }
-                            
-                            formatted_flights.append(flight)
-            
-            return {"flights": formatted_flights}
-        
-        except Exception as e:
-            self.logger.error(f"Erro ao formatar resposta da API Skyscanner: {str(e)}")
-            return {"error": f"Erro ao processar resultados: {str(e)}"}
-    
-    def _generate_affiliate_link(self, origin, destination, departure_date, return_date=None):
-        """
-        Gera um link de afiliado do Skyscanner
-        """
-        # Base do link de afiliado do Skyscanner
-        base_url = "https://www.skyscanner.com.br/transporte/voos"
-        
-        # Formatação do link
-        if return_date:
-            link = f"{base_url}/{origin}/{destination}/{departure_date}/{return_date}/?adults=1&ref=IRHRCerDjfGB6142175YvFpgXdE5wSp6P1"
-        else:
-            link = f"{base_url}/{origin}/{destination}/{departure_date}/?adults=1&ref=IRHRCerDjfGB6142175YvFpgXdE5wSp6P1"
-        
-        return link
-    
+            logger.error(f"Erro ao buscar voos no Skyscanner: {str(e)}")
+            return {"error": f"Erro ao buscar voos: {str(e)}"}
+
     def get_best_price_options(self, origin, destination, date_range_start, date_range_end):
         """
-        Obtém as melhores opções de preço para um intervalo de datas
-        
-        Params:
-        - origin: código IATA da origem
-        - destination: código IATA do destino
-        - date_range_start: data inicial do intervalo (YYYY-MM-DD)
-        - date_range_end: data final do intervalo (YYYY-MM-DD)
+        Busca as melhores opções de preço para um período específico
+
+        Parâmetros:
+        - origin: código IATA do aeroporto de origem
+        - destination: código IATA do aeroporto de destino
+        - date_range_start: data de início do período (formato YYYY-MM-DD)
+        - date_range_end: data de fim do período (formato YYYY-MM-DD)
+
+        Retorno:
+        - Dicionário com as melhores opções de preço
         """
         try:
-            self.logger.info(f"Buscando melhores preços para {origin} → {destination} entre {date_range_start} e {date_range_end}")
-            
-            # URL para a busca de preços por datas (endpoint específico do Skyscanner)
-            url = f"{self.base_url}/v3/flights/indicative/browse/daily/v2"
-            
-            # Cabeçalhos de autenticação
-            headers = {
-                "x-api-key": self.account_sid,
-                "Authorization": f"Bearer {self.auth_token}",
-                "Content-Type": "application/json"
-            }
-            
-            # Montar o payload para a requisição
-            payload = {
-                "query": {
-                    "market": "BR",
-                    "locale": "pt-BR",
-                    "currency": "BRL",
-                    "queryLegs": [
-                        {
-                            "originPlace": {
-                                "queryPlace": {
-                                    "iata": origin
-                                }
-                            },
-                            "destinationPlace": {
-                                "queryPlace": {
-                                    "iata": destination
-                                }
-                            },
-                            "dateRange": {
-                                "startDate": {
-                                    "year": int(date_range_start[:4]),
-                                    "month": int(date_range_start[5:7]),
-                                    "day": int(date_range_start[8:10])
-                                },
-                                "endDate": {
-                                    "year": int(date_range_end[:4]),
-                                    "month": int(date_range_end[5:7]),
-                                    "day": int(date_range_end[8:10])
-                                }
-                            }
-                        }
-                    ],
-                    "adults": 1,
-                    "childrenAges": []
-                }
-            }
-            
-            # Fazer a requisição à API
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            
-            # Processar e retornar os resultados
-            result = response.json()
-            
-            # Formatação do resultado para o formato padronizado da aplicação
-            return self._format_best_prices_response(result, origin, destination)
-        
-        except Exception as e:
-            self.logger.error(f"Erro ao buscar melhores preços via Skyscanner: {str(e)}")
-            return {"error": f"Erro na busca de melhores preços: {str(e)}"}
-    
-    def _format_best_prices_response(self, api_response, origin, destination):
-        """
-        Formata a resposta da API de melhores preços do Skyscanner
-        """
-        try:
-            best_prices = []
-            
-            # Extrair informações de preços por data
-            if 'content' in api_response and 'quotes' in api_response['content']:
-                quotes = api_response['content']['quotes']
-                
-                for quote in quotes:
-                    price = quote.get('price', {}).get('amount')
-                    departure_date = quote.get('outboundLeg', {}).get('departureDateTime', {})
-                    
-                    if price and departure_date:
-                        date_str = f"{departure_date.get('year')}-{departure_date.get('month'):02d}-{departure_date.get('day'):02d}"
-                        
-                        # Gerar link de afiliado
-                        affiliate_link = self._generate_affiliate_link(origin, destination, date_str)
-                        
-                        best_prices.append({
-                            "date": date_str,
-                            "price": price,
-                            "currency": quote.get('price', {}).get('unit', 'BRL'),
-                            "affiliate_link": affiliate_link
-                        })
-            
-            # Ordenar por preço (do mais barato para o mais caro)
-            best_prices.sort(key=lambda x: x['price'])
-            
+            # Validar parâmetros mínimos
+            if not origin or not destination or not date_range_start or not date_range_end:
+                return {"error": "Parâmetros insuficientes para busca de melhores preços"}
+
+            # Gerar dados simulados para desenvolvimento
+            best_prices = self._generate_simulated_best_prices(
+                origin,
+                destination,
+                date_range_start,
+                date_range_end
+            )
+
             return {"best_prices": best_prices}
-        
+
         except Exception as e:
-            self.logger.error(f"Erro ao formatar resposta de melhores preços: {str(e)}")
-            return {"error": f"Erro ao processar resultados de melhores preços: {str(e)}"}
+            logger.error(f"Erro ao buscar melhores preços no Skyscanner: {str(e)}")
+            return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
+
+    def _generate_affiliate_link(self, origin, destination, departure_date, return_date=None):
+        """
+        Gera um link de afiliado para compra das passagens
+
+        Parâmetros:
+        - origin: código IATA do aeroporto de origem
+        - destination: código IATA do aeroporto de destino
+        - departure_date: data de partida (formato YYYY-MM-DD)
+        - return_date: data de retorno (formato YYYY-MM-DD)
+
+        Retorno:
+        - URL de afiliado do Skyscanner
+        """
+        base_url = "https://www.skyscanner.com.br/transport/flights"
+
+        # Formatar as datas para o padrão do Skyscanner (YYMMDD)
+        try:
+            dep_formatted = datetime.strptime(departure_date, "%Y-%m-%d").strftime("%y%m%d")
+        except:
+            dep_formatted = "231201"  # Data padrão se houver erro
+
+        ret_formatted = ""
+        if return_date:
+            try:
+                ret_formatted = "/" + datetime.strptime(return_date, "%Y-%m-%d").strftime("%y%m%d")
+            except:
+                ret_formatted = "/231208"  # Data padrão se houver erro
+
+        # Montar a URL
+        url = f"{base_url}/{origin}/{destination}/{dep_formatted}{ret_formatted}/?adults=1&adultsv2=1&cabinclass=economy&children=0&inboundaltsenabled=false&infants=0&outboundaltsenabled=false&preferdirects=false&ref=home&rtn={1 if return_date else 0}"
+
+        # Adicionar parâmetro de afiliado
+        url += f"&affilid={self.affiliate_id}"
+
+        return url
+
+    def _generate_simulated_flights(self, origin, destination, departure_date, return_date=None):
+        """
+        Gera dados simulados de voos para desenvolvimento
+        """
+        airlines = ["LATAM", "GOL", "Azul", "Emirates", "Air France", "British Airways", "American Airlines"]
+        flights = []
+
+        # Converter string de data para objeto datetime
+        try:
+            dep_date = datetime.strptime(departure_date, "%Y-%m-%d")
+        except:
+            dep_date = datetime.now() + timedelta(days=30)
+
+        # Gerar entre 3 e 8 opções de voo
+        import random
+        num_options = random.randint(3, 8)
+
+        for i in range(num_options):
+            # Escolher horário aleatório entre 05:00 e 23:00
+            dep_hour = random.randint(5, 23)
+            dep_minute = random.choice([0, 15, 30, 45])
+
+            # Gerar duração aleatória entre 2 e 15 horas
+            duration_hours = random.randint(2, 15)
+            duration_minutes = random.choice([0, 15, 30, 45])
+
+            # Calcular chegada
+            departure_datetime = dep_date.replace(hour=dep_hour, minute=dep_minute)
+            arrival_datetime = departure_datetime + timedelta(hours=duration_hours, minutes=duration_minutes)
+
+            # Gerar preço aleatório entre 800 e 5000
+            price = random.randint(800, 5000)
+
+            # Escolher companhia aérea
+            airline = random.choice(airlines)
+
+            # Gerar link de afiliado
+            affiliate_link = self._generate_affiliate_link(
+                origin, 
+                destination, 
+                departure_date, 
+                return_date
+            )
+
+            # Formar objeto de voo
+            flight = {
+                "id": f"flight_{i+1}",
+                "price": price,
+                "currency": "BRL",
+                "departure": {
+                    "airport": origin,
+                    "time": departure_datetime.isoformat()
+                },
+                "arrival": {
+                    "airport": destination,
+                    "time": arrival_datetime.isoformat()
+                },
+                "duration": f"PT{duration_hours}H{duration_minutes}M",
+                "segments": random.randint(1, 3),
+                "airline": airline,
+                "affiliate_link": affiliate_link
+            }
+
+            flights.append(flight)
+
+        # Ordenar por preço
+        flights.sort(key=lambda x: x["price"])
+
+        return flights
+
+    def _generate_simulated_best_prices(self, origin, destination, date_range_start, date_range_end):
+        """
+        Gera dados simulados de melhores preços para desenvolvimento
+        """
+        best_prices = []
+
+        # Converter strings de data para objetos datetime
+        try:
+            start_date = datetime.strptime(date_range_start, "%Y-%m-%d")
+            end_date = datetime.strptime(date_range_end, "%Y-%m-%d")
+        except:
+            start_date = datetime.now() + timedelta(days=30)
+            end_date = start_date + timedelta(days=30)
+
+        # Calcular diferença em dias
+        date_diff = (end_date - start_date).days
+        if date_diff <= 0:
+            date_diff = 30  # Padrão de 30 dias se datas forem inválidas
+
+        # Gerar entre 5 e 10 opções de preço
+        import random
+        num_options = min(date_diff, random.randint(5, 10))
+
+        # Dividir o período em porções aproximadamente iguais
+        day_step = max(1, date_diff // num_options)
+
+        for i in range(num_options):
+            # Gerar data dentro do período
+            flight_date = start_date + timedelta(days=i * day_step)
+
+            # Gerar preço base entre 800 e 4000
+            base_price = random.randint(800, 4000)
+
+            # Adicionar variação para tornar mais realista
+            # Os primeiros e últimos tendem a ser mais caros
+            if i < 2 or i > num_options - 3:
+                price_factor = 1.2
+            else:
+                price_factor = 0.9
+
+            price = int(base_price * price_factor)
+
+            # Gerar link de afiliado
+            affiliate_link = self._generate_affiliate_link(
+                origin, 
+                destination, 
+                flight_date.strftime("%Y-%m-%d")
+            )
+
+            # Formar objeto de melhor preço
+            best_price = {
+                "date": flight_date.isoformat(),
+                "price": price,
+                "currency": "BRL",
+                "affiliate_link": affiliate_link
+            }
+
+            best_prices.append(best_price)
+
+        # Ordenar por preço
+        best_prices.sort(key=lambda x: x["price"])
+
+        return best_prices
