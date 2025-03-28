@@ -27,6 +27,8 @@ body {
     --success-color: #58b19f;      /* Verde para status positivos */
     --warning-color: #ffda79;      /* Amarelo para avisos */
     --error-color: #ff6b6b;        /* Vermelho para erros */
+    --chat-user-color: #dcf8c6; /* adicionado */
+    --chat-bot-color: #e1f5fe; /* adicionado */
 }
 
 /* Layout principal */
@@ -254,6 +256,20 @@ body {
     border-radius: 18px 18px 18px 0;
     border-right: 3px solid var(--secondary-color);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex; /*adicionado*/
+    align-items: center; /*adicionado*/
+}
+
+.message-box.assistant::before {
+    content: "";
+    width: 40px;
+    height: 40px;
+    background-image: url('../img/amiga avi.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    margin-right: 10px;
+    flex-shrink: 0;
 }
 
 /* Input de mensagem */

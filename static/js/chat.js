@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function addMessage(text, isUser) {
+    function addMessage(text, isUser = false) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
         messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
