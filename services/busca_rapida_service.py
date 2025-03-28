@@ -956,13 +956,13 @@ def search_best_prices(travel_info):
         
         try:
             # Tentar buscar preços reais do Amadeus
+            amadeus_service.use_mock_data = False  # Garantir que estamos usando dados reais
             amadeus_prices = amadeus_service.search_best_prices(amadeus_params)
             if 'error' not in amadeus_prices and amadeus_prices.get('best_prices', []):
                 return amadeus_prices
         except Exception as e:
             logger.error(f"Erro ao buscar preços no Amadeus: {str(e)}")
         
-        # Usar dados simulados se as APIs falharem
         # Não utilizamos mais dados simulados, informamos que o serviço está indisponível
         logger.warning("Não foi possível obter dados reais de nenhuma API.")
         return {"error": "No momento não foi possível obter dados reais de preços. Por favor, tente novamente mais tarde."}
