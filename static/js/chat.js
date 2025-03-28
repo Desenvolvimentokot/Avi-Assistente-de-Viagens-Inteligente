@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variáveis globais
     let chatMode = 'quick-search'; // Modo padrão
     let currentConversationId = null;
+    let sessionId = null; // Para manter a sessão com o servidor
+    let chatHistory = []; // Para manter o histórico da conversa
     let chatContext = {
         mode: 'quick-search',
         quickSearchStep: 0,
@@ -85,6 +87,9 @@ document.addEventListener('DOMContentLoaded', function() {
         addMessage(message, true);
         messageInput.value = '';
 
+        // Atualiza o histórico local com a mensagem do usuário
+        chatHistory.push({user: message});
+
         // Garantir que a área de chat rola para mostrar a mensagem enviada
         scrollToBottom();
 
@@ -100,6 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 message: message,
                 mode: chatMode,
+                session_id: sessionId,  // Envia o ID da sessão se existir
+                history: chatHistory,   // Envia o histórico local
                 conversationId: currentConversationId,
                 context: chatContext
             })
@@ -114,8 +121,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Armazena o session_id retornado pelo servidor
+            if (data.session_id) {
+                sessionId = data.session_id;
+                console.log("Sessão ativa:", sessionId);
+            }
+
             // Adicionar resposta ao chat
             addMessage(data.response, false);
+            
+            // Atualiza o histórico local com a resposta
+            chatHistory.push({assistant: data.response});
 
             // Scroll para mostrar a nova mensagem
             scrollToBottom();
@@ -376,7 +392,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Limpar mensagens existentes
         chatMessages.innerHTML = '';
 
-        // Resetar ID de conversa
+        // Resetar sessão e histórico
+        sessionId = null;
+        chatHistory = [];
+        
+        // Resetar ID de conversa e contexto
+        currentConversationId = null;
         chatContext = {
             mode: chatMode,
             quickSearchStep: 0,

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 openai_service = OpenAIService()
 skyscanner_service = SkyscannerService()
 
-def process_message(message, test_params=None, history=None):
+def process_message(message, test_params=None, history=None, travel_info=None):
     """
     Processa uma mensagem do usuário no modo busca rápida, implementando um fluxo em duas etapas:
     1. Extração e confirmação das informações com o cliente
@@ -25,6 +25,7 @@ def process_message(message, test_params=None, history=None):
         message (str): Mensagem do usuário
         test_params (dict): Parâmetros opcionais para testes (ex: max_dates_to_check)
         history (list): Histórico de mensagens anteriores
+        travel_info (dict): Informações de viagem previamente extraídas
 
     Returns:
         dict: Resposta processada
@@ -32,7 +33,7 @@ def process_message(message, test_params=None, history=None):
     if history is None:
         history = []
         
-    if test_params is None:
+    if test_params is None or not isinstance(test_params, dict):
         test_params = {}
 
     try:
@@ -42,10 +43,18 @@ def process_message(message, test_params=None, history=None):
         system_context = BUSCA_RAPIDA_PROMPT
 
         # Extrair informações de viagem da mensagem e histórico
-        travel_info = extract_travel_info(message, history)
+        if travel_info is None:
+            travel_info = extract_travel_info(message, history)
+        else:
+            # Atualizar com novas informações da mensagem atual
+            new_info = extract_travel_info(message, history)
+            # Priorizar informações não-nulas das novas informações
+            for key, value in new_info.items():
+                if value is not None and value != "":
+                    travel_info[key] = value
         
         # Adicionar parâmetros de teste, se fornecidos
-        if test_params:
+        if test_params and isinstance(test_params, dict):
             for key, value in test_params.items():
                 travel_info[key] = value
         

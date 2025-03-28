@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import uuid
+import re
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -39,6 +40,10 @@ def load_user(user_id):
 amadeus_service = AmadeusService()
 openai_service = OpenAIService()
 
+# Dicionário para armazenar histórico de conversas temporárias
+# Estrutura: { 'session_id': { 'history': [], 'travel_info': {} } }
+conversation_store = {}
+
 # Rota principal
 @app.route('/')
 def index():
@@ -52,19 +57,79 @@ def chat():
         data = request.get_json()
         message = data.get('message', '')
         mode = data.get('mode', 'quick-search')
-        history = data.get('history', [])
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        client_history = data.get('history', [])
 
         if not message:
             return jsonify({"error": True, "message": "Mensagem vazia"})
+            
+        # Inicializa ou recupera a sessão do usuário
+        if session_id not in conversation_store:
+            conversation_store[session_id] = {
+                'history': [],
+                'travel_info': {}
+            }
+        
+        # Usa o histórico armazenado no servidor, ou o enviado pelo cliente se disponível
+        history = conversation_store[session_id]['history']
+        if not history and client_history:
+            history = client_history
+            
+        # Adiciona a mensagem atual ao histórico
+        history.append({'user': message})
 
         if mode == 'quick-search':
             # Importar aqui para evitar circular imports
-            from services.busca_rapida_service import process_message
-            response = process_message(message, history)
+            from services.busca_rapida_service import process_message, extract_travel_info
+            
+            # Recuperar travel_info anterior, se existir
+            current_travel_info = conversation_store[session_id].get('travel_info', {})
+            
+            # Processa a mensagem com o histórico e informações de viagem anteriores
+            response = process_message(message, history=history, travel_info=current_travel_info)
+            
+            # Armazena a resposta no histórico
+            if 'response' in response and not response.get('error', False):
+                history.append({'assistant': response['response']})
+            
+            # Extrai e atualiza as informações de viagem
+            new_travel_info = extract_travel_info(message, history)
+            
+            # Combinar informações anteriores com novas informações
+            # Priorizar valores não-nulos nas novas informações
+            for key, value in new_travel_info.items():
+                if value is not None:
+                    current_travel_info[key] = value
+                elif key not in current_travel_info:
+                    current_travel_info[key] = value
+            
+            # Verificar confirmação
+            confirmation_patterns = [
+                r'\bsim\b', r'\bconfirmo\b', r'\bcorreto\b', r'\bpode\s+seguir\b',
+                r'\bconfirma(?:do)?\b', r'\bcontinue\b', r'\bvamos\s+em\s+frente\b', 
+                r'\bcerto\b', r'\bok\b', r'\bprossiga\b', r'\bprosseguir\b'
+            ]
+            for pattern in confirmation_patterns:
+                if re.search(pattern, message.lower()):
+                    current_travel_info['confirmed'] = True
+                    break
+            
+            # Atualiza o armazenamento
+            conversation_store[session_id]['history'] = history
+            conversation_store[session_id]['travel_info'] = current_travel_info
+            
+            # Adiciona session_id na resposta
+            response['session_id'] = session_id
+            
             return jsonify(response)
         else:
             # Implementar lógica para planejamento completo
-            return jsonify({"response": "Modo de planejamento completo em desenvolvimento."})
+            response = {"response": "Modo de planejamento completo em desenvolvimento."}
+            history.append({'assistant': response['response']})
+            conversation_store[session_id]['history'] = history
+            response['session_id'] = session_id
+            
+            return jsonify(response)
 
     except Exception as e:
         print(f"Erro na API de chat: {str(e)}")
