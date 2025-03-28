@@ -383,6 +383,173 @@ class AmadeusService:
             
             return {"error": f"Erro inesperado: {str(e)}"}
             
+    def search_best_prices(self, params):
+        """
+        Busca os melhores preços de voos disponíveis para um período
+        
+        Retorna formato compatível com a implementação anterior:
+        {
+            "best_prices": [{data}],  # Em caso de sucesso
+            "error": "mensagem"       # Em caso de erro
+        }
+        """
+        if not self.client:
+            self.initialize_client()
+            if not self.client:
+                return {"error": "Cliente Amadeus não inicializado. Verifique as credenciais."}
+        
+        try:
+            logger.info(f"Buscando melhores preços com parâmetros: {params}")
+            
+            # Extrair parâmetros
+            origin = params.get('originLocationCode', params.get('origin', ''))
+            destination = params.get('destinationLocationCode', params.get('destination', ''))
+            date_start = params.get('departureDate', params.get('departure_date', ''))
+            date_end = params.get('returnDate', params.get('return_date', ''))
+            
+            if not origin or not destination or not date_start:
+                return {"error": "Parâmetros insuficientes para busca de melhores preços"}
+            
+            # Como a API Flight Offers Price não suporta diretamente a busca por período,
+            # vamos buscar várias datas específicas usando o endpoint flight-offers-search
+            logger.info("O SDK do Amadeus não suporta diretamente a busca de preços por período flexível")
+            logger.info("Utilizando método alternativo para buscar os melhores preços")
+            
+            # Buscar várias datas específicas com o endpoint flight-offers-search
+            best_prices = []
+            
+            # Verificar formato da data
+            try:
+                start_date = datetime.fromisoformat(date_start.replace('Z', '+00:00'))
+                end_date = datetime.fromisoformat(date_end.replace('Z', '+00:00'))
+                
+                # Limitar o período a 7 dias para performance
+                max_days = min(7, (end_date - start_date).days + 1)
+                
+                # Verificar se há um limite máximo específico para testes
+                max_dates_to_check = params.get('max_dates_to_check', 3)
+                
+                # Selecionar algumas datas dentro do período
+                sample_dates = []
+                
+                if max_dates_to_check == 1:
+                    # Se limitado a 1 data, usar apenas a data inicial
+                    sample_dates.append(start_date.strftime('%Y-%m-%d'))
+                else:
+                    # Caso contrário, distribuir as datas no período
+                    step = max(1, max_days // min(3, max_dates_to_check))
+                    
+                    for i in range(0, max_days, step):
+                        sample_date = start_date + timedelta(days=i)
+                        sample_dates.append(sample_date.strftime('%Y-%m-%d'))
+                    
+                    # Adicionar a data final se não estiver incluída e não estamos no limite
+                    if end_date.strftime('%Y-%m-%d') not in sample_dates and len(sample_dates) < max_dates_to_check:
+                        sample_dates.append(end_date.strftime('%Y-%m-%d'))
+                
+                logger.info(f"Buscando preços para {len(sample_dates)} datas no período: {sample_dates}")
+                
+                # Buscar preços para cada data
+                for date in sample_dates:
+                    search_params = {
+                        'originLocationCode': origin,
+                        'destinationLocationCode': destination,
+                        'departureDate': date,
+                        'adults': params.get('adults', 1),
+                        'max': 3  # Aumentamos para 3 para ter mais detalhes
+                    }
+                    
+                    # Adicionar parâmetros opcionais
+                    for key in ['currencyCode', 'travelClass']:
+                        if key in params:
+                            search_params[key] = params[key]
+                    
+                    # Buscar voos para esta data
+                    logger.info(f"Buscando ofertas para a data: {date}")
+                    flight_result = self.search_flights(search_params)
+                    
+                    if 'error' not in flight_result and 'data' in flight_result:
+                        # Obter os preços para esta data
+                        offers = flight_result['data']
+                        for offer in offers:
+                            price = float(offer.get('price', {}).get('total', 0))
+                            currency = offer.get('price', {}).get('currency', 'BRL')
+                            
+                            # Extrair informações da companhia aérea
+                            segments = offer.get('itineraries', [{}])[0].get('segments', [])
+                            airline_code = segments[0].get('carrierCode', 'N/A') if segments else 'N/A'
+                            flight_number = segments[0].get('number', 'N/A') if segments else 'N/A'
+                            
+                            # Extrair horário de partida e chegada
+                            departure_time = segments[0].get('departure', {}).get('at', 'N/A') if segments else 'N/A'
+                            arrival_time = segments[-1].get('arrival', {}).get('at', 'N/A') if segments else 'N/A'
+                            
+                            # Extrair duração
+                            duration = offer.get('itineraries', [{}])[0].get('duration', 'N/A')
+                            
+                            # Criar um link direto para a companhia aérea (exemplo)
+                            airline_website = {
+                                'AD': 'https://www.azul.com.br',
+                                'JJ': 'https://www.latamairlines.com',
+                                'G3': 'https://www.voegol.com.br',
+                                'LA': 'https://www.latamairlines.com',
+                                'AA': 'https://www.aa.com',
+                                'UA': 'https://www.united.com',
+                                'DL': 'https://www.delta.com',
+                                'BA': 'https://www.britishairways.com',
+                                'AZ': 'https://www.alitalia.com',
+                                'LH': 'https://www.lufthansa.com',
+                                'AF': 'https://www.airfrance.com',
+                                'KL': 'https://www.klm.com'
+                            }.get(airline_code, 'https://www.google.com/flights')
+                            
+                            # Adicionar à lista de melhores preços
+                            best_prices.append({
+                                "date": date,
+                                "price": price,
+                                "currency": currency,
+                                "airline": airline_code,
+                                "flight_number": flight_number,
+                                "departure_time": departure_time,
+                                "arrival_time": arrival_time,
+                                "duration": duration,
+                                "airline_website": airline_website,
+                                "offer_data": offer  # Dados completos da oferta para uso futuro
+                            })
+                            logger.info(f"Preço encontrado para {date}: {price} {currency} com {airline_code}")
+                
+                # Ordenar por preço
+                best_prices.sort(key=lambda x: x["price"])
+                
+                if best_prices:
+                    logger.info(f"Encontrados {len(best_prices)} preços no período")
+                    return {"best_prices": best_prices, "source": "amadeus", "is_simulated": False}
+                else:
+                    logger.warning("Nenhum preço encontrado nas datas verificadas")
+                    return {"error": "Nenhum preço encontrado no período especificado"}
+                
+            except Exception as e:
+                logger.error(f"Erro ao processar datas: {str(e)}")
+                return {"error": f"Erro ao processar datas: {str(e)}"}
+            
+        except Exception as e:
+            logger.error(f"Erro inesperado na busca de melhores preços: {str(e)}")
+            return {"error": f"Erro inesperado: {str(e)}"}
+    
+    def get_simulated_best_prices(self, params):
+        """
+        Versão do método para compatibilidade, mas agora retorna erro explícito.
+        Este método foi desativado para evitar dados simulados.
+        
+        Args:
+            params: dicionário com parâmetros de busca
+            
+        Returns:
+            Erro indicando que dados simulados estão desabilitados
+        """
+        logger.warning("Método get_simulated_best_prices foi chamado, mas está desabilitado")
+        return {"error": "Dados simulados foram desabilitados. Tente novamente mais tarde quando a API estiver disponível."}
+    
     def get_hotel_offer(self, offer_id):
         """
         Obtém os detalhes de uma oferta específica de hotel

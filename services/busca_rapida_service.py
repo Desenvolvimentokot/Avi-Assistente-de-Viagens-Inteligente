@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 openai_service = OpenAIService()
 skyscanner_service = SkyscannerService()
 
-def process_message(message, history=None):
+def process_message(message, test_params=None, history=None):
     """
     Processa uma mensagem do usuário no modo busca rápida
 
     Args:
         message (str): Mensagem do usuário
+        test_params (dict): Parâmetros opcionais para testes (ex: max_dates_to_check)
         history (list): Histórico de mensagens anteriores
 
     Returns:
@@ -28,6 +29,9 @@ def process_message(message, history=None):
     """
     if history is None:
         history = []
+        
+    if test_params is None:
+        test_params = {}
 
     try:
         logger.info(f"Processando mensagem no modo busca rápida: {message[:50]}...")
@@ -37,6 +41,12 @@ def process_message(message, history=None):
 
         # Extrair informações de viagem da mensagem e histórico
         travel_info = extract_travel_info(message, history)
+        
+        # Adicionar parâmetros de teste, se fornecidos
+        if test_params:
+            for key, value in test_params.items():
+                travel_info[key] = value
+                
         logger.info(f"Informações de viagem extraídas: {travel_info}")
 
         # Se temos informações suficientes para fazer uma busca, adicionar ao contexto
@@ -55,19 +65,9 @@ def process_message(message, history=None):
 
                 if 'error' not in flight_data:
                     flights = flight_data.get('flights', [])
-                    is_simulated = flight_data.get('is_simulated', False)
-
-                    if is_simulated:
-                        logger.warning("Usando dados simulados devido a falha na API real")
-
                     if flights:
                         logger.info(f"Encontrados {len(flights)} voos. Preços: {[f['price'] for f in flights[:3]]}")
                         additional_context += f"\n\nEncontrei {len(flights)} voos para {travel_info['destination']} saindo de {travel_info['origin']} em {travel_info['departure_date']}.\n"
-
-                        is_simulated_text = ""
-                        if is_simulated:
-                            is_simulated_text = "\n(NOTA: Estes são dados aproximados baseados em tendências de mercado, não preços em tempo real. No momento, não foi possível acessar os dados reais de voos.)\n"
-                            additional_context += is_simulated_text
 
                         # Adicionar detalhes dos 3 melhores voos
                         top_flights = flights[:3]
@@ -102,19 +102,10 @@ def process_message(message, history=None):
 
                 if 'error' not in best_prices_data:
                     best_prices = best_prices_data.get('best_prices', [])
-                    is_simulated = best_prices_data.get('is_simulated', False)
-
-                    if is_simulated:
-                        logger.warning("Usando dados simulados devido a falha na API real")
 
                     if best_prices:
                         logger.info(f"Encontradas {len(best_prices)} ofertas. Preços: {[p['price'] for p in best_prices[:3]]}")
                         additional_context += f"\n\nEncontrei as melhores ofertas para {travel_info['destination']} saindo de {travel_info['origin']} no período solicitado.\n"
-
-                        is_simulated_text = ""
-                        if is_simulated:
-                            is_simulated_text = "\n(NOTA: Estes são dados aproximados baseados em tendências de mercado, não preços em tempo real. No momento, não foi possível acessar os dados reais de voos.)\n"
-                            additional_context += is_simulated_text
 
                         # Adicionar as 3 melhores ofertas
                         top_prices = best_prices[:3]
@@ -653,58 +644,9 @@ def search_flights(travel_info):
             else:
                 logger.error(f"Erro ao buscar voos na Amadeus: {amadeus_flights.get('error', 'Erro desconhecido')}")
 
-                # Se dados simulados estiverem disponíveis, usar como último recurso
-                try:
-                    logger.info("Usando dados simulados como último recurso")
-                    flights = amadeus_service._get_mock_flights(amadeus_params).get('data', [])
-                    processed_flights = []
-
-                    # Processar dados simulados para o formato padrão
-                    for flight in flights:
-                        try:
-                            itineraries = flight.get('itineraries', [])
-                            if not itineraries:
-                                continue
-
-                            segments = itineraries[0].get('segments', [])
-                            if not segments:
-                                continue
-
-                            first_segment = segments[0]
-                            departure_info = first_segment.get('departure', {})
-                            arrival_info = segments[-1].get('arrival', {})
-
-                            price_info = flight.get('price', {})
-                            price = price_info.get('total', '0')
-
-                            processed_flight = {
-                                "id": flight.get('id', ''),
-                                "price": float(price),
-                                "currency": "BRL",
-                                "departure": {
-                                    "airport": departure_info.get('iataCode', params.get('origin')),
-                                    "time": departure_info.get('at', '')
-                                },
-                                "arrival": {
-                                    "airport": arrival_info.get('iataCode', params.get('destination')),
-                                    "time": arrival_info.get('at', '')
-                                },
-                                "airline": "Companhia Simulada",
-                                "affiliate_link": f"https://www.skyscanner.com.br/transport/flights/{params.get('origin')}/{params.get('destination')}/?adults=1&adultsv2=1",
-                                "source": "simulado"
-                            }
-
-                            processed_flights.append(processed_flight)
-
-                        except Exception as sim_e:
-                            logger.error(f"Erro ao processar voo simulado: {str(sim_e)}")
-
-                    if processed_flights:
-                        logger.info(f"Usando {len(processed_flights)} voos simulados como último recurso")
-                        return {"flights": processed_flights, "source": "simulado", "is_simulated": True}
-
-                except Exception as mock_e:
-                    logger.error(f"Erro ao usar dados simulados: {str(mock_e)}")
+                # Retornar mensagem de erro quando o serviço não está disponível
+                logger.info("Serviço de busca de voos indisponível no momento")
+                return {"error": "No momento, não foi possível obter dados reais de voos. Por favor, tente novamente mais tarde."}
 
         # Se a busca do Skyscanner foi bem-sucedida, adicionar links diretos das companhias aéreas
         if skyscanner_success:
@@ -732,7 +674,7 @@ def search_flights(travel_info):
             return skyscanner_flights
 
         # Se chegou aqui, nenhuma API funcionou
-        return {"error": "Não foi possível encontrar voos disponíveis. Por favor, tente outra data ou destino.", "is_simulated": True}
+        return {"error": "No momento não foi possível obter dados reais de voos. Por favor, tente novamente mais tarde."}
 
     except Exception as e:
         logger.error(f"Erro ao buscar voos: {str(e)}")
@@ -761,7 +703,8 @@ def search_best_prices(travel_info):
             'departure_date': travel_info.get('date_range_start'),
             'return_date': travel_info.get('date_range_end'),
             'adults': travel_info.get('adults', 1),
-            'currency': 'BRL'
+            'currency': 'BRL',
+            'max_dates_to_check': travel_info.get('max_dates_to_check', 3)  # Limitar o número de datas para busca rápida
         }
         
         logger.info(f"Iniciando busca com parâmetros: {params}")
@@ -783,7 +726,8 @@ def search_best_prices(travel_info):
             'departureDate': params['departure_date'],
             'returnDate': params.get('return_date'),
             'adults': params['adults'],
-            'currencyCode': params['currency']
+            'currencyCode': params['currency'],
+            'max_dates_to_check': params.get('max_dates_to_check', 3)  # Incluir parâmetro de limite de datas
         }
         
         # Buscar melhores preços no Amadeus
@@ -798,10 +742,9 @@ def search_best_prices(travel_info):
             logger.error(f"Erro ao buscar preços no Amadeus: {str(e)}")
         
         # Usar dados simulados se as APIs falharem
-        best_prices = amadeus_service.get_simulated_best_prices(amadeus_params)
-        
-        logger.info(f"Usando {len(best_prices)} preços simulados")
-        return {"best_prices": best_prices, "source": "simulado", "is_simulated": True}
+        # Não utilizamos mais dados simulados, informamos que o serviço está indisponível
+        logger.warning("Não foi possível obter dados reais de nenhuma API.")
+        return {"error": "No momento não foi possível obter dados reais de preços. Por favor, tente novamente mais tarde."}
     except Exception as e:
         logger.error(f"Erro na busca de melhores preços: {str(e)}")
-        return {"error": f"Erro ao buscar melhores preços: {str(e)}", "is_simulated": True}
+        return {"error": f"Erro ao buscar melhores preços: {str(e)}"}

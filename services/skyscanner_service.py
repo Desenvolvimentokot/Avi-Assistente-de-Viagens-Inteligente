@@ -72,18 +72,8 @@ class SkyscannerService:
             
             # Se houver erro na API, usar fallback para dados simulados
             if response.status_code != 200:
-                logger.warning(f"Erro na API Skyscanner (status {response.status_code}), usando dados de fallback")
-                if hasattr(self, '_generate_simulated_flights'):
-                    logger.info("Usando dados simulados como fallback")
-                    flights = self._generate_simulated_flights(
-                        origin, 
-                        destination, 
-                        departure_date, 
-                        return_date
-                    )
-                    return {"flights": flights, "is_simulated": True}
-                else:
-                    return {"error": f"Erro na API Skyscanner: {response.status_code} - {response.text}"}
+                logger.warning(f"Erro na API Skyscanner (status {response.status_code})")
+                return {"error": f"No momento não foi possível obter dados reais de voos. Por favor, tente novamente mais tarde."}
             
             # Processar resultados reais da API
             data = response.json()
@@ -142,22 +132,39 @@ class SkyscannerService:
 
         except Exception as e:
             logger.error(f"Erro ao buscar voos no Skyscanner: {str(e)}")
-            # Em caso de falha na API, tentar usar dados simulados como último recurso
-            try:
-                if hasattr(self, '_generate_simulated_flights'):
-                    logger.info("Usando dados simulados como fallback após erro")
-                    flights = self._generate_simulated_flights(
-                        params.get('origin', ''), 
-                        params.get('destination', ''), 
-                        params.get('departure_date', ''), 
-                        params.get('return_date', '')
-                    )
-                    return {"flights": flights, "is_simulated": True, "error_message": str(e)}
-            except:
-                pass
-                
-            return {"error": f"Erro ao buscar voos: {str(e)}"}
+            # Retornar erro quando a API falha
+            return {"error": "No momento não foi possível obter dados reais de voos. Por favor, tente novamente mais tarde."}
 
+    def search_best_prices(self, params):
+        """
+        Busca melhores preços para um período flexível
+        
+        Parâmetros:
+        - params: dicionário contendo os parâmetros de busca
+            - origin: código IATA do aeroporto de origem
+            - destination: código IATA do aeroporto de destino
+            - departure_date: data de início do período (formato YYYY-MM-DD)
+            - return_date: data de fim do período (formato YYYY-MM-DD)
+            - currency: moeda (opcional, padrão 'BRL')
+            - adults: número de adultos (opcional, padrão 1)
+            
+        Retorno:
+        - Dicionário com as melhores opções de preço
+        """
+        # Extrair parâmetros
+        origin = params.get('origin', '')
+        destination = params.get('destination', '')
+        date_range_start = params.get('departure_date', '')
+        date_range_end = params.get('return_date', '')
+        currency = params.get('currency', 'BRL')
+        
+        # Validação básica de parâmetros
+        if not origin or not destination or not date_range_start or not date_range_end:
+            return {"error": "Parâmetros insuficientes para busca de melhores preços"}
+            
+        # Chamar a função interna de implementação
+        return self.get_best_price_options(origin, destination, date_range_start, date_range_end)
+        
     def get_best_price_options(self, origin, destination, date_range_start, date_range_end):
         """
         Busca as melhores opções de preço para um período específico
@@ -197,17 +204,10 @@ class SkyscannerService:
             # Tentar fazer a chamada à API real
             response = requests.get(url, headers=headers, params=query_params)
             
-            # Se houver erro na API, usar fallback para dados simulados
+            # Se houver erro na API, retornamos o erro
             if response.status_code != 200:
-                logger.warning(f"Erro na API Skyscanner (status {response.status_code}), usando dados de fallback")
-                if hasattr(self, '_generate_simulated_best_prices'):
-                    logger.info("Usando dados simulados como fallback")
-                    best_prices = self._generate_simulated_best_prices(
-                        origin, destination, date_range_start, date_range_end
-                    )
-                    return {"best_prices": best_prices, "is_simulated": True}
-                else:
-                    return {"error": f"Erro na API Skyscanner: {response.status_code} - {response.text}"}
+                logger.warning(f"Erro na API Skyscanner (status {response.status_code})")
+                return {"error": f"No momento não foi possível obter dados reais de preços. Por favor, tente novamente mais tarde."}
             
             # Processar resultados reais da API
             data = response.json()
@@ -243,18 +243,8 @@ class SkyscannerService:
 
         except Exception as e:
             logger.error(f"Erro ao buscar melhores preços no Skyscanner: {str(e)}")
-            # Em caso de falha na API, tentar usar dados simulados como último recurso
-            try:
-                if hasattr(self, '_generate_simulated_best_prices'):
-                    logger.info("Usando dados simulados como fallback após erro")
-                    best_prices = self._generate_simulated_best_prices(
-                        origin, destination, date_range_start, date_range_end
-                    )
-                    return {"best_prices": best_prices, "is_simulated": True, "error_message": str(e)}
-            except:
-                pass
-                
-            return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
+            # Retornar erro quando a API falha
+            return {"error": "No momento não foi possível obter dados reais de preços. Por favor, tente novamente mais tarde."}
 
     def _generate_affiliate_link(self, origin, destination, departure_date, return_date=None):
         """

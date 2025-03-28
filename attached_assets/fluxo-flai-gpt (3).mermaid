@@ -1,0 +1,79 @@
+stateDiagram-v2
+    [*] --> Autenticação: Usuário Acessa o Site
+    Autenticação --> SeleçãoModalidade : Login/Registro Bem-Sucedido
+
+    state SeleçãoModalidade {
+        [*] --> BuscaRápida
+        [*] --> PlanejamentoCompleto
+    }
+
+    state BuscaRápida {
+        CapturaDadosPassagem --> ProcessamentoGPT3_5
+        ProcessamentoGPT3_5 --> BuscaAPIAmadeus
+        BuscaAPIAmadeus --> SeleçãoMelhorOfertaPassagem
+        SeleçãoMelhorOfertaPassagem --> ApresentarMelhorPassagem
+        ApresentarMelhorPassagem --> MonitoramentoPassagens
+    }
+
+    state MonitoramentoPassagens {
+        VerificacaoNovasOfertas
+        ComparacaoPrecos
+        IdentificacaoOportunidades
+    }
+
+    state PlanejamentoCompleto {
+        CapturaDadosDetalhados --> ProcessamentoGPT4_0
+        ProcessamentoGPT4_0 --> AnaliseRequisitosPlenjo
+        AnaliseRequisitosPlenjo --> BuscaAvançadaAPIAmadeus
+        BuscaAvançadaAPIAmadeus --> SeleçãoCompletaViagem
+        SeleçãoCompletaViagem --> CriarRoteiroPlanejamento
+        CriarRoteiroPlanejamento --> ApresentacaoPlanoCompleto
+    }
+
+    state CriarRoteiroPlanejamento {
+        SeleçãoPassagens
+        SeleçãoHotéis
+        SeleçãoPasseios
+        EstimativaGastos
+        DicasLocais
+    }
+
+    state ApresentacaoPlanoCompleto {
+        DocumentoRoteiro
+        Ofertas
+        LinksAfiliados
+        EstimativaOrcamento
+    }
+
+    note right of BuscaRápida
+      Características:
+      - Foco em passagens
+      - Processamento rápido
+      - GPT-3.5
+      - Busca econômica
+    end note
+
+    note right of PlanejamentoCompleto
+      Características:
+      - Planejamento detalhado
+      - Processamento profundo
+      - GPT-4.0
+      - Roteiro completo
+    end note
+
+    note right of CriarRoteiroPlanejamento
+      Detalhamento:
+      - Passagens
+      - Hotéis
+      - Passeios
+      - Estimativa de gastos
+      - Dicas locais
+    end note
+
+    note right of ApresentacaoPlanoCompleto
+      Entrega:
+      - Documento de roteiro
+      - Ofertas selecionadas
+      - Links de afiliados
+      - Orçamento estimado
+    end note
