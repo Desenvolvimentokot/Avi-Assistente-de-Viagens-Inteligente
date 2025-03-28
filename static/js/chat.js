@@ -75,23 +75,20 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.innerHTML = welcomeHTML;
-        scrollToBottom();
     }
 
     function sendMessage() {
         const message = messageInput.value.trim();
         if (message === '') return;
 
-        // Limpar campo de entrada
+        // Adiciona a mensagem do usuário à conversa
+        addMessage(message, true);
         messageInput.value = '';
 
-        // Adicionar mensagem do usuário ao chat
-        addMessage(message, true);
-
-        // Garantir que a tela role após adicionar a mensagem do usuário
+        // Garantir que a área de chat rola para mostrar a mensagem enviada
         scrollToBottom();
 
-        // Mostrar indicador de digitação
+        // Mostra o indicador de digitação
         showTypingIndicator();
 
         // Fazer a solicitação para o backend
@@ -122,8 +119,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Scroll para mostrar a nova mensagem - usando nossa nova função
             scrollToBottom();
-            // Garantir novamente o scroll após um breve tempo para ter certeza que todo o conteúdo foi renderizado
-            setTimeout(scrollToBottom, 100);
 
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
@@ -137,40 +132,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function addMessage(text, isUser = false, additionalClasses = '') {
+    function addMessage(text, isUser = false) {
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', isUser ? 'user-message' : 'assistant-message', additionalClasses);
+        messageElement.classList.add('message');
+        messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
 
-        const messageBox = document.createElement('div');
-        messageBox.classList.add('message-box', isUser ? 'user' : 'assistant');
+        const contentContainer = document.createElement('div');
+        contentContainer.classList.add('message-box');
+        contentContainer.classList.add(isUser ? 'user' : 'assistant');
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
+        contentElement.innerText = text;
 
-        // Verificar se o texto tem quebras de linha e processá-las
-        if (text.includes('\n')) {
-            // Dividir o texto em linhas e criar elementos <p> para cada uma
-            const lines = text.split('\n');
-            lines.forEach((line, index) => {
-                if (line.trim() !== '') {
-                    const paragraph = document.createElement('p');
-                    paragraph.textContent = line;
-                    contentElement.appendChild(paragraph);
-                } else if (index < lines.length - 1) {
-                    // Adicionar quebra de linha se não for a última linha vazia
-                    contentElement.appendChild(document.createElement('br'));
-                }
-            });
-        } else {
-            contentElement.textContent = text;
-        }
-
-        messageBox.appendChild(contentElement);
-        messageElement.appendChild(messageBox);
+        contentContainer.appendChild(contentElement);
+        messageElement.appendChild(contentContainer);
         chatMessages.appendChild(messageElement);
 
-        // Sempre fazer o scroll ao adicionar uma mensagem
-        scrollToBottom();
+        // Garantir que o texto não fique na vertical
+        if (isUser) {
+            contentElement.style.whiteSpace = 'normal';
+            contentElement.style.display = 'inline-block';
+        }
+
+
     }
 
     function addPurchaseLink(url) {
@@ -184,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.appendChild(purchaseElement);
-        scrollToBottom();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function showTypingIndicator() {
@@ -203,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
         typingElement.appendChild(contentElement);
 
         chatMessages.appendChild(typingElement);
-        scrollToBottom();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function removeTypingIndicator() {
