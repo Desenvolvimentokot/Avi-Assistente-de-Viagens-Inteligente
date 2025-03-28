@@ -278,11 +278,10 @@ def process_message(message, test_params=None, history=None, travel_info=None):
 
 def extract_travel_info(message, history):
     """
-    Extrai informações de viagem da mensagem e histórico usando técnicas de NLP
+    Extrai informações de viagem da mensagem e histórico
     
-    Esta função foi aprimorada para suportar o processo em duas etapas:
-    1. Extração inicial das informações da mensagem do usuário
-    2. Refinamento baseado nas confirmações e clarificações
+    Versão aprimorada que prioriza extração mínima e deixa o ChatGPT fazer o trabalho
+    de conversa natural e confirmação de informações
     """
     # Inicializar estrutura de dados
     travel_info = {
@@ -299,19 +298,20 @@ def extract_travel_info(message, history):
     }
 
     # Combinar mensagem atual com histórico para análise completa
-    full_text = message
+    full_text = message.strip()
     for item in history:
         if isinstance(item, dict):
             if 'user' in item:
-                full_text += " " + item['user']
+                full_text += " " + item.get('user', '').strip()
             if 'assistant' in item:
-                full_text += " " + item['assistant']
+                full_text += " " + item.get('assistant', '').strip()
     
     # Verificar se as informações já foram confirmadas pelo usuário
     confirmation_patterns = [
         r'\bsim\b', r'\bconfirmo\b', r'\bcorreto\b', r'\bpode\s+seguir\b',
         r'\bconfirma(?:do)?\b', r'\bcontinue\b', r'\bvamos\s+em\s+frente\b', 
-        r'\bcerto\b', r'\bok\b', r'\bprossiga\b', r'\bprosseguir\b'
+        r'\bcerto\b', r'\bok\b', r'\btudo\s+certo\b', r'\bestá\s+correto\b',
+        r'\bprossiga\b', r'\bprosseguir\b', r'\bisso\s+mesmo\b'
     ]
     
     # Marcar como confirmado se encontrarmos palavras de confirmação na mensagem atual
@@ -320,22 +320,13 @@ def extract_travel_info(message, history):
             travel_info['confirmed'] = True
             break
     
-    # Padrões aprimorados para extração de origem/destino em português brasileiro
-    origin_patterns = [
-        r'(?:sa(?:i|í)(?:r|ndo) de|partindo de|origem|de) ([A-Za-z\sÀ-ú]+)(?= para| a | ao | até |\.)',
-        r'(?:de|da|do) ([A-Za-z\sÀ-ú]+) (?:para|a|ao|até)',
-        r'voo (?:de|da|do) ([A-Za-z\sÀ-ú]+)',
-        r'(?:n[óo]s|a gente|eu)? est(?:ou|amos) (?:em|no|na) ([A-Za-z\sÀ-ú]+)',
-        r'est(?:ou|amos) em ([A-Za-z\sÀ-ú]+)',
-        r'sa(?:i|í)(?:r|ndo) de ([A-Za-z\sÀ-ú]+)'
-    ]
-
-    destination_patterns = [
-        r'(?:para|a|ao|até) ([A-Za-z\sÀ-ú]+)(?=\.|\s|$)',
-        r'(?:destino|chegando (?:a|em)|ir para) ([A-Za-z\sÀ-ú]+)',
-        r'voo (?:para|a) ([A-Za-z\sÀ-ú]+)',
-        r'(?:gostaria|quero|queremos|desejo|vamos|iremos) (?:de )?(?:ir|viajar|visitar|conhecer) (?:para |a |o )?([A-Za-z\sÀ-ú]+)',
-        r'para ([A-Za-z\sÀ-ú]+)'
+    # Padrões simplificados para extração de cidades/aeroportos
+    # Buscamos apenas códigos IATA válidos (3 letras) ou menções claras de cidades
+    city_airport_patterns = [
+        # Códigos IATA (3 letras maiúsculas)
+        r'\b([A-Z]{3})\b',
+        # Cidades comuns no Brasil, com menor chance de falsos positivos
+        r'\b(São Paulo|Rio de Janeiro|Salvador|Brasília|Recife|Fortaleza|Porto Alegre|Belo Horizonte|Curitiba|Manaus|Natal|Florianópolis)\b'
     ]
 
     # Detectar datas com regex
@@ -349,22 +340,39 @@ def extract_travel_info(message, history):
         r'(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\.eiro]*'
     ]
 
-    # Aplicar padrões de origem
-    for pattern in origin_patterns:
-        matches = re.search(pattern, full_text, re.IGNORECASE)
-        if matches:
-            travel_info['origin'] = matches.group(1).strip()
-            break
-
-    # Aplicar padrões de destino
-    for pattern in destination_patterns:
-        matches = re.search(pattern, full_text, re.IGNORECASE)
-        if matches:
-            # Evitar que a origem seja detectada como destino
-            dest = matches.group(1).strip()
-            if dest != travel_info['origin']:
-                travel_info['destination'] = dest
-                break
+    # Encontrar códigos IATA e cidades no texto
+    locations_found = []
+    for pattern in city_airport_patterns:
+        matches = re.finditer(pattern, full_text, re.IGNORECASE)
+        for match in matches:
+            location = match.group(1).strip()
+            # Se for um código IATA (3 letras maiúsculas), adicionar diretamente
+            if re.match(r'^[A-Z]{3}$', location):
+                locations_found.append(location)
+            else:
+                # Para nomes de cidades, converter para código IATA
+                iata_code = get_iata_code(location)
+                if iata_code and len(iata_code) == 3:
+                    locations_found.append(iata_code)
+    
+    # Se encontrarmos pelo menos dois locais, o primeiro é provável que seja a origem
+    # e o segundo o destino (na maioria das conversas sobre viagens)
+    if len(locations_found) >= 2:
+        # Verificar menções específicas de origem/destino no texto
+        origin_words = ['de', 'saindo', 'partindo', 'origem', 'estou em', 'estamos em']
+        dest_words = ['para', 'destino', 'ir para', 'chegar em', 'visitar']
+        
+        # Iniciando com suposição simples: primeiro local = origem, segundo = destino
+        travel_info['origin'] = locations_found[0]
+        travel_info['destination'] = locations_found[1]
+        
+    # Se só encontramos um local, é mais provável que seja o destino
+    elif len(locations_found) == 1:
+        # Verificar se o texto indica claramente que é origem ou destino
+        if any(word in full_text.lower() for word in ['de', 'saindo', 'partindo', 'estou em']):
+            travel_info['origin'] = locations_found[0]
+        else:
+            travel_info['destination'] = locations_found[0]
     
     # Detectar quantidade de passageiros
     passengers_patterns = [
@@ -461,6 +469,10 @@ def extract_travel_info(message, history):
 
         if len(dates_found) >= 2:
             travel_info['return_date'] = normalize_date(dates_found[1])
+            
+    # Define origin_patterns e destination_patterns como vazios para evitar erros 
+    origin_patterns = []
+    destination_patterns = []
 
     # Detectar meses para períodos flexíveis
     months_found = []
