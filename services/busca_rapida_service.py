@@ -57,100 +57,87 @@ class BuscaRapidaService:
         """
         # Verificar se temos uma resposta do GPT para usar
         if 'gpt_response' in context:
-            # Extrair informações de viagem da resposta do GPT e da mensagem
+            # Usar a resposta do GPT diretamente para interação com o usuário
             gpt_response = context['gpt_response']
-            logger.info(f"Usando resposta do GPT para enriquecer o contexto: {gpt_response[:100]}...")
+            logger.info(f"Usando resposta do GPT para conversa: {gpt_response[:100]}...")
             
-            # O GPT pode ter extraído informações úteis, então usamos tanto a mensagem
-            # do usuário quanto a análise do GPT para extrair informações
-            travel_info_from_message = self.chat_processor.extract_travel_info(message)
-            travel_info_from_gpt = self.chat_processor.extract_travel_info(gpt_response)
+            # Extrair informações da mensagem do usuário para uso interno apenas
+            # O ChatGPT gerencia a conversa, mas ainda precisamos extrair dados para a API
+            travel_info = self.chat_processor.extract_travel_info(message)
             
-            # Mesclar as informações, priorizando o que foi extraído da mensagem do usuário
-            travel_info = {**travel_info_from_gpt, **travel_info_from_message}
+            # Se encontrarmos informações úteis da mensagem do usuário, atualizamos o contexto
+            if travel_info:
+                context['travel_info'].update(travel_info)
             
-            # Atualizar contexto
-            context['travel_info'].update(travel_info)
-            
-            # Validar informações
+            # Verificar se já temos informações suficientes
             errors = self.chat_processor.validate_travel_info(context['travel_info'])
             
-            if errors:
-                # Se houver erros, solicitar mais informações
-                error_messages = list(errors.values())
-                
-                # Usar a resposta do GPT se ela for útil para o usuário
-                if "preciso" in gpt_response.lower() or "poderia" in gpt_response.lower() or "pode" in gpt_response.lower():
-                    # O GPT já está solicitando as informações necessárias
-                    response = gpt_response
-                else:
-                    # Complementar com solicitações específicas
-                    response = f"{gpt_response}\n\nPara continuar, preciso de algumas informações adicionais:\n\n" + "\n".join(error_messages)
-                
-                # Manter na mesma etapa
-                return context, response
-            else:
-                # Se todas as informações necessárias estiverem presentes, avançar para a próxima etapa
+            if not errors:
+                # Se temos todas as informações, avançar para próxima etapa
                 context['step'] = 1
-                
-                # Formatar resumo para confirmar com o usuário
-                travel_summary = self.chat_processor.format_travel_info_summary(context['travel_info'])
-                response = f"{travel_summary}\n\nEstas informações estão corretas? Posso realizar a busca?"
-                
-                return context, response
+            
+            # Sempre usar a resposta do GPT para interagir com o usuário
+            return context, gpt_response
         else:
-            # Sem GPT, usamos o processamento normal
+            # Se não temos resposta do GPT (improvável), usamos uma resposta genérica
+            # E extraímos o que pudermos das informações
             travel_info = self.chat_processor.extract_travel_info(message)
             
             # Atualizar contexto
             context['travel_info'].update(travel_info)
             
-            # Validar informações
-            errors = self.chat_processor.validate_travel_info(context['travel_info'])
+            # Resposta genérica solicitando informações
+            response = "Olá! Para buscar voos, preciso saber sua origem, destino e datas de viagem. Poderia me informar esses detalhes?"
             
-            if errors:
-                # Se houver erros, solicitar mais informações
-                error_messages = list(errors.values())
-                response = f"Preciso de algumas informações adicionais para buscar voos:\n\n" + "\n".join(error_messages)
-                
-                # Manter na mesma etapa
-                return context, response
-            else:
-                # Se todas as informações necessárias estiverem presentes, avançar para a próxima etapa
-                context['step'] = 1
-                
-                # Formatar resumo para confirmar com o usuário
-                travel_summary = self.chat_processor.format_travel_info_summary(context['travel_info'])
-                response = f"{travel_summary}\n\nEstas informações estão corretas? Posso realizar a busca?"
-                
-                return context, response
+            return context, response
     
     def _process_step_1(self, message, context):
         """
         Etapa 1: Confirmação das informações
         """
-        # Verificar se o usuário confirmou
-        confirmation = self._check_confirmation(message)
-        
-        if confirmation is None:
-            # Resposta ambígua, continuar solicitando confirmação
-            response = "Por favor, confirme se posso realizar a busca com essas informações."
+        # Verificar se temos uma resposta do GPT para usar
+        if 'gpt_response' in context:
+            # Usar a resposta do GPT diretamente para interação com o usuário
+            gpt_response = context['gpt_response']
+            
+            # Extrair informações adicionais, se houver
+            travel_info = self.chat_processor.extract_travel_info(message)
+            if travel_info:
+                context['travel_info'].update(travel_info)
+            
+            # Verificar confirmação discretamente da mensagem do usuário
+            confirmation = self._check_confirmation(message)
+            
+            if confirmation or "sim" in message.lower() or "pode" in message.lower() or "vamos" in message.lower():
+                # Usuário confirmou, marcamos como confirmado e avançamos
+                context['travel_info']['confirmed'] = True
+                context['step'] = 2
+            
+            # Em qualquer caso, respondemos com a resposta do GPT
+            return context, gpt_response
+        else:
+            # Fallback para o comportamento original
+            confirmation = self._check_confirmation(message)
+            
+            if confirmation is None:
+                # Resposta ambígua, continuar solicitando confirmação
+                response = "Por favor, confirme se posso realizar a busca com essas informações."
+                return context, response
+            
+            if not confirmation:
+                # Usuário não confirmou, voltar para a etapa 0
+                context['step'] = 0
+                response = "Entendi. Por favor, me forneça as informações corretas para sua viagem."
+                return context, response
+            
+            # Usuário confirmou, marcar como confirmado e avançar para a próxima etapa
+            context['travel_info']['confirmed'] = True
+            context['step'] = 2
+            
+            # Realizar busca
+            response = "Ótimo! Estou buscando as melhores opções para sua viagem. Um momento..."
+            
             return context, response
-        
-        if not confirmation:
-            # Usuário não confirmou, voltar para a etapa 0
-            context['step'] = 0
-            response = "Entendi. Por favor, me forneça as informações corretas para sua viagem."
-            return context, response
-        
-        # Usuário confirmou, marcar como confirmado e avançar para a próxima etapa
-        context['travel_info']['confirmed'] = True
-        context['step'] = 2
-        
-        # Realizar busca
-        response = "Ótimo! Estou buscando as melhores opções para sua viagem. Um momento..."
-        
-        return context, response
     
     def _process_step_2(self, message, context):
         """
@@ -158,37 +145,66 @@ class BuscaRapidaService:
         """
         logger.info("Etapa 2: Busca e apresentação de resultados")
         
-        # Verificar se já temos informações suficientes
-        if not context['travel_info'].get('confirmed'):
-            # Se não confirmado, voltar para a etapa 1
-            context['step'] = 1
-            travel_summary = self.chat_processor.format_travel_info_summary(context['travel_info'])
-            response = f"{travel_summary}\n\nEstas informações estão corretas? Posso realizar a busca?"
+        # Verificar se temos uma resposta do GPT para usar
+        if 'gpt_response' in context:
+            gpt_response = context['gpt_response']
+            
+            # Verificar se já fizemos a busca
+            if not context['search_results']:
+                # Realizar a busca se temos as informações necessárias
+                logger.info("Informações suficientes para busca encontradas")
+                search_results = self._perform_search(context['travel_info'])
+                
+                # Armazenar resultados no contexto
+                context['search_results'] = search_results
+                
+                # Compor a resposta combinando a resposta do GPT com os resultados
+                if 'error' in search_results:
+                    # Em caso de erro, adicionar informação sobre o erro após a resposta do GPT
+                    response = f"{gpt_response}\n\nInformação da API de busca: {search_results['error']}"
+                else:
+                    # Formatar os resultados de voos e adicionar após a resposta do GPT
+                    flight_results = self._format_search_results(search_results)
+                    response = f"{gpt_response}\n\n{flight_results}"
+            else:
+                # Se já temos resultados, apenas responder com a resposta do GPT
+                # e adicionar a opção de mostrar os resultados novamente
+                response = gpt_response
+                
             return context, response
-        
-        # Se já temos resultados, processar a mensagem como uma solicitação adicional
-        if context['search_results']:
-            # Implementar lógica para responder a perguntas sobre os resultados
-            # Por enquanto, apenas retornar os resultados novamente
-            response = "Aqui estão as opções que encontrei para sua viagem:\n\n"
-            response += self._format_search_results(context['search_results'])
-            return context, response
-        
-        # Caso contrário, realizar a busca
-        logger.info("Informações suficientes para busca encontradas")
-        search_results = self._perform_search(context['travel_info'])
-        
-        # Armazenar resultados no contexto
-        context['search_results'] = search_results
-        
-        # Formatar resposta com os resultados
-        if 'error' in search_results:
-            response = f"Desculpe, tive um problema ao buscar voos: {search_results['error']}"
         else:
-            response = "Aqui estão as opções que encontrei para sua viagem:\n\n"
-            response += self._format_search_results(search_results)
-        
-        return context, response
+            # Fallback para o comportamento original (sem ChatGPT)
+            # Verificar se já temos informações suficientes
+            if not context['travel_info'].get('confirmed'):
+                # Se não confirmado, voltar para a etapa 1
+                context['step'] = 1
+                travel_summary = self.chat_processor.format_travel_info_summary(context['travel_info'])
+                response = f"{travel_summary}\n\nEstas informações estão corretas? Posso realizar a busca?"
+                return context, response
+            
+            # Se já temos resultados, processar a mensagem como uma solicitação adicional
+            if context['search_results']:
+                # Implementar lógica para responder a perguntas sobre os resultados
+                # Por enquanto, apenas retornar os resultados novamente
+                response = "Aqui estão as opções que encontrei para sua viagem:\n\n"
+                response += self._format_search_results(context['search_results'])
+                return context, response
+            
+            # Caso contrário, realizar a busca
+            logger.info("Informações suficientes para busca encontradas")
+            search_results = self._perform_search(context['travel_info'])
+            
+            # Armazenar resultados no contexto
+            context['search_results'] = search_results
+            
+            # Formatar resposta com os resultados
+            if 'error' in search_results:
+                response = f"Desculpe, tive um problema ao buscar voos: {search_results['error']}"
+            else:
+                response = "Aqui estão as opções que encontrei para sua viagem:\n\n"
+                response += self._format_search_results(search_results)
+            
+            return context, response
     
     def _perform_search(self, travel_info):
         """
