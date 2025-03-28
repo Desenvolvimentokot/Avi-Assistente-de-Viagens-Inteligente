@@ -661,3 +661,50 @@ class ChatProcessor:
         
         # Não encontrou
         return None
+        
+    def get_flight_search_intro(self, origin, destination):
+        """
+        Gera uma introdução amigável para os resultados de busca de voos
+        Este texto substitui a resposta do ChatGPT antes de mostrar dados reais
+        
+        Args:
+            origin: Código IATA do aeroporto de origem
+            destination: Código IATA do aeroporto de destino
+            
+        Returns:
+            str: Texto introdutório humanizado sem dados específicos
+        """
+        # Obter nomes das cidades se disponíveis
+        origin_name = origin
+        destination_name = destination
+        
+        # Tenta encontrar nomes mais amigáveis para os aeroportos
+        for code, info in self.COMMON_AIRPORTS.items():
+            if code == origin:
+                origin_name = info.get('city', origin)
+            if code == destination:
+                destination_name = info.get('city', destination)
+        
+        # Gerar texto de introdução
+        intro_texts = [
+            f"Encontrei algumas opções de voos de {origin_name} para {destination_name} com dados reais da API Amadeus:",
+            f"Aqui estão as opções de voos reais que encontrei para sua viagem de {origin_name} para {destination_name}:",
+            f"Consultei a API Amadeus e encontrei estas opções para sua viagem de {origin_name} para {destination_name}:",
+            f"Com base nos dados reais da API Amadeus, encontrei estas opções para sua viagem entre {origin_name} e {destination_name}:"
+        ]
+        
+        # Escolher uma introdução aleatória
+        import random
+        return random.choice(intro_texts)
+    
+    def format_error_message(self, error_text):
+        """
+        Formata uma mensagem de erro amigável quando ocorre um problema na busca
+        
+        Args:
+            error_text: Texto do erro original
+            
+        Returns:
+            str: Mensagem de erro formatada para o usuário
+        """
+        return f"Infelizmente, ocorreu um problema durante a busca na API Amadeus: {error_text}. Por favor, tente novamente com outras datas ou destinos."

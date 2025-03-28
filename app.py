@@ -258,23 +258,26 @@ def chat():
                         # Armazenar resultados da busca
                         current_travel_info['search_results'] = search_results
                         
-                        # Formatar a resposta para o usuário com dados reais
+                        # SOLUÇÃO DEFINITIVA:
+                        # NÃO usamos o GPT para formatar a resposta, usamos apenas dados reais 
+                        # controlados por nós através do ChatProcessor
+                        
+                        # Gerar introdução amigável para os resultados (sem dados simulados)
+                        friendly_intro = chat_processor.get_flight_search_intro(
+                            origin=current_travel_info.get('origin'),
+                            destination=current_travel_info.get('destination')
+                        )
+                        
                         if 'error' in search_results:
-                            # Informar erro na busca
-                            # Substituir o placeholder por uma mensagem de erro amigável
-                            if gpt_response == "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS":
-                                response_text = f"Infelizmente, tive um problema ao buscar voos reais na API Amadeus: {search_results['error']}"
-                            else:
-                                response_text = f"{gpt_response}\n\nInfelizmente, tive um problema ao buscar voos reais: {search_results['error']}"
+                            # Formatar mensagem de erro usando o ChatProcessor (sem GPT)
+                            error_message = chat_processor.format_error_message(search_results['error'])
+                            response_text = f"{friendly_intro}\n\n{error_message}"
                         else:
-                            # Formatar resultados reais de voos
+                            # Formatar resultados reais de voos usando o BuscaRapidaService
                             flight_results = busca_rapida_service._format_search_results(search_results)
                             
-                            # Substituir o placeholder por uma mensagem padrão
-                            if gpt_response == "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS":
-                                response_text = f"Aqui estão os resultados reais da API Amadeus para sua viagem:\n\n{flight_results}"
-                            else:
-                                response_text = f"{gpt_response}\n\n{flight_results}"
+                            # Montar resposta final com introdução + dados reais (sem GPT)
+                            response_text = f"{friendly_intro}\n\n{flight_results}"
                     except Exception as e:
                         logging.error(f"Erro na busca de voos: {str(e)}")
                         response_text = f"{gpt_response}\n\nDesculpe, tive um problema técnico ao buscar voos: {str(e)}"
