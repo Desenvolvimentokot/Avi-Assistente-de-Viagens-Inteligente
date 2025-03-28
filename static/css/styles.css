@@ -343,6 +343,7 @@ body {
     flex-direction: column;
     position: relative;
     max-height: calc(100vh - 130px);
+    scroll-behavior: smooth;
 }
 
 .chat-messages {
@@ -350,7 +351,7 @@ body {
     flex-direction: column;
     width: 100%;
     min-height: min-content;
-    overflow-anchor: auto;
+    overflow-anchor: none; /* Desativar anchor automático que pode interferir */
 }
 
 /* Input de mensagem */

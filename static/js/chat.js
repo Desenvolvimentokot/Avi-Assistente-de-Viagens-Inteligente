@@ -381,8 +381,18 @@ document.addEventListener('DOMContentLoaded', function() {
         addWelcomeMessage();
     });
 
+    // Função robusta para rolar para o final do chat
     function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Usar requestAnimationFrame para garantir que o DOM esteja atualizado
+        window.requestAnimationFrame(() => {
+            // Adicionar pequeno atraso para garantir que o DOM esteja renderizado
+            setTimeout(() => {
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    console.log("Executando scroll para: ", chatMessages.scrollHeight);
+                }
+            }, 50);
+        });
     }
 
     //Start functions
