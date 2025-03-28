@@ -181,30 +181,26 @@ def chat():
                     usando apenas os dados reais que já foram obtidos.
                     """
                 else:
-                    # Vamos buscar voos pela primeira vez
-                    system_context = """
-                    INSTRUÇÕES CRÍTICAS PARA RESPOSTA:
+                    # Forçar resposta fixa para busca na API
+                    # Este é o ponto crítico: não permitimos que o GPT gere qualquer conteúdo
+                    # Usamos uma resposta fixa e padronizada que será substituída pelos dados reais
+                    gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"
+                    gpt_result = {"response": gpt_response}
                     
-                    1. Estamos na etapa final: BUSCA DE VOOS NA API AMADEUS
-                    
-                    2. NÃO MENCIONE NENHUMA INFORMAÇÃO ESPECÍFICA DE RESULTADOS:
-                       - NÃO cite preços específicos (ex. R$3.200)
-                       - NÃO cite companhias aéreas específicas (ex. LATAM, Azul)
-                       - NÃO mencione horários específicos de voos
-                       - NÃO dê informações sobre duração de voos
-                       
-                    3. SUA RESPOSTA DEVE SER APENAS:
-                       "Estou consultando a API da Amadeus para encontrar os melhores voos para sua viagem a Miami. Um momento, por favor..."
-                       
-                    4. Os dados reais da API serão anexados automaticamente à sua resposta.
-                    
-                    AVISO: Suas respostas anteriores continham dados simulados, o que não é permitido. 
-                    Precisamos garantir que o usuário receba APENAS dados reais.
-                    """
+                    # Pular o resto do processamento e ir direto para a busca real
+                    skip_gpt_call = True
             
-            # Obter resposta do GPT com o contexto específico do estágio
-            gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
-                
+            # Verificar se devemos pular a chamada do GPT
+            skip_gpt_call = locals().get('skip_gpt_call', False)
+            
+            if not skip_gpt_call:
+                # Obter resposta do GPT com o contexto específico do estágio
+                gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+            
+            # Inicializar gpt_result se ainda não existir (caso skip_gpt_call seja True)
+            if not 'gpt_result' in locals():
+                gpt_result = {"response": "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"}
+            
             if 'error' in gpt_result:
                 logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
                 # Fallback para processamento direto
@@ -217,7 +213,12 @@ def chat():
                 updated_context, response_text = busca_rapida_service.process_message(message, current_context)
             else:
                 # O GPT ajudou a entender e estruturar a interação
-                gpt_response = gpt_result['response']
+                # Verifica se existe a chave 'response' no gpt_result
+                if 'response' in gpt_result:
+                    gpt_response = gpt_result['response']
+                else:
+                    # Se não existir, usa o valor padrão
+                    gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
@@ -260,11 +261,20 @@ def chat():
                         # Formatar a resposta para o usuário com dados reais
                         if 'error' in search_results:
                             # Informar erro na busca
-                            response_text = f"{gpt_response}\n\nInfelizmente, tive um problema ao buscar voos reais: {search_results['error']}"
+                            # Substituir o placeholder por uma mensagem de erro amigável
+                            if gpt_response == "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS":
+                                response_text = f"Infelizmente, tive um problema ao buscar voos reais na API Amadeus: {search_results['error']}"
+                            else:
+                                response_text = f"{gpt_response}\n\nInfelizmente, tive um problema ao buscar voos reais: {search_results['error']}"
                         else:
                             # Formatar resultados reais de voos
                             flight_results = busca_rapida_service._format_search_results(search_results)
-                            response_text = f"{gpt_response}\n\n{flight_results}"
+                            
+                            # Substituir o placeholder por uma mensagem padrão
+                            if gpt_response == "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS":
+                                response_text = f"Aqui estão os resultados reais da API Amadeus para sua viagem:\n\n{flight_results}"
+                            else:
+                                response_text = f"{gpt_response}\n\n{flight_results}"
                     except Exception as e:
                         logging.error(f"Erro na busca de voos: {str(e)}")
                         response_text = f"{gpt_response}\n\nDesculpe, tive um problema técnico ao buscar voos: {str(e)}"
