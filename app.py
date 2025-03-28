@@ -9,7 +9,9 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash
 
 # Importação dos serviços e modelos
-from services.amadeus_service import AmadeusService
+from services.amadeus_sdk_service import AmadeusSDKService
+from services.busca_rapida_service import BuscaRapidaService
+from services.chat_processor import ChatProcessor
 from services.openai_service import OpenAIService
 from services.pdf_service import PDFService
 from models import db, User, Conversation, Message, TravelPlan, FlightBooking, Accommodation, PriceMonitor, PriceHistory, PriceAlert
@@ -37,7 +39,9 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Inicializa os serviços
-amadeus_service = AmadeusService()
+amadeus_service = AmadeusSDKService()
+busca_rapida_service = BuscaRapidaService()
+chat_processor = ChatProcessor()
 openai_service = OpenAIService()
 
 # Dicionário para armazenar histórico de conversas temporárias
@@ -79,40 +83,33 @@ def chat():
         history.append({'user': message})
 
         if mode == 'quick-search':
-            # Importar aqui para evitar circular imports
-            from services.busca_rapida_service import process_message, extract_travel_info
-            
             # Recuperar travel_info anterior, se existir
             current_travel_info = conversation_store[session_id].get('travel_info', {})
             
-            # Processa a mensagem com o histórico e informações de viagem anteriores
-            response = process_message(message, history=history, travel_info=current_travel_info)
+            # Processa a mensagem com o contexto atual
+            current_context = {
+                'step': current_travel_info.get('step', 0),
+                'travel_info': current_travel_info,
+                'search_results': current_travel_info.get('search_results'),
+                'error': None
+            }
+            
+            # Usar o novo serviço de busca rápida
+            updated_context, response_text = busca_rapida_service.process_message(message, current_context)
             
             # Armazena a resposta no histórico
-            if 'response' in response and not response.get('error', False):
-                history.append({'assistant': response['response']})
+            history.append({'assistant': response_text})
             
-            # Extrai e atualiza as informações de viagem
-            new_travel_info = extract_travel_info(message, history)
+            # Atualizar travel_info com o contexto atualizado
+            for key, value in updated_context['travel_info'].items():
+                current_travel_info[key] = value
             
-            # Combinar informações anteriores com novas informações
-            # Priorizar valores não-nulos nas novas informações
-            for key, value in new_travel_info.items():
-                if value is not None:
-                    current_travel_info[key] = value
-                elif key not in current_travel_info:
-                    current_travel_info[key] = value
+            # Manter o estado da busca
+            current_travel_info['step'] = updated_context['step']
+            current_travel_info['search_results'] = updated_context['search_results']
             
-            # Verificar confirmação
-            confirmation_patterns = [
-                r'\bsim\b', r'\bconfirmo\b', r'\bcorreto\b', r'\bpode\s+seguir\b',
-                r'\bconfirma(?:do)?\b', r'\bcontinue\b', r'\bvamos\s+em\s+frente\b', 
-                r'\bcerto\b', r'\bok\b', r'\bprossiga\b', r'\bprosseguir\b'
-            ]
-            for pattern in confirmation_patterns:
-                if re.search(pattern, message.lower()):
-                    current_travel_info['confirmed'] = True
-                    break
+            # Construir a resposta
+            response = {"response": response_text, "error": False}
             
             # Atualiza o armazenamento
             conversation_store[session_id]['history'] = history
