@@ -86,16 +86,43 @@ def chat():
             # Recuperar travel_info anterior, se existir
             current_travel_info = conversation_store[session_id].get('travel_info', {})
             
-            # Processa a mensagem com o contexto atual
-            current_context = {
-                'step': current_travel_info.get('step', 0),
-                'travel_info': current_travel_info,
-                'search_results': current_travel_info.get('search_results'),
-                'error': None
-            }
+            # Primeiro, usar o OpenAI para entender a intenção do usuário e organizar os dados
+            # Transformar o histórico no formato esperado pelo OpenAI Service
+            openai_history = []
+            for msg in history:
+                if 'user' in msg:
+                    openai_history.append({'is_user': True, 'content': msg['user']})
+                elif 'assistant' in msg:
+                    openai_history.append({'is_user': False, 'content': msg['assistant']})
             
-            # Usar o novo serviço de busca rápida
-            updated_context, response_text = busca_rapida_service.process_message(message, current_context)
+            # Obter resposta do GPT
+            gpt_result = openai_service.travel_assistant(message, openai_history)
+            
+            if 'error' in gpt_result:
+                logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
+                # Caso falhe a API do GPT, usamos diretamente a busca rápida
+                current_context = {
+                    'step': current_travel_info.get('step', 0),
+                    'travel_info': current_travel_info,
+                    'search_results': current_travel_info.get('search_results'),
+                    'error': None
+                }
+                updated_context, response_text = busca_rapida_service.process_message(message, current_context)
+            else:
+                # Agora processar com o serviço de busca rápida
+                # O GPT nos ajudou a entender a mensagem e estruturar a interação
+                gpt_response = gpt_result['response']
+                
+                current_context = {
+                    'step': current_travel_info.get('step', 0),
+                    'travel_info': current_travel_info,
+                    'search_results': current_travel_info.get('search_results'),
+                    'error': None,
+                    'gpt_response': gpt_response  # Adiciona a resposta do GPT ao contexto
+                }
+                
+                # Usar o serviço de busca rápida com o contexto enriquecido pelo GPT
+                updated_context, response_text = busca_rapida_service.process_message(message, current_context)
             
             # Armazena a resposta no histórico
             history.append({'assistant': response_text})
