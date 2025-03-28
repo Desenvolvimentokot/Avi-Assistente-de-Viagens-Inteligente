@@ -126,6 +126,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
         messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
+        
+        // Completar função para garantir que ela funcione corretamente
+        const messageBox = document.createElement('div');
+        messageBox.classList.add('message-box');
+        messageBox.classList.add(isUser ? 'user' : 'assistant');
+        
+        const contentElement = document.createElement('div');
+        contentElement.classList.add('message-content');
+        contentElement.innerHTML = text;
+        
+        messageBox.appendChild(contentElement);
+        messageElement.appendChild(messageBox);
+        chatMessages.appendChild(messageElement);
+        
+        // Garantir scroll após adicionar mensagem
+        scrollToBottom();
+        return messageElement;age' : 'assistant-message');
 
         const contentContainer = document.createElement('div');
         contentContainer.classList.add('message-box');
@@ -381,18 +398,17 @@ document.addEventListener('DOMContentLoaded', function() {
         addWelcomeMessage();
     });
 
-    // Função robusta para rolar para o final do chat
+    // Função eficaz para rolar para o final do chat
     function scrollToBottom() {
-        // Usar requestAnimationFrame para garantir que o DOM esteja atualizado
-        window.requestAnimationFrame(() => {
-            // Adicionar pequeno atraso para garantir que o DOM esteja renderizado
-            setTimeout(() => {
-                if (chatMessages) {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    console.log("Executando scroll para: ", chatMessages.scrollHeight);
-                }
-            }, 50);
-        });
+        if (!chatMessages) return;
+        
+        // Método direto e simples
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Garantir que o scroll seja aplicado mesmo após renderização completa
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 100);
     }
 
     //Start functions
