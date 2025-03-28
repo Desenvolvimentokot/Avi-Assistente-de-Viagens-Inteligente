@@ -263,8 +263,8 @@ body {
 .message-box.assistant::before {
     content: "";
     display: block;
-    width: 40px;
-    height: 40px;
+    width: 70px; /* Increased width */
+    height: 70px; /* Increased height */
     background-image: url('../img/avi rosto chat.png');
     background-size: contain;
     background-position: center;
