@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             contentElement.style.display = 'inline-block';
         }
 
-
+        scrollToBottom();
     }
 
     function addPurchaseLink(url) {
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
         typingElement.appendChild(contentElement);
 
         chatMessages.appendChild(typingElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 
     function removeTypingIndicator() {
