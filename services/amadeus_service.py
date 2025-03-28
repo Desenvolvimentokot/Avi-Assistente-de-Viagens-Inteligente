@@ -188,10 +188,18 @@ class AmadeusService:
             return {"error": str(e)}
     
     def _get_mock_flights(self, params):
-        """Retorna dados simulados de voos para desenvolvimento"""
+        """Retorna dados simulados de voos para desenvolvimento com links de compra"""
         origin = params.get('originLocationCode', 'GRU')
         destination = params.get('destinationLocationCode', 'CDG')
         departure_date = params.get('departureDate', '2024-12-10')
+        
+        # Obter códigos de aeroporto e companhias válidos
+        origin_code = origin if len(origin) == 3 else 'GRU'
+        destination_code = destination if len(destination) == 3 else 'CDG'
+        
+        # Criar URLs para compra com base nos códigos de aeroporto e datas
+        purchase_url_airfrance = f"https://www.airfrance.com.br/search?origin={origin_code}&destination={destination_code}&date={departure_date}&adult=1"
+        purchase_url_lufthansa = f"https://www.lufthansa.com/br/pt/homepage?travelFromCode={origin_code}&travelToCode={destination_code}&outwardDateDep={departure_date}&adult=1"
         
         mock_data = {
             "meta": {
@@ -205,6 +213,12 @@ class AmadeusService:
                         "total": "3250.42",
                         "currency": "BRL"
                     },
+                    "source": "GDS",
+                    "instantTicketingRequired": False,
+                    "nonHomogeneous": False,
+                    "oneWay": False,
+                    "lastTicketingDate": "2024-12-01",
+                    "numberOfBookableSeats": 9,
                     "itineraries": [
                         {
                             "duration": "PT14H20M",
@@ -213,15 +227,67 @@ class AmadeusService:
                                     "carrierCode": "AF",
                                     "number": "401",
                                     "departure": {
-                                        "iataCode": origin,
+                                        "iataCode": origin_code,
                                         "at": f"{departure_date}T23:35:00"
                                     },
                                     "arrival": {
-                                        "iataCode": destination,
+                                        "iataCode": destination_code,
                                         "at": f"{departure_date}T15:55:00"
-                                    }
+                                    },
+                                    "aircraft": {
+                                        "code": "77W"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "AF"
+                                    },
+                                    "duration": "PT11H20M"
                                 }
                             ]
+                        }
+                    ],
+                    "price": {
+                        "currency": "BRL",
+                        "total": "3250.42",
+                        "base": "2840.00",
+                        "fees": [
+                            {
+                                "amount": "0.00",
+                                "type": "SUPPLIER"
+                            },
+                            {
+                                "amount": "0.00",
+                                "type": "TICKETING"
+                            }
+                        ],
+                        "grandTotal": "3250.42",
+                        "billingCurrency": "BRL"
+                    },
+                    "pricingOptions": {
+                        "fareType": ["PUBLISHED"],
+                        "includedCheckedBagsOnly": True
+                    },
+                    "validatingAirlineCodes": ["AF"],
+                    "travelerPricings": [
+                        {
+                            "travelerId": "1",
+                            "fareOption": "STANDARD",
+                            "travelerType": "ADULT",
+                            "price": {
+                                "currency": "BRL",
+                                "total": "3250.42"
+                            }
+                        }
+                    ],
+                    "purchaseLinks": [
+                        {
+                            "type": "direct",
+                            "url": purchase_url_airfrance,
+                            "provider": "Air France"
+                        },
+                        {
+                            "type": "agency",
+                            "url": "https://www.decolar.com",
+                            "provider": "Decolar.com"
                         }
                     ]
                 },
@@ -232,6 +298,12 @@ class AmadeusService:
                         "total": "4120.18",
                         "currency": "BRL"
                     },
+                    "source": "GDS",
+                    "instantTicketingRequired": False,
+                    "nonHomogeneous": False,
+                    "oneWay": False,
+                    "lastTicketingDate": "2024-12-01",
+                    "numberOfBookableSeats": 5,
                     "itineraries": [
                         {
                             "duration": "PT13H15M",
@@ -240,13 +312,20 @@ class AmadeusService:
                                     "carrierCode": "LH",
                                     "number": "507",
                                     "departure": {
-                                        "iataCode": origin,
+                                        "iataCode": origin_code,
                                         "at": f"{departure_date}T18:15:00"
                                     },
                                     "arrival": {
                                         "iataCode": "FRA",
                                         "at": f"{departure_date}T10:30:00"
-                                    }
+                                    },
+                                    "aircraft": {
+                                        "code": "748"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "LH"
+                                    },
+                                    "duration": "PT11H15M"
                                 },
                                 {
                                     "carrierCode": "LH",
@@ -256,11 +335,63 @@ class AmadeusService:
                                         "at": f"{departure_date}T12:45:00"
                                     },
                                     "arrival": {
-                                        "iataCode": destination,
+                                        "iataCode": destination_code,
                                         "at": f"{departure_date}T14:00:00"
-                                    }
+                                    },
+                                    "aircraft": {
+                                        "code": "32N"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "LH"
+                                    },
+                                    "duration": "PT1H15M"
                                 }
                             ]
+                        }
+                    ],
+                    "price": {
+                        "currency": "BRL",
+                        "total": "4120.18",
+                        "base": "3750.00",
+                        "fees": [
+                            {
+                                "amount": "0.00",
+                                "type": "SUPPLIER"
+                            },
+                            {
+                                "amount": "0.00",
+                                "type": "TICKETING"
+                            }
+                        ],
+                        "grandTotal": "4120.18",
+                        "billingCurrency": "BRL"
+                    },
+                    "pricingOptions": {
+                        "fareType": ["PUBLISHED"],
+                        "includedCheckedBagsOnly": True
+                    },
+                    "validatingAirlineCodes": ["LH"],
+                    "travelerPricings": [
+                        {
+                            "travelerId": "1",
+                            "fareOption": "STANDARD",
+                            "travelerType": "ADULT",
+                            "price": {
+                                "currency": "BRL",
+                                "total": "4120.18"
+                            }
+                        }
+                    ],
+                    "purchaseLinks": [
+                        {
+                            "type": "direct",
+                            "url": purchase_url_lufthansa,
+                            "provider": "Lufthansa"
+                        },
+                        {
+                            "type": "agency",
+                            "url": "https://www.submarinoviagens.com.br",
+                            "provider": "Submarino Viagens"
                         }
                     ]
                 }
@@ -486,13 +617,33 @@ class AmadeusService:
             price_variation = random.uniform(0.8, 1.2)
             price = round(base_price * price_variation, 2)
             
+            # Selecionar um link de afiliado para este voo
+            affiliate_links = [
+                {
+                    "provider": "Decolar",
+                    "url": f"https://www.decolar.com/shop/flights/results/{origin}/{destination}/{date}/1/0/0"
+                },
+                {
+                    "provider": "Submarino Viagens",
+                    "url": f"https://www.submarinoviagens.com.br/Passagem/{origin}/{destination}/{date}/{date}/1/0/0/1/Economica"
+                },
+                {
+                    "provider": "ViajaNet",
+                    "url": f"https://www.viajanet.com.br/busca/passagens/{origin}/{destination}/{date}/1/0/0/Economy/-/-/-"
+                }
+            ]
+            
+            # Escolher um provedor aleatório
+            selected_affiliate = random.choice(affiliate_links)
+            
             best_prices.append({
                 'date': date,
                 'price': price,
                 'currency': currency,
                 'flight_id': f"mock-{origin}-{destination}-{date}",
                 'is_simulated': True,
-                'affiliate_link': f"https://example.com/flights?origin={origin}&destination={destination}&date={date}"
+                'affiliate_link': selected_affiliate["url"],
+                'provider': selected_affiliate["provider"]
             })
         
         # Ordenar por preço

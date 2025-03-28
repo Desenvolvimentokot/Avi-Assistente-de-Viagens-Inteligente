@@ -136,7 +136,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Scroll para mostrar a nova mensagem
             scrollToBottom();
 
-            // Se houver link de compra, mostrar botão
+            // Se tivermos resultados de voos ou preços, exibir em um formato visual atraente
+            if (data.flight_data || data.best_prices_data) {
+                addFlightOptions(data.flight_data, data.best_prices_data);
+            }
+            
+            // Se houver link de compra direto, mostrar botão
             if (data.purchase_link) {
                 addPurchaseLink(data.purchase_link);
             }
@@ -159,7 +164,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
-        contentElement.innerText = text;
+        
+        // Processa o texto para manter formatação markdown básica
+        if (!isUser) {
+            // Converte markdown para HTML
+            text = convertMarkdownHeaders(text);
+            text = convertMarkdownBold(text);
+            text = convertMarkdownItalic(text);
+            text = convertMarkdownLists(text);
+            contentElement.innerHTML = text;
+        } else {
+            contentElement.innerText = text;
+        }
 
         contentContainer.appendChild(contentElement);
         messageElement.appendChild(contentContainer);
@@ -170,6 +186,25 @@ document.addEventListener('DOMContentLoaded', function() {
             contentElement.style.whiteSpace = 'normal';
             contentElement.style.display = 'inline-block';
         }
+    }
+    
+    // Funções para converter markdown básico para HTML
+    function convertMarkdownHeaders(text) {
+        return text.replace(/### (.*?)$/gm, '<h3>$1</h3>')
+                  .replace(/## (.*?)$/gm, '<h2>$1</h2>')
+                  .replace(/# (.*?)$/gm, '<h1>$1</h1>');
+    }
+    
+    function convertMarkdownBold(text) {
+        return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+    
+    function convertMarkdownItalic(text) {
+        return text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    }
+    
+    function convertMarkdownLists(text) {
+        return text.replace(/- (.*?)$/gm, '<ul><li>$1</li></ul>').replace(/<\/ul><ul>/g, '');
     }
 
     function addPurchaseLink(url) {
@@ -183,6 +218,116 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.appendChild(purchaseElement);
+        scrollToBottom();
+    }
+    
+    function addFlightOptions(flightData, bestPricesData) {
+        // Se não tivermos dados de voos ou preços, não fazer nada
+        if (!flightData && !bestPricesData) return;
+        
+        const flightOptionsElement = document.createElement('div');
+        flightOptionsElement.classList.add('flight-options');
+        
+        let optionsHtml = '<div class="flight-options-container">';
+        optionsHtml += '<h3>Opções de Voos Disponíveis</h3>';
+        
+        // Adicionar resultados de busca de melhores preços
+        if (bestPricesData && bestPricesData.best_prices && bestPricesData.best_prices.length > 0) {
+            optionsHtml += '<div class="best-prices-section">';
+            optionsHtml += '<h4>Melhores Preços</h4>';
+            
+            bestPricesData.best_prices.forEach((price, index) => {
+                // Formatar data para exibição
+                const dateObj = new Date(price.date);
+                const formattedDate = dateObj.toLocaleDateString('pt-BR');
+                
+                optionsHtml += `
+                <div class="flight-card">
+                    <div class="flight-info">
+                        <div class="flight-date">${formattedDate}</div>
+                        <div class="flight-price">R$ ${price.price.toFixed(2)}</div>
+                    </div>
+                    <div class="flight-actions">
+                        <a href="${price.affiliate_link}" target="_blank" class="btn-purchase">
+                            <i class="fas fa-shopping-cart"></i> Comprar
+                        </a>
+                        <button class="btn-select" data-option="${index}" data-type="price">
+                            <i class="fas fa-check"></i> Selecionar
+                        </button>
+                    </div>
+                </div>`;
+            });
+            
+            optionsHtml += '</div>';
+        }
+        
+        // Adicionar resultados de busca de voos específicos
+        if (flightData && flightData.flights && flightData.flights.length > 0) {
+            optionsHtml += '<div class="flights-section">';
+            optionsHtml += '<h4>Voos Disponíveis</h4>';
+            
+            flightData.flights.forEach((flight, index) => {
+                // Formatar data/hora para exibição
+                const departureTime = new Date(flight.departure.time);
+                const arrivalTime = new Date(flight.arrival.time);
+                const formattedDeparture = departureTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                const formattedArrival = arrivalTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                
+                optionsHtml += `
+                <div class="flight-card">
+                    <div class="flight-header">
+                        <div class="airline">${flight.airline}</div>
+                        <div class="flight-price">R$ ${flight.price.toFixed(2)}</div>
+                    </div>
+                    <div class="flight-details">
+                        <div class="flight-time">
+                            <span class="departure">${formattedDeparture}</span>
+                            <span class="flight-arrow">→</span>
+                            <span class="arrival">${formattedArrival}</span>
+                        </div>
+                        <div class="flight-route">
+                            <span>${flight.departure.airport}</span>
+                            <span class="flight-arrow">→</span>
+                            <span>${flight.arrival.airport}</span>
+                        </div>
+                    </div>
+                    <div class="flight-actions">
+                        <a href="${flight.affiliate_link}" target="_blank" class="btn-purchase">
+                            <i class="fas fa-shopping-cart"></i> Comprar
+                        </a>
+                        <button class="btn-select" data-option="${index}" data-type="flight">
+                            <i class="fas fa-check"></i> Selecionar
+                        </button>
+                    </div>
+                </div>`;
+            });
+            
+            optionsHtml += '</div>';
+        }
+        
+        optionsHtml += '</div>';
+        flightOptionsElement.innerHTML = optionsHtml;
+        
+        chatMessages.appendChild(flightOptionsElement);
+        
+        // Adicionar event listeners para os botões
+        const selectButtons = flightOptionsElement.querySelectorAll('.btn-select');
+        selectButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const optionType = button.getAttribute('data-type');
+                const optionIndex = button.getAttribute('data-option');
+                
+                let selectedOption;
+                if (optionType === 'price') {
+                    selectedOption = bestPricesData.best_prices[optionIndex];
+                    sendMessage(`Quero mais detalhes sobre o voo do dia ${new Date(selectedOption.date).toLocaleDateString('pt-BR')}`);
+                } else if (optionType === 'flight') {
+                    selectedOption = flightData.flights[optionIndex];
+                    sendMessage(`Quero mais detalhes sobre o voo da ${selectedOption.airline} de ${selectedOption.departure.airport} para ${selectedOption.arrival.airport}`);
+                }
+            });
+        });
+        
         scrollToBottom();
     }
 
