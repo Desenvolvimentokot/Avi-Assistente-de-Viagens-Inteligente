@@ -262,14 +262,49 @@ body {
 
 .message-box.assistant::before {
     content: "";
+    display: block;
     width: 40px;
     height: 40px;
     background-image: url('../img/amiga avi.png');
-    background-size: cover;
+    background-size: contain;
     background-position: center;
+    background-repeat: no-repeat;
     border-radius: 50%;
     margin-right: 10px;
     flex-shrink: 0;
+}
+
+/* Mensagens */
+.message {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.message-box {
+    padding: 10px 15px;
+    border-radius: 18px;
+    max-width: 80%;
+    display: flex;
+    align-items: center;
+}
+
+.message-box.user {
+    align-self: flex-end;
+    background-color: var(--chat-user-color, #dcf8c6);
+    border-radius: 18px 18px 0 18px;
+    margin-left: auto;
+}
+
+.message-box.assistant {
+    align-self: flex-start;
+    background-color: var(--chat-bot-color, #e1f5fe);
+    border-radius: 18px 18px 18px 0;
+    margin-right: auto;
+}
+
+.message-content {
+    word-break: break-word;
 }
 
 /* Input de mensagem */

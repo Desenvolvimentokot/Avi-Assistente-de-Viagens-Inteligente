@@ -154,16 +154,16 @@ document.addEventListener('DOMContentLoaded', function() {
         messageElement.classList.add('message');
         messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
 
-        const avatarElement = document.createElement('div');
-        avatarElement.classList.add('message-avatar');
-        avatarElement.innerHTML = isUser ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
-
+        const contentContainer = document.createElement('div');
+        contentContainer.classList.add('message-box');
+        contentContainer.classList.add(isUser ? 'user' : 'assistant');
+        
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
         contentElement.innerText = text;
-
-        messageElement.appendChild(avatarElement);
-        messageElement.appendChild(contentElement);
+        
+        contentContainer.appendChild(contentElement);
+        messageElement.appendChild(contentContainer);
 
         chatMessages.appendChild(messageElement);
 
