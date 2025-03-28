@@ -137,6 +137,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Adicionar resposta ao chat
             addMessage(data.response, false);
 
+            // Garantir que rola até a mensagem mais recente
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
                 addPurchaseLink(data.purchase_link);

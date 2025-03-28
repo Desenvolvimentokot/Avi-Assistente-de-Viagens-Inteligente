@@ -27,7 +27,7 @@ body {
     --success-color: #58b19f;      /* Verde para status positivos */
     --warning-color: #ffda79;      /* Amarelo para avisos */
     --error-color: #ff6b6b;        /* Vermelho para erros */
-    --chat-user-color: #dcf8c6; /* adicionado */
+    --chat-user-color: #e1f1ff; /* alterado */
     --chat-bot-color: #e1f5fe; /* adicionado */
 }
 
@@ -235,9 +235,9 @@ body {
 }
 
 .message {
-    max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 8px;
+    max-width: 85%;
+    padding: 12px 15px;
+    border-radius: 18px;
     line-height: 1.5;
 }
 
@@ -291,7 +291,7 @@ body {
 
 .message-box.user {
     align-self: flex-end;
-    background-color: var(--chat-user-color, #dcf8c6);
+    background-color: var(--chat-user-color, #e1f1ff);
     border-radius: 18px 18px 0 18px;
     margin-left: auto;
 }
