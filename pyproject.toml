@@ -18,4 +18,5 @@ dependencies = [
     "weasyprint>=65.0",
     "pandas>=2.2.3",
     "urllib3>=2.3.0",
+    "amadeus>=12.0.0",
 ]
