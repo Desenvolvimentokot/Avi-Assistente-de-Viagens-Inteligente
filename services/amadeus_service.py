@@ -53,15 +53,24 @@ class AmadeusService:
             logger.error("Cliente Amadeus não inicializado. Verifique as credenciais.")
             return None
         
-        # O SDK gerencia automaticamente a obtenção e renovação do token
-        # Esta função agora apenas verifica se o cliente foi inicializado corretamente
+        # Implementação direta para obter token via API OAuth
         try:
-            logger.info("Renovando token de autenticação Amadeus")
-            # Forçar a criação de um novo token
-            token_response = self.client.auth.get_token()
-            token = token_response[0].get('access_token')
-            expires_in = token_response[0].get('expires_in')
-            logger.debug(f"Resposta de autenticação: Status {token_response[1]}")
+            logger.info("Obtendo token de autenticação Amadeus via API direta")
+            
+            # Usar diretamente a API OAuth em vez do SDK
+            url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+            payload = {
+                "grant_type": "client_credentials",
+                "client_id": self.api_key,
+                "client_secret": self.api_secret
+            }
+            
+            response = requests.post(url, data=payload)
+            response.raise_for_status()
+            token_data = response.json()
+            
+            token = token_data.get('access_token')
+            expires_in = token_data.get('expires_in')
             
             if token:
                 logger.info(f"Token obtido com sucesso. Expira em {expires_in} segundos.")
@@ -91,12 +100,9 @@ class AmadeusService:
         """
         logger.info(f"Iniciando busca de voos: {params}")
         
-        if not self.client:
-            logger.error("Cliente Amadeus não inicializado. Verifique as credenciais.")
-            return {"error": "Cliente Amadeus não inicializado", "data": []}
-        
         # Verificar token antes de continuar
-        if not self.get_token():
+        token = self.get_token()
+        if not token:
             logger.error("Não foi possível obter token de autenticação")
             return {"error": "Erro de autenticação", "data": []}
             
@@ -123,10 +129,10 @@ class AmadeusService:
                 logger.error(f"Formato de data de retorno inválido: {return_date}")
                 return {"error": "Formato de data de retorno inválido", "data": []}
             
-            logger.debug(f"Enviando requisição GET para https://test.api.amadeus.com/v2/shopping/flight-offers")
+            # Preparar URL e parâmetros para a API direta (sem SDK)
+            url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
             
-            # Preparar parâmetros para o SDK
-            sdk_params = {
+            api_params = {
                 'originLocationCode': origin,
                 'destinationLocationCode': destination,
                 'departureDate': departure_date,
@@ -137,32 +143,42 @@ class AmadeusService:
             
             # Adicionar parâmetros opcionais
             if return_date:
-                sdk_params['returnDate'] = return_date
+                api_params['returnDate'] = return_date
+                
+            # Preparar cabeçalhos com o token
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
             
             # Calcular tempo de início para log de performance
             start_time = datetime.now()
             
             try:
-                # Fazer a chamada à API usando o SDK
-                response = self.client.shopping.flight_offers_search.get(**sdk_params)
+                # Fazer a chamada direto à API REST
+                response = requests.get(url, headers=headers, params=api_params)
+                response.raise_for_status()
                 
                 # Calcular tempo de resposta
                 elapsed = (datetime.now() - start_time).total_seconds()
                 logger.debug(f"Tempo de resposta: {elapsed:.2f}s")
                 
-                # Formatar a resposta
-                if hasattr(response, 'data'):
-                    logger.info(f"Busca bem-sucedida: {len(response.data)} voos encontrados")
+                # Processar a resposta
+                data = response.json()
+                
+                if 'data' in data:
+                    flights = data['data']
+                    logger.info(f"Busca bem-sucedida: {len(flights)} voos encontrados")
                     
                     # Adicionar links de compra personalizados
-                    for flight in response.data:
-                        if not hasattr(flight, 'purchaseLinks'):
+                    for flight in flights:
+                        if 'purchaseLinks' not in flight:
                             flight['purchaseLinks'] = self._generate_purchase_links(flight, params)
                     
                     result = {
-                        "data": response.data,
-                        "dictionaries": response.dictionaries if hasattr(response, 'dictionaries') else None,
-                        "meta": response.meta if hasattr(response, 'meta') else None
+                        "data": flights,
+                        "dictionaries": data.get('dictionaries'),
+                        "meta": data.get('meta')
                     }
                     
                     return result
@@ -170,18 +186,17 @@ class AmadeusService:
                     logger.error("Resposta da API não contém dados")
                     return {"error": "Resposta da API não contém dados", "data": []}
                     
-            except ResponseError as error:
-                # Capturar erros específicos da API
-                error_response = error.response
-                status_code = error_response.status_code
+            except requests.exceptions.HTTPError as error:
+                # Capturar erros HTTP específicos
+                status_code = error.response.status_code
                 
                 try:
-                    error_data = error_response.data
+                    error_data = error.response.json()
                     errors = error_data.get('errors', [])
                     error_messages = [e.get('title', '') for e in errors]
                     error_details = [e.get('detail', '') for e in errors]
                     
-                    logger.error(f"Erro na API ({status_code}): {error_response.body}")
+                    logger.error(f"Erro na API ({status_code}): {error.response.text}")
                     
                     # Verificar erros específicos
                     if status_code == 401:
@@ -196,11 +211,17 @@ class AmadeusService:
                 except Exception as e:
                     logger.error(f"Erro ao processar resposta de erro: {str(e)}")
                     return {"error": f"Erro na API Amadeus: {status_code}", "data": []}
-        
+                    
+            except Exception as e:
+                logger.error(f"Erro ao processar resposta da API: {str(e)}")
+                return {"error": f"Erro ao processar resposta da API: {str(e)}", "data": []}
+                
         except Exception as e:
             logger.error(f"Erro ao buscar voos: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
+            
+            # Retornar o erro sem dados simulados para manter a integridade
             return {"error": f"Erro ao buscar voos: {str(e)}", "data": []}
     
     def _generate_purchase_links(self, flight_offer, params):
@@ -756,9 +777,6 @@ class AmadeusService:
         
         logger.info(f"Iniciando busca de melhores preços: {params}")
         
-        if self.use_mock_data:
-            return self._get_mock_best_prices(params)
-            
         try:
             # Extrair parâmetros
             origin = params.get('originLocationCode')
@@ -834,9 +852,8 @@ class AmadeusService:
             
         except Exception as e:
             logging.error(f"Erro ao buscar melhores preços: {str(e)}")
-            # Se ocorrer um erro, usar dados simulados
-            self.use_mock_data = True
-            return self._get_mock_best_prices(params)
+            # Retornar o erro sem dados simulados para manter a integridade dos dados
+            return {"error": f"Erro ao buscar melhores preços: {str(e)}", "data": []}
             
     def _get_mock_best_prices(self, params):
         """Retorna dados simulados de melhores preços com dados de aeroportos reais"""

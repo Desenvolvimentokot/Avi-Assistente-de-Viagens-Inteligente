@@ -424,6 +424,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para exibir modal com detalhes do voo
     function showFlightDetailsModal(flightData, bestPricesData, isFlightType = false) {
+        // Verificar se os dados são simulados
+        const isSimulated = flightData.is_simulated || 
+                          (bestPricesData && bestPricesData.is_simulated);
+        
         // Remover qualquer modal existente
         const existingModal = document.querySelector('.flight-details-modal');
         if (existingModal) {
@@ -486,6 +490,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Montar o HTML do modal
+        // Verificar se há um aviso de dados simulados para adicionar
+        let simulatedDataWarning = '';
+        if (isSimulated) {
+            simulatedDataWarning = `
+                <div style="padding: 10px; background-color: #FFF3CD; color: #856404; 
+                    border: 1px solid #FFEEBA; border-radius: 5px; margin: 10px 0; font-size: 12px;">
+                    ⚠️ <strong>Nota:</strong> Os dados mostrados são ilustrativos. 
+                    Estamos trabalhando para fornecer informações em tempo real.
+                </div>
+            `;
+        }
+        
         const modalHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
@@ -494,6 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="modal-close">&times;</button>
                     </div>
                     <div class="modal-body">
+                        ${isSimulated ? simulatedDataWarning : ''}
                         <div class="flight-info-section">
                             <h3>Informações do Voo</h3>
                             <div class="flight-route">
