@@ -78,41 +78,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function sendMessage() {
-        const messageText = messageInput.value.trim();
+        const message = messageInput.value.trim();
+        if (message === '') return;
 
-        if (messageText) {
-            // Adicionar mensagem do usuário ao chat
-            addMessage(messageText, true);
+        // Adiciona a mensagem do usuário à conversa
+        addMessage(message, true);
+        messageInput.value = '';
 
-            // Limpar campo de entrada
-            messageInput.value = '';
+        // Garantir que a área de chat rola para mostrar a mensagem enviada
+        scrollToBottom();
 
-            // Adicionar indicador de digitação
-            showTypingIndicator();
+        // Mostra o indicador de digitação
+        showTypingIndicator();
 
-            // Enviar para processamento
-            processMessage(messageText);
-        }
-    }
-
-    function processMessage(message) {
-        // Preparar histórico para envio
-        const history = [];
-        const messageDivs = document.querySelectorAll('.message');
-
-        messageDivs.forEach(div => {
-            const isUser = div.classList.contains('user-message');
-            const content = div.querySelector('.message-content').innerText;
-
-            if (content) {
-                history.push({
-                    is_user: isUser,
-                    content: content
-                });
-            }
-        });
-
-        // Enviar para o backend
+        // Fazer a solicitação para o backend
         fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -121,7 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 message: message,
                 mode: chatMode,
-                history: history
+                conversationId: currentConversationId,
+                context: chatContext
             })
         })
         .then(response => response.json())
@@ -177,10 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
             contentElement.style.display = 'inline-block';
         }
 
-        // Rolar para o final da conversa automaticamente
-        setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 100);
+
     }
 
     function addPurchaseLink(url) {
@@ -416,6 +393,9 @@ document.addEventListener('DOMContentLoaded', function() {
         addWelcomeMessage();
     });
 
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
     //Start functions
     loadConversations();
