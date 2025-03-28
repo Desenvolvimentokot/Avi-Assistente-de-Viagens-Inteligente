@@ -78,15 +78,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function sendMessage() {
-        const userInput = messageInput.value.trim();
-        if (!userInput) return;
+        const message = messageInput.value.trim();
+        if (message === '') return;
 
-        // Adicionar mensagem do usuário à interface
-        addMessage(userInput, true);
+        // Adiciona a mensagem do usuário à conversa
+        addMessage(message, true);
         messageInput.value = '';
-        scrollToBottom(); // Garantir scroll após mensagem do usuário
 
-        // Exibir indicador de digitação
+        // Garantir que a área de chat rola para mostrar a mensagem enviada
+        scrollToBottom();
+
+        // Mostra o indicador de digitação
         showTypingIndicator();
 
         // Fazer a solicitação para o backend
@@ -96,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                message: userInput,
+                message: message,
                 mode: chatMode,
                 conversationId: currentConversationId,
                 context: chatContext
@@ -105,15 +107,23 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             removeTypingIndicator();
-            addMessage(data.response || 'Não entendi. Pode reformular?', false);
+
+            if (data.error) {
+                addMessage('Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.', false);
+                console.log("Error response:", data.error);
+                return;
+            }
+
+            // Adicionar resposta ao chat
+            addMessage(data.response, false);
+
+            // Scroll para mostrar a nova mensagem - usando nossa nova função
+            scrollToBottom();
 
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
                 addPurchaseLink(data.purchase_link);
             }
-
-            // Garantir scroll após renderização completa
-            scrollToBottom();
         })
         .catch(error => {
             console.log("Error getting chat response:", error);
@@ -126,23 +136,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
         messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
-        
-        // Completar função para garantir que ela funcione corretamente
-        const messageBox = document.createElement('div');
-        messageBox.classList.add('message-box');
-        messageBox.classList.add(isUser ? 'user' : 'assistant');
-        
-        const contentElement = document.createElement('div');
-        contentElement.classList.add('message-content');
-        contentElement.innerHTML = text;
-        
-        messageBox.appendChild(contentElement);
-        messageElement.appendChild(messageBox);
-        chatMessages.appendChild(messageElement);
-        
-        // Garantir scroll após adicionar mensagem
-        scrollToBottom();
-        return messageElement;age' : 'assistant-message');
 
         const contentContainer = document.createElement('div');
         contentContainer.classList.add('message-box');
@@ -398,17 +391,8 @@ document.addEventListener('DOMContentLoaded', function() {
         addWelcomeMessage();
     });
 
-    // Função eficaz para rolar para o final do chat
     function scrollToBottom() {
-        if (!chatMessages) return;
-        
-        // Método direto e simples
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        
-        // Garantir que o scroll seja aplicado mesmo após renderização completa
-        setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 100);
     }
 
     //Start functions

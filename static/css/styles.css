@@ -341,17 +341,12 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    position: relative;
-    max-height: calc(100vh - 130px);
-    scroll-behavior: auto; /* Mudar para auto para evitar animações que podem interferir */
 }
 
 .chat-messages {
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: min-content;
-    overflow-y: auto; /* Garantir que overflow funcione */
 }
 
 /* Input de mensagem */
