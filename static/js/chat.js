@@ -117,10 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Adicionar resposta ao chat
             addMessage(data.response, false);
 
-            // Garantir que rola até a mensagem mais recente
-            setTimeout(() => {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, 100);
+            // Scroll para mostrar a nova mensagem - usando nossa nova função
+            scrollToBottom();
 
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
