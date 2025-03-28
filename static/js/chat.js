@@ -75,20 +75,23 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.innerHTML = welcomeHTML;
+        scrollToBottom();
     }
 
     function sendMessage() {
         const message = messageInput.value.trim();
         if (message === '') return;
 
-        // Adiciona a mensagem do usuário à conversa
-        addMessage(message, true);
+        // Limpar campo de entrada
         messageInput.value = '';
 
-        // Garantir que a área de chat rola para mostrar a mensagem enviada
+        // Adicionar mensagem do usuário ao chat
+        addMessage(message, true);
+
+        // Garantir que a tela role após adicionar a mensagem do usuário
         scrollToBottom();
 
-        // Mostra o indicador de digitação
+        // Mostrar indicador de digitação
         showTypingIndicator();
 
         // Fazer a solicitação para o backend
@@ -119,6 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Scroll para mostrar a nova mensagem - usando nossa nova função
             scrollToBottom();
+            // Garantir novamente o scroll após um breve tempo para ter certeza que todo o conteúdo foi renderizado
+            setTimeout(scrollToBottom, 100);
 
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
