@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Adicionar resposta ao chat
             addMessage(data.response, false);
 
-            // Scroll para mostrar a nova mensagem - usando nossa nova função
+            // Scroll para mostrar a nova mensagem
             scrollToBottom();
 
             // Se houver link de compra, mostrar botão
@@ -154,8 +154,6 @@ document.addEventListener('DOMContentLoaded', function() {
             contentElement.style.whiteSpace = 'normal';
             contentElement.style.display = 'inline-block';
         }
-
-
     }
 
     function addPurchaseLink(url) {
@@ -169,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.appendChild(purchaseElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 
     function showTypingIndicator() {
@@ -188,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
         typingElement.appendChild(contentElement);
 
         chatMessages.appendChild(typingElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 
     function removeTypingIndicator() {
@@ -315,7 +313,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     }
 
-
     function formatDuration(durationStr) {
         const hoursMatch = durationStr.match(/(\d+)H/);
         const minutesMatch = durationStr.match(/(\d+)M/);
@@ -354,7 +351,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return links[code] || links['default'];
     }
 
-
     // Adicionar event listeners para itens da navegação
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', function() {
@@ -378,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Adicionar event listener para o botão de nova conversa
     document.querySelector('.add-conversation').addEventListener('click', function() {
         // Limpar mensagens existentes
-        document.querySelector('.chat-messages').innerHTML = '';
+        chatMessages.innerHTML = '';
 
         // Resetar ID de conversa
         chatContext = {
@@ -391,11 +387,13 @@ document.addEventListener('DOMContentLoaded', function() {
         addWelcomeMessage();
     });
 
+    // Função que garante o scroll automático no contêiner correto
     function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        const chatContainer = document.querySelector('.chat-container');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    //Start functions
+    // Start functions
     loadConversations();
     loadUserProfile();
     loadTravelPlans();

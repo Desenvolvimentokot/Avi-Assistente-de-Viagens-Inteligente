@@ -1,0 +1,66 @@
+Olá, preciso da sua ajuda para diagnosticar e otimizar a integração com a API do Amadeus no nosso site. Nosso fluxo funciona da seguinte forma:
+
+Início: O usuário inicia uma conversa com o chat.
+
+Interação com a API do GPT: Durante a conversa, o sistema utiliza a API do GPT e tudo funciona normalmente.
+
+Solicitação de Passagens: Ao final da conversa, quando o usuário solicita as passagens mais baratas, o sistema realiza uma requisição à API do Amadeus, mas as informações esperadas não são retornadas.
+Nota: Já possuímos as chaves (client_id e client_secret) e todas as dependências necessárias estão instaladas.
+
+Gostaria que você realizasse uma análise meticulosa seguindo as etapas abaixo, ajustando apenas o que estou pedindo – sem alterar o layout ou modificar outras partes do sistema que não devam ser alteradas:
+
+ETAPA 1: VERIFICAÇÃO DO AMBIENTE ATUAL
+
+Liste todas as bibliotecas e dependências instaladas relacionadas à API do Amadeus, informando as versões atuais.
+
+Identifique possíveis conflitos, duplicidades ou instalações redundantes.
+
+ETAPA 2: DIAGNÓSTICO DE AUTENTICAÇÃO
+
+Analise o método atual de autenticação OAuth 2.0.
+
+Verifique se as credenciais (client_id e client_secret) estão configuradas corretamente e se as variáveis de ambiente necessárias estão definidas.
+
+ETAPA 3: VALIDAÇÃO DE CONFIGURAÇÕES
+
+Inspecione o código de configuração da API do Amadeus, garantindo que o ambiente (produção ou sandbox) esteja configurado conforme a documentação oficial.
+
+Avalie a estratégia de gerenciamento e renovação dos tokens de acesso.
+
+ETAPA 4: TESTE DE CONEXÃO E REQUISIÇÃO DE PASSAGENS
+
+Desenvolva um script de teste que:
+
+Realize a autenticação na API do Amadeus;
+
+Execute uma requisição de teste para obter passagens (por exemplo, uma consulta de aeroportos, cidades ou diretamente uma consulta de passagens);
+
+Capture e relate detalhadamente quaisquer erros ou respostas inesperadas (incluindo status codes e mensagens de erro).
+
+Implemente tratamento robusto de exceções e gere logs detalhados de cada etapa do processo.
+
+ETAPA 5: OTIMIZAÇÃO E MELHORIAS
+
+Identifique gargalos ou ineficiências no fluxo de integração atual.
+
+Sugira melhorias para performance e segurança, além de ajustes para evitar sobrecarga do sistema.
+
+Forneça exemplos de código otimizados para a requisição de passagens, se aplicável.
+
+IMPORTANTE:
+
+Ajuste somente o que estou pedindo. Não altere o layout ou modifique partes do sistema que não necessitem de mudanças.
+
+Não adicione novos pacotes ou dependências desnecessariamente; priorize a otimização do que já está implementado.
+
+O relatório final deve conter:
+
+O status atual da integração com a API do Amadeus;
+
+Problemas identificados durante o diagnóstico;
+
+Recomendações e soluções específicas para cada etapa;
+
+Exemplos de código otimizados (se aplicável).
+
+Você pode preparar esse diagnóstico detalhado com base nessas etapas e informações?
