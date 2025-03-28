@@ -78,17 +78,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function sendMessage() {
-        const message = messageInput.value.trim();
-        if (message === '') return;
+        const userInput = messageInput.value.trim();
+        if (!userInput) return;
 
-        // Adiciona a mensagem do usuário à conversa
-        addMessage(message, true);
+        // Adicionar mensagem do usuário à interface
+        addMessage(userInput, true);
         messageInput.value = '';
+        scrollToBottom(); // Garantir scroll após mensagem do usuário
 
-        // Garantir que a área de chat rola para mostrar a mensagem enviada
-        scrollToBottom();
-
-        // Mostra o indicador de digitação
+        // Exibir indicador de digitação
         showTypingIndicator();
 
         // Fazer a solicitação para o backend
@@ -98,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                message: message,
+                message: userInput,
                 mode: chatMode,
                 conversationId: currentConversationId,
                 context: chatContext
@@ -107,23 +105,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             removeTypingIndicator();
-
-            if (data.error) {
-                addMessage('Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.', false);
-                console.log("Error response:", data.error);
-                return;
-            }
-
-            // Adicionar resposta ao chat
-            addMessage(data.response, false);
-
-            // Scroll para mostrar a nova mensagem - usando nossa nova função
-            scrollToBottom();
+            addMessage(data.response || 'Não entendi. Pode reformular?', false);
 
             // Se houver link de compra, mostrar botão
             if (data.purchase_link) {
                 addPurchaseLink(data.purchase_link);
             }
+
+            // Garantir scroll após renderização completa
+            scrollToBottom();
         })
         .catch(error => {
             console.log("Error getting chat response:", error);

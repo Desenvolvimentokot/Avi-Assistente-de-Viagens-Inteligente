@@ -341,12 +341,16 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
+    position: relative;
+    max-height: calc(100vh - 130px);
 }
 
 .chat-messages {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-height: min-content;
+    overflow-anchor: auto;
 }
 
 /* Input de mensagem */
