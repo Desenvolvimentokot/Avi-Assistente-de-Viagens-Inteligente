@@ -137,29 +137,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function addMessage(text, isUser = false) {
+    function addMessage(text, isUser = false, additionalClasses = '') {
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
+        messageElement.classList.add('message', isUser ? 'user-message' : 'assistant-message', additionalClasses);
 
-        const contentContainer = document.createElement('div');
-        contentContainer.classList.add('message-box');
-        contentContainer.classList.add(isUser ? 'user' : 'assistant');
+        const messageBox = document.createElement('div');
+        messageBox.classList.add('message-box', isUser ? 'user' : 'assistant');
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
-        contentElement.innerText = text;
 
-        contentContainer.appendChild(contentElement);
-        messageElement.appendChild(contentContainer);
-        chatMessages.appendChild(messageElement);
-
-        // Garantir que o texto não fique na vertical
-        if (isUser) {
-            contentElement.style.whiteSpace = 'normal';
-            contentElement.style.display = 'inline-block';
+        // Verificar se o texto tem quebras de linha e processá-las
+        if (text.includes('\n')) {
+            // Dividir o texto em linhas e criar elementos <p> para cada uma
+            const lines = text.split('\n');
+            lines.forEach((line, index) => {
+                if (line.trim() !== '') {
+                    const paragraph = document.createElement('p');
+                    paragraph.textContent = line;
+                    contentElement.appendChild(paragraph);
+                } else if (index < lines.length - 1) {
+                    // Adicionar quebra de linha se não for a última linha vazia
+                    contentElement.appendChild(document.createElement('br'));
+                }
+            });
+        } else {
+            contentElement.textContent = text;
         }
 
+        messageBox.appendChild(contentElement);
+        messageElement.appendChild(messageBox);
+        chatMessages.appendChild(messageElement);
+
+        // Sempre fazer o scroll ao adicionar uma mensagem
         scrollToBottom();
     }
 
@@ -174,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         chatMessages.appendChild(purchaseElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 
     function showTypingIndicator() {

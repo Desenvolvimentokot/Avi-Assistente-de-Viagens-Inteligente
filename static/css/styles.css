@@ -343,6 +343,7 @@ body {
     flex-direction: column;
     position: relative;
     height: calc(100vh - 180px); /* Altura calculada para garantir visibilidade */
+    overflow-anchor: none; /* Previne comportamento de scroll automático inconsistente */
 }
 
 .chat-messages {
@@ -351,6 +352,7 @@ body {
     width: 100%;
     min-height: 100%;
     justify-content: flex-start;
+    overflow-anchor: auto; /* Permite o scroll automático quando novo conteúdo é adicionado */
 }
 
 /* Input de mensagem */
