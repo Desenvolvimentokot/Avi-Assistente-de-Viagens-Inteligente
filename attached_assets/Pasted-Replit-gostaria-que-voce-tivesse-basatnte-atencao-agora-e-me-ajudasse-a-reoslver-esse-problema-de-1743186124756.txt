@@ -1,0 +1,18 @@
+Replit... gostaria que voce tivesse basatnte atencao agora e me ajudasse a reoslver esse problema de vez... aprece que estamos usando a nossa api da amadeus de maneira errada, nao sei se o sistema ja possui uma outra maneira de usar e esta conflitando... poque quando te passei todos os dados, inclusive o link do diretorio do github aonde mostava como configurar exatamente em python o api doa madeus, voce me dissse que estava fucnionado perfeitametne apos isso... niclsuive realizou diversos testes que o retorno do teste estava indicando total funcionamento. verifiquei na minha conta da amadeus e eu tenho todo o direito de usar o flightsoffer do amadeus inclsuive muitas outras coisas. 
+
+analise tudo com calma e verifique se nao existe diversas maneiras no nosso site e que pode estar conflitando tudo. quando voce alterou inclusivefalou que estavamos usando uma sdk errada e colocou a sdk correta par funciona *(acho que foi algo assim). 
+
+cerifique-se que o noso gpt esta sendo integrado pefeitametne tambem.
+Verifque nosso se o nosso workflow proposto esta sendo usado de maneiira adequada... vou por uma breve explicacao do que seira, porem voce ja tem todo esse aquivo ai que eu ja te mandei
+
+cleinte manda informacao via chat para a gente - chat gpt (Assistente Avi) analisa as mensagems e conversa com o cliente buscando todas informacoes ncessarias- chat gpt devolve para o cleinte para que ele confirme se é isso que deseja- cleinte confirma- chat gpt masteriza todos os dados afim de enviar da melhor maneira para o api amadeus entender a solicitacao- solciita o uso da api amadeus de acordo com o que deseja- api amadeus pesquisa- api amadeus retorna os dados para o gpt- gpt organiza os dados e apresenta para o cliente - 
+
+nessa ultima parte que o gpt devovle as informacoes para o cliente , essas informacoes precisao ser verdadeiras! tem que ser. veja o que pode esta acontcendo tambem para que o sistema envie informacoes simuladas. nao quero mais isso no sistema. precisamos ter as reais, ja que podemos usar o amadeus com total capacidade. 
+
+verifique tambem as  inconsistencias no texto... o que nao bate com oque esta mostando nos cards, dentro dos detalhes nao possuem quase nenhum detalhe. verifique se estamos exportando certo do amadeus.
+
+analise se é algo do prompt do gpt que esta fazendo isso, alguma coisa antiga que pode esatr causando isso. 
+
+de fato eu preciso de uma revista geral em todo esse nosso workflow e fazendo ele funcionar como deve ser.
+
+Faça um ótimo trabalho digno de parabens e como voce sempre faz! Valeu Replit!

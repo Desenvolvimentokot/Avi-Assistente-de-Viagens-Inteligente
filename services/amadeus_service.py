@@ -1,69 +1,77 @@
 # Primeira definição da classe removida para evitar duplicação
 # O código começa com imports
+#!/usr/bin/env python3
 import os
+import re
 import logging
 import requests
-import json
+from datetime import datetime, timedelta
+from amadeus import Client, ResponseError
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('amadeus_service')
 
 class AmadeusService:
+    """
+    Serviço para integração com a API da Amadeus usando o SDK oficial
+    """
+    
     def __init__(self):
+        """Inicializa o serviço Amadeus com credenciais das variáveis de ambiente"""
         self.api_key = os.environ.get('AMADEUS_API_KEY')
         self.api_secret = os.environ.get('AMADEUS_API_SECRET')
-        self.token = None
-        self.token_expiry = None
+        self.client = None
+        self.is_production = False
+        self.base_url = "https://test.api.amadeus.com/v1"
         
-        # Verificar se as credenciais existem
-        if not self.api_key or not self.api_secret:
-            logging.warning("Credenciais do Amadeus não encontradas! Verifique as variáveis de ambiente AMADEUS_API_KEY e AMADEUS_API_SECRET.")
-            self.api_key = "Bw5AGWcgGyVjm6sYQOGrzDVCN2vOCTGG"  # Backup de credencial do .env
-            self.api_secret = "lzDOBGcsjA8sUCGS"  # Backup de credencial do .env
-            
-        # Usar dados simulados apenas se não conseguir autenticar
-        self.use_mock_data = False
-        
+        # Inicializar o cliente
+        if self.api_key and self.api_secret:
+            try:
+                self.client = Client(
+                    client_id=self.api_key,
+                    client_secret=self.api_secret,
+                    logger=logger
+                )
+                logger.info(f"AmadeusService inicializado - Ambiente: {'Produção' if self.is_production else 'Teste'}")
+                logger.info(f"URL Base: {self.base_url}")
+                logger.info(f"API Key configurada:  {self.api_key[:3]}...{self.api_key[-4:]}")
+                logger.info(f"API Secret configurada: {self.api_secret[:2]}...{self.api_secret[-2:]}")
+            except Exception as e:
+                logger.error(f"Erro ao inicializar cliente Amadeus: {str(e)}")
+        else:
+            logger.error("Credenciais da API Amadeus não encontradas. Verifique as variáveis de ambiente AMADEUS_API_KEY e AMADEUS_API_SECRET.")
+    
     def get_token(self):
-        """Obtém um token de autenticação da API Amadeus"""
-        if self.use_mock_data:
-            return "MOCK_TOKEN"
-            
-        # Verificar credenciais antes de fazer a requisição
-        if not self.api_key or not self.api_secret:
-            logging.error("Credenciais do Amadeus não configuradas corretamente")
-            self.use_mock_data = True
+        """
+        Verifica se o cliente está inicializado e retorna um token válido
+        Essa função existe para manter compatibilidade com o código existente
+        """
+        if not self.client:
+            logger.error("Cliente Amadeus não inicializado. Verifique as credenciais.")
             return None
-            
-        url = "https://test.api.amadeus.com/v1/security/oauth2/token"
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": self.api_key,
-            "client_secret": self.api_secret
-        }
         
+        # O SDK gerencia automaticamente a obtenção e renovação do token
+        # Esta função agora apenas verifica se o cliente foi inicializado corretamente
         try:
-            logging.info(f"Obtendo token do Amadeus com chave: {self.api_key[:5]}... e secret: {self.api_secret[:3]}...")
+            logger.info("Renovando token de autenticação Amadeus")
+            # Forçar a criação de um novo token
+            token_response = self.client.auth.get_token()
+            token = token_response[0].get('access_token')
+            expires_in = token_response[0].get('expires_in')
+            logger.debug(f"Resposta de autenticação: Status {token_response[1]}")
             
-            headers = {
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
-            
-            response = requests.post(url, headers=headers, data=payload)
-            
-            logging.info(f"Resposta Amadeus status: {response.status_code}")
-            
-            if response.status_code != 200:
-                logging.error(f"Erro ao obter token do Amadeus: Status {response.status_code}")
-                logging.error(f"Resposta: {response.text}")
-                self.use_mock_data = True
+            if token:
+                logger.info(f"Token obtido com sucesso. Expira em {expires_in} segundos.")
+                # Mascarar o token ao exibir no log
+                masked_token = f"{token[:5]}...{token[-5:]}" if len(token) > 10 else "***"
+                return token
+            else:
+                logger.error("Falha ao obter token de autenticação")
                 return None
                 
-            data = response.json()
-            self.token = data["access_token"]
-            logging.info("Token do Amadeus obtido com sucesso!")
-            
-            return self.token
         except Exception as e:
-            logging.error(f"Erro ao obter token do Amadeus: {str(e)}")
-            self.use_mock_data = True
+            logger.error(f"Erro ao obter token de autenticação: {str(e)}")
             return None
     
     def search_flights(self, params):
@@ -77,82 +85,261 @@ class AmadeusService:
         - returnDate: data de retorno (opcional, formato YYYY-MM-DD)
         - adults: número de adultos (default: 1)
         - currencyCode: moeda (default: "BRL")
+        - max: número máximo de resultados (default: 10)
         """
-        logging.info(f"Iniciando busca de voos com params: {params}")
+        logger.info(f"Iniciando busca de voos: {params}")
         
-        if self.use_mock_data:
-            logging.warning("Usando dados simulados para voos")
-            mock_data = self._get_mock_flights(params)
-            logging.info(f"Retornando {len(mock_data.get('data', []))} voos simulados")
-            return mock_data
+        if not self.client:
+            logger.error("Cliente Amadeus não inicializado. Verifique as credenciais.")
+            return {"error": "Cliente Amadeus não inicializado", "data": []}
+        
+        # Verificar token antes de continuar
+        if not self.get_token():
+            logger.error("Não foi possível obter token de autenticação")
+            return {"error": "Erro de autenticação", "data": []}
             
-        url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
-        
-        # Preparar cabeçalhos com o token de autenticação
-        token = self.get_token()
-        if not token:
-            logging.error("Sem token de autenticação, usando dados simulados")
-            self.use_mock_data = True
-            return self._get_mock_flights(params)
-            
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
-        
         try:
-            logging.info(f"Enviando requisição para Amadeus: {url}")
-            response = requests.get(url, headers=headers, params=params)
+            # Extrair e validar os parâmetros
+            origin = params.get('originLocationCode')
+            destination = params.get('destinationLocationCode')
+            departure_date = params.get('departureDate')
+            return_date = params.get('returnDate')
+            adults = int(params.get('adults', 1))
+            currency = params.get('currencyCode', 'BRL')
+            max_results = int(params.get('max', 10))
             
-            logging.info(f"Resposta Amadeus status: {response.status_code}")
+            if not origin or not destination or not departure_date:
+                logger.error("Parâmetros obrigatórios faltando: origem, destino ou data de partida")
+                return {"error": "Parâmetros incompletos", "data": []}
             
-            if response.status_code != 200:
-                logging.error(f"Erro na API do Amadeus: {response.status_code}")
-                logging.error(f"Detalhes: {response.text}")
-                self.use_mock_data = True
-                return self._get_mock_flights(params)
+            # Verificar formato das datas
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', departure_date):
+                logger.error(f"Formato de data inválido: {departure_date}")
+                return {"error": "Formato de data inválido", "data": []}
             
-            json_data = response.json()
-            logging.info(f"Dados recebidos do Amadeus com {len(json_data.get('data', []))} voos")
+            if return_date and not re.match(r'^\d{4}-\d{2}-\d{2}$', return_date):
+                logger.error(f"Formato de data de retorno inválido: {return_date}")
+                return {"error": "Formato de data de retorno inválido", "data": []}
             
-            return json_data
+            logger.debug(f"Enviando requisição GET para https://test.api.amadeus.com/v2/shopping/flight-offers")
+            
+            # Preparar parâmetros para o SDK
+            sdk_params = {
+                'originLocationCode': origin,
+                'destinationLocationCode': destination,
+                'departureDate': departure_date,
+                'adults': adults,
+                'currencyCode': currency,
+                'max': max_results
+            }
+            
+            # Adicionar parâmetros opcionais
+            if return_date:
+                sdk_params['returnDate'] = return_date
+            
+            # Calcular tempo de início para log de performance
+            start_time = datetime.now()
+            
+            try:
+                # Fazer a chamada à API usando o SDK
+                response = self.client.shopping.flight_offers_search.get(**sdk_params)
+                
+                # Calcular tempo de resposta
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logger.debug(f"Tempo de resposta: {elapsed:.2f}s")
+                
+                # Formatar a resposta
+                if hasattr(response, 'data'):
+                    logger.info(f"Busca bem-sucedida: {len(response.data)} voos encontrados")
+                    
+                    # Adicionar links de compra personalizados
+                    for flight in response.data:
+                        if not hasattr(flight, 'purchaseLinks'):
+                            flight['purchaseLinks'] = self._generate_purchase_links(flight, params)
+                    
+                    result = {
+                        "data": response.data,
+                        "dictionaries": response.dictionaries if hasattr(response, 'dictionaries') else None,
+                        "meta": response.meta if hasattr(response, 'meta') else None
+                    }
+                    
+                    return result
+                else:
+                    logger.error("Resposta da API não contém dados")
+                    return {"error": "Resposta da API não contém dados", "data": []}
+                    
+            except ResponseError as error:
+                # Capturar erros específicos da API
+                error_response = error.response
+                status_code = error_response.status_code
+                
+                try:
+                    error_data = error_response.data
+                    errors = error_data.get('errors', [])
+                    error_messages = [e.get('title', '') for e in errors]
+                    error_details = [e.get('detail', '') for e in errors]
+                    
+                    logger.error(f"Erro na API ({status_code}): {error_response.body}")
+                    
+                    # Verificar erros específicos
+                    if status_code == 401:
+                        logger.error("Problema com permissões da API: A chave API não tem acesso a este endpoint")
+                        return {"error": "Permissão de API insuficiente", "data": []}
+                    elif status_code == 400:
+                        logger.error(f"Erro nos parâmetros: {error_details}")
+                        return {"error": f"Parâmetros inválidos: {', '.join(error_messages)}", "data": []}
+                    else:
+                        return {"error": f"Erro na API Amadeus: {', '.join(error_messages)}", "data": []}
+                
+                except Exception as e:
+                    logger.error(f"Erro ao processar resposta de erro: {str(e)}")
+                    return {"error": f"Erro na API Amadeus: {status_code}", "data": []}
+        
         except Exception as e:
-            logging.error(f"Erro ao buscar voos: {str(e)}")
-            self.use_mock_data = True
+            logger.error(f"Erro ao buscar voos: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return {"error": f"Erro ao buscar voos: {str(e)}", "data": []}
+    
+    def _generate_purchase_links(self, flight_offer, params):
+        """Gera links de compra para uma oferta de voo"""
+        try:
+            origin = params.get('originLocationCode', '')
+            destination = params.get('destinationLocationCode', '')
+            departure_date = params.get('departureDate', '')
             
-            # Se ocorrer um erro, retorna os dados simulados
-            logging.info("Usando dados simulados após erro")
-            return self._get_mock_flights(params)
+            # Extrair informações da companhia aérea
+            carrier_code = None
+            if 'itineraries' in flight_offer and flight_offer['itineraries']:
+                if 'segments' in flight_offer['itineraries'][0] and flight_offer['itineraries'][0]['segments']:
+                    carrier_code = flight_offer['itineraries'][0]['segments'][0].get('carrierCode')
+            
+            # Gerar links de compra baseados na companhia aérea
+            purchase_links = []
+            
+            # Link direto para a companhia aérea
+            if carrier_code:
+                if carrier_code == 'AF':  # Air France
+                    url = f"https://www.airfrance.com.br/search?origin={origin}&destination={destination}&date={departure_date}&adult=1"
+                    purchase_links.append({
+                        "type": "direct",
+                        "url": url,
+                        "provider": "Air France"
+                    })
+                elif carrier_code == 'LH':  # Lufthansa
+                    url = f"https://www.lufthansa.com/br/pt/homepage?travelFromCode={origin}&travelToCode={destination}&outwardDateDep={departure_date}&adult=1"
+                    purchase_links.append({
+                        "type": "direct",
+                        "url": url,
+                        "provider": "Lufthansa"
+                    })
+                elif carrier_code == 'LA':  # LATAM
+                    url = f"https://www.latamairlines.com/br/pt/oferta-voos?origin={origin}&destination={destination}&outbound={departure_date}&adults=1"
+                    purchase_links.append({
+                        "type": "direct",
+                        "url": url,
+                        "provider": "LATAM"
+                    })
+            
+            # Links para OTAs (Online Travel Agencies)
+            # Decolar
+            url_decolar = f"https://www.decolar.com/shop/flights/results/{origin}/{destination}/{departure_date}/1/0/0"
+            purchase_links.append({
+                "type": "agency",
+                "url": url_decolar,
+                "provider": "Decolar.com"
+            })
+            
+            return purchase_links
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar links de compra: {str(e)}")
+            return []
     
     def search_hotels(self, params):
         """
-        Busca hotéis baseado nos parâmetros fornecidos
+        Busca hotéis baseado nos parâmetros fornecidos usando o SDK da Amadeus
         
         Params:
         - cityCode: código da cidade (exemplo: "PAR" para Paris)
         - radius: raio em KM (opcional)
         - radiusUnit: unidade do raio (KM ou MILE, opcional)
         """
-        if self.use_mock_data:
-            return self._get_mock_hotels(params)
+        logger.info(f"Iniciando busca de hotéis: {params}")
+        
+        if not self.client:
+            logger.error("Cliente Amadeus não inicializado. Verifique as credenciais.")
+            return {"error": "Cliente Amadeus não inicializado", "data": []}
+        
+        # Verificar token antes de continuar
+        if not self.get_token():
+            logger.error("Não foi possível obter token de autenticação")
+            return {"error": "Erro de autenticação", "data": []}
             
-        url = "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city"
-        
-        # Preparar cabeçalhos com o token de autenticação
-        token = self.get_token()
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
-        
         try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
+            # Extrair e validar os parâmetros
+            city_code = params.get('cityCode')
             
-            return response.json()
+            if not city_code:
+                logger.error("Parâmetro obrigatório faltando: cityCode")
+                return {"error": "Parâmetro cityCode obrigatório", "data": []}
+            
+            # Construir parâmetros para o SDK
+            sdk_params = {
+                'cityCode': city_code
+            }
+            
+            # Adicionar parâmetros opcionais
+            if 'radius' in params:
+                sdk_params['radius'] = params['radius']
+            
+            if 'radiusUnit' in params:
+                sdk_params['radiusUnit'] = params['radiusUnit']
+            
+            # Calcular tempo de início para log de performance
+            start_time = datetime.now()
+            
+            try:
+                # Fazer a chamada à API usando o SDK
+                response = self.client.reference_data.locations.hotels.by_city.get(**sdk_params)
+                
+                # Calcular tempo de resposta
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logger.debug(f"Tempo de resposta: {elapsed:.2f}s")
+                
+                # Formatar a resposta
+                if hasattr(response, 'data'):
+                    logger.info(f"Busca bem-sucedida: {len(response.data)} hotéis encontrados")
+                    
+                    return {
+                        "data": response.data,
+                        "meta": response.meta if hasattr(response, 'meta') else None
+                    }
+                else:
+                    logger.error("Resposta da API não contém dados")
+                    return {"error": "Resposta da API não contém dados", "data": []}
+                    
+            except ResponseError as error:
+                # Capturar erros específicos da API
+                error_response = error.response
+                status_code = error_response.status_code
+                
+                try:
+                    error_data = error_response.data
+                    errors = error_data.get('errors', [])
+                    error_messages = [e.get('title', '') for e in errors]
+                    
+                    logger.error(f"Erro na API ({status_code}): {error_response.body}")
+                    
+                    return {"error": f"Erro na API Amadeus: {', '.join(error_messages)}", "data": []}
+                
+                except Exception as e:
+                    logger.error(f"Erro ao processar resposta de erro: {str(e)}")
+                    return {"error": f"Erro na API Amadeus: {status_code}", "data": []}
+        
         except Exception as e:
-            logging.error(f"Erro ao buscar hotéis: {str(e)}")
-            
-            # Se ocorrer um erro, retorna o erro formatado
-            return {"error": str(e)}
+            logger.error(f"Erro ao buscar hotéis: {str(e)}")
+            return {"error": f"Erro ao buscar hotéis: {str(e)}", "data": []}
     
     def search_hotel_offers(self, params):
         """
