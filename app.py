@@ -86,7 +86,6 @@ def chat():
             # Recuperar travel_info anterior, se existir
             current_travel_info = conversation_store[session_id].get('travel_info', {})
             
-            # Primeiro, usar o OpenAI para entender a intenção do usuário e organizar os dados
             # Transformar o histórico no formato esperado pelo OpenAI Service
             openai_history = []
             for msg in history:
@@ -95,45 +94,186 @@ def chat():
                 elif 'assistant' in msg:
                     openai_history.append({'is_user': False, 'content': msg['assistant']})
             
-            # Obter resposta do GPT
-            gpt_result = openai_service.travel_assistant(message, openai_history)
+            # Análise do estágio atual do fluxo de conversação
+            # 1. Se estamos extraindo informações inicialmente
+            # 2. Se estamos confirmando os detalhes
+            # 3. Se estamos buscando e apresentando resultados
             
+            # Definir o contexto de sistema para a API do GPT com base no estágio
+            step = current_travel_info.get('step', 0)
+            
+            # Extrair informações da mensagem antes para enriquecer o contexto
+            travel_info = chat_processor.extract_travel_info(message)
+            if travel_info:
+                current_travel_info.update(travel_info)
+                
+            # Determinar se já temos informações suficientes para busca
+            has_sufficient_info = False
+            errors = chat_processor.validate_travel_info(current_travel_info)
+            if not errors:
+                has_sufficient_info = True
+            
+            # Preparar sistema de contexto específico para o GPT baseado no estágio
+            system_context = ""
+            
+            if step == 0:  # Etapa de extração de informações
+                # Informar o ChatGPT sobre o que já sabemos para ele focar no que falta
+                missing_info = []
+                for key, error in errors.items() if errors else {}:
+                    missing_info.append(f"- {error}")
+                
+                if missing_info:
+                    system_context = f"""
+                    Estamos na etapa de coleta de informações para busca de voos.
+                    As seguintes informações ainda precisam ser obtidas:
+                    {chr(10).join(missing_info)}
+                    
+                    Solicite ao usuário essas informações de forma natural e conversacional.
+                    NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
+                    """
+                else:
+                    # Temos todas as informações, vamos para a confirmação
+                    current_travel_info['step'] = 1
+                    step = 1
+                    
+                    # Formatar as informações para confirmar
+                    summary = chat_processor.format_travel_info_summary(current_travel_info)
+                    system_context = f"""
+                    Temos todas as informações necessárias para busca:
+                    {summary}
+                    
+                    Confirme estes detalhes com o usuário de forma natural antes de realizar a busca.
+                    NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
+                    """
+                    
+            elif step == 1:  # Etapa de confirmação
+                # Verificar se o usuário confirmou
+                confirmation = False
+                if "sim" in message.lower() or "confirmo" in message.lower() or "pode buscar" in message.lower() or "ok" in message.lower():
+                    confirmation = True
+                    
+                if confirmation:
+                    # Usuário confirmou, vamos buscar os voos
+                    current_travel_info['confirmed'] = True
+                    current_travel_info['step'] = 2
+                    step = 2
+                    system_context = """
+                    O usuário confirmou as informações. Informe que você está buscando voos reais
+                    através da API da Amadeus. Não forneça resultados simulados, apenas explique
+                    que está consultando os dados reais.
+                    """
+                else:
+                    # Continuar na etapa de confirmação
+                    summary = chat_processor.format_travel_info_summary(current_travel_info)
+                    system_context = f"""
+                    Precisamos confirmar estas informações para busca:
+                    {summary}
+                    
+                    Confirme estes detalhes com o usuário de forma natural antes de realizar a busca.
+                    NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
+                    """
+                    
+            elif step == 2:  # Etapa de busca e apresentação de resultados
+                # Se já buscamos antes, apenas continuar a conversa
+                if current_travel_info.get('search_results'):
+                    system_context = """
+                    Já temos resultados de busca de voos. Responda às perguntas do usuário
+                    usando apenas os dados reais que já foram obtidos.
+                    """
+                else:
+                    # Vamos buscar voos pela primeira vez
+                    system_context = """
+                    Estamos prontos para buscar voos. Informe ao usuário que você está
+                    consultando a API da Amadeus para obter dados reais de voos. 
+                    NÃO SIMULE resultados - vamos obter dados reais após esta interação.
+                    """
+            
+            # Obter resposta do GPT com o contexto específico do estágio
+            gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+                
             if 'error' in gpt_result:
                 logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
-                # Caso falhe a API do GPT, usamos diretamente a busca rápida
+                # Fallback para processamento direto
                 current_context = {
-                    'step': current_travel_info.get('step', 0),
+                    'step': step,
                     'travel_info': current_travel_info,
                     'search_results': current_travel_info.get('search_results'),
                     'error': None
                 }
                 updated_context, response_text = busca_rapida_service.process_message(message, current_context)
             else:
-                # Agora processar com o serviço de busca rápida
-                # O GPT nos ajudou a entender a mensagem e estruturar a interação
+                # O GPT ajudou a entender e estruturar a interação
                 gpt_response = gpt_result['response']
                 
-                current_context = {
-                    'step': current_travel_info.get('step', 0),
+                # Se estamos na etapa 2 e confirmado, realizar a busca real agora
+                if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
+                    # Buscar voos reais da API
+                    search_results = None
+                    try:
+                        # Detectar o tipo de busca necessária (data específica ou período)
+                        if current_travel_info.get('date_range_start') and current_travel_info.get('date_range_end'):
+                            # Busca de período flexível
+                            search_params = {
+                                'originLocationCode': current_travel_info.get('origin'),
+                                'destinationLocationCode': current_travel_info.get('destination'),
+                                'departureDate': current_travel_info.get('date_range_start'),
+                                'returnDate': current_travel_info.get('date_range_end'),
+                                'adults': current_travel_info.get('adults', 1),
+                                'currencyCode': 'BRL',
+                                'max_dates_to_check': 3
+                            }
+                            search_results = amadeus_service.search_best_prices(search_params)
+                        else:
+                            # Busca de data específica
+                            search_params = {
+                                'originLocationCode': current_travel_info.get('origin'),
+                                'destinationLocationCode': current_travel_info.get('destination'),
+                                'departureDate': current_travel_info.get('departure_date'),
+                                'adults': current_travel_info.get('adults', 1),
+                                'currencyCode': 'BRL',
+                                'max': 5
+                            }
+                            
+                            # Adicionar data de retorno se disponível
+                            if current_travel_info.get('return_date'):
+                                search_params['returnDate'] = current_travel_info.get('return_date')
+                                
+                            search_results = amadeus_service.search_flights(search_params)
+                        
+                        # Armazenar resultados da busca
+                        current_travel_info['search_results'] = search_results
+                        
+                        # Formatar a resposta para o usuário com dados reais
+                        if 'error' in search_results:
+                            # Informar erro na busca
+                            response_text = f"{gpt_response}\n\nInfelizmente, tive um problema ao buscar voos reais: {search_results['error']}"
+                        else:
+                            # Formatar resultados reais de voos
+                            flight_results = busca_rapida_service._format_search_results(search_results)
+                            response_text = f"{gpt_response}\n\n{flight_results}"
+                    except Exception as e:
+                        logging.error(f"Erro na busca de voos: {str(e)}")
+                        response_text = f"{gpt_response}\n\nDesculpe, tive um problema técnico ao buscar voos: {str(e)}"
+                else:
+                    # Etapas 0 ou 1, ou sem confirmação - usar apenas a resposta do GPT
+                    response_text = gpt_response
+                
+                # Atualizar o contexto
+                updated_context = {
+                    'step': step,
                     'travel_info': current_travel_info,
                     'search_results': current_travel_info.get('search_results'),
                     'error': None,
-                    'gpt_response': gpt_response  # Adiciona a resposta do GPT ao contexto
+                    'gpt_response': gpt_response
                 }
-                
-                # Usar o serviço de busca rápida com o contexto enriquecido pelo GPT
-                updated_context, response_text = busca_rapida_service.process_message(message, current_context)
             
             # Armazena a resposta no histórico
             history.append({'assistant': response_text})
             
             # Atualizar travel_info com o contexto atualizado
-            for key, value in updated_context['travel_info'].items():
-                current_travel_info[key] = value
-            
-            # Manter o estado da busca
             current_travel_info['step'] = updated_context['step']
-            current_travel_info['search_results'] = updated_context['search_results']
+            if updated_context.get('search_results'):
+                current_travel_info['search_results'] = updated_context['search_results']
             
             # Construir a resposta
             response = {"response": response_text, "error": False}
