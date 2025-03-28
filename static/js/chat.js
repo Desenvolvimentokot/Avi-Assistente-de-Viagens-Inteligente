@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (messageText) {
             // Adicionar mensagem do usuário ao chat
-            addMessageToChat('user', messageText);
+            addMessage(messageText, true);
 
             // Limpar campo de entrada
             messageInput.value = '';
@@ -129,13 +129,13 @@ document.addEventListener('DOMContentLoaded', function() {
             removeTypingIndicator();
 
             if (data.error) {
-                addMessageToChat('assistant', 'Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.');
+                addMessage('Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.', false);
                 console.log("Error response:", data.error);
                 return;
             }
 
             // Adicionar resposta ao chat
-            addMessageToChat('assistant', data.response);
+            addMessage(data.response, false);
 
             // Garantir que rola até a mensagem mais recente
             setTimeout(() => {
@@ -150,56 +150,31 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.log("Error getting chat response:", error);
             removeTypingIndicator();
-            addMessageToChat('assistant', 'Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.');
+            addMessage('Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente.', false);
         });
     }
 
-    function addMessageToChat(role, content) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('chat-message', role);
+    function addMessage(text, isUser = false) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        messageElement.classList.add(isUser ? 'user-message' : 'assistant-message');
 
-        if (role === 'assistant') {
-            // Adiciona a imagem do assistente
-            const avatarContainer = document.createElement('div');
-            avatarContainer.classList.add('avatar-container');
+        const contentContainer = document.createElement('div');
+        contentContainer.classList.add('message-box');
+        contentContainer.classList.add(isUser ? 'user' : 'assistant');
 
-            const avatarImg = document.createElement('img');
-            avatarImg.src = '/static/img/avi rosto chat.png';
-            avatarImg.alt = 'Avatar da Avi';
-            avatarImg.classList.add('assistant-avatar');
+        const contentElement = document.createElement('div');
+        contentElement.classList.add('message-content');
+        contentElement.innerText = text;
 
-            avatarContainer.appendChild(avatarImg);
-            messageDiv.appendChild(avatarContainer);
+        contentContainer.appendChild(contentElement);
+        messageElement.appendChild(contentContainer);
 
-            // Formata links, se houver
-            content = formatLinks(content);
+        chatMessages.appendChild(messageElement);
 
-            // Formata quebras de linha
-            content = content.replace(/\n/g, '<br>');
-
-            const messageContentDiv = document.createElement('div');
-            messageContentDiv.classList.add('message-content');
-            messageContentDiv.innerHTML = content;
-            messageDiv.appendChild(messageContentDiv);
-        } else {
-            // Formata links, se houver
-            content = formatLinks(content);
-
-            // Formata quebras de linha
-            content = content.replace(/\n/g, '<br>');
-
-            const messageContentDiv = document.createElement('div');
-            messageContentDiv.classList.add('message-content');
-            messageContentDiv.innerHTML = content;
-            messageDiv.appendChild(messageContentDiv);
-        }
-
-        chatMessages.appendChild(messageDiv);
-
-        // Rolagem automática para garantir que a mensagem mais recente esteja visível
+        // Scroll para o final
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-
 
     function addPurchaseLink(url) {
         const purchaseElement = document.createElement('div');
@@ -317,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         // Adicionar alerta como mensagem do bot
-        addMessageToChat('assistant', '', alertDiv);
+        addMessage('', false, alertDiv);
     }
 
     // Funções auxiliares
@@ -397,10 +372,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return links[code] || links['default'];
     }
 
-    function formatLinks(text) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`);
-    }
 
     // Adicionar event listeners para itens da navegação
     document.querySelectorAll('.nav-item').forEach(item => {
