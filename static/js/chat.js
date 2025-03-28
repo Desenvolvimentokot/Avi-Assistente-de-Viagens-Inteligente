@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const welcomeHTML = `
             <div class="message assistant-message">
                 <div class="message-avatar">
-                    <i class="fas fa-robot"></i>
+                    <img src="/static/img/avi rosto chat.png" alt="Avi" style="width: 30px; height: 30px; border-radius: 50%;">
                 </div>
                 <div class="message-content">
                     <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
@@ -157,11 +157,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const contentContainer = document.createElement('div');
         contentContainer.classList.add('message-box');
         contentContainer.classList.add(isUser ? 'user' : 'assistant');
-        
+
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
         contentElement.innerText = text;
-        
+
         contentContainer.appendChild(contentElement);
         messageElement.appendChild(contentContainer);
 
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const avatarElement = document.createElement('div');
         avatarElement.classList.add('message-avatar');
-        avatarElement.innerHTML = '<i class="fas fa-robot"></i>';
+        avatarElement.innerHTML = '<img src="/static/img/avi rosto chat.png" alt="Avi" style="width: 30px; height: 30px; border-radius: 50%;">';
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
