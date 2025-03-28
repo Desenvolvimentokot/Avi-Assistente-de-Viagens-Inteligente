@@ -1,222 +1,5 @@
-import os
-import requests
-import json
-import logging
-from datetime import datetime, timedelta
-
-class AmadeusService:
-    def __init__(self):
-        self.api_key = os.environ.get('AMADEUS_API_KEY')
-        self.api_secret = os.environ.get('AMADEUS_API_SECRET')
-        self.base_url = 'https://test.api.amadeus.com/v1'
-        self.token = None
-        self.token_expires = None
-        
-    def get_token(self):
-        """Obtém ou renova o token de autenticação OAuth2"""
-        now = datetime.now()
-        
-        # Se já temos um token válido, retorna ele
-        if self.token and self.token_expires and now < self.token_expires:
-            return self.token
-            
-        # Caso contrário, solicita um novo token
-        url = f"{self.base_url}/security/oauth2/token"
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        data = {
-            'grant_type': 'client_credentials',
-            'client_id': self.api_key,
-            'client_secret': self.api_secret
-        }
-        
-        try:
-            response = requests.post(url, headers=headers, data=data)
-            response.raise_for_status()  # Lança exceção para códigos de erro HTTP
-            
-            result = response.json()
-            self.token = result.get('access_token')
-            expires_in = result.get('expires_in', 1800)  # Padrão 30 minutos
-            self.token_expires = now + timedelta(seconds=expires_in)
-            
-            return self.token
-        except Exception as e:
-            logging.error(f"Erro ao obter token Amadeus: {str(e)}")
-            return None
-    
-    def search_flights(self, params):
-        """
-        Busca voos usando a API Flight Offers Search
-        
-        Parâmetros:
-        - params: dicionário com parâmetros da busca como:
-          - originLocationCode: código IATA do aeroporto de origem
-          - destinationLocationCode: código IATA do aeroporto de destino
-          - departureDate: data de partida (YYYY-MM-DD)
-          - returnDate: data de retorno (YYYY-MM-DD)
-          - adults: número de adultos
-          - children: número de crianças
-          - infants: número de bebês
-          - travelClass: classe de viagem (ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST)
-          - currencyCode: moeda (ex: BRL)
-          - max: número máximo de ofertas a retornar
-        """
-        token = self.get_token()
-        if not token:
-            return {'error': 'Falha na autenticação com a API Amadeus'}
-            
-        url = f"{self.base_url}/shopping/flight-offers"
-        headers = {
-            'Authorization': f'Bearer {token}'
-        }
-        
-        try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Erro na busca de voos: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro na busca de voos: {str(e)}'}
-    
-    def search_hotels(self, params):
-        """
-        Busca hotéis usando a API Hotel List
-        
-        Parâmetros:
-        - params: dicionário com parâmetros como:
-          - cityCode: código da cidade
-          - radius: raio em KM
-          - radiusUnit: unidade do raio (KM ou MILE)
-          - hotelName: nome do hotel
-          - amenities: comodidades
-          - ratings: classificações
-          - priceRange: faixa de preço
-        """
-        token = self.get_token()
-        if not token:
-            return {'error': 'Falha na autenticação com a API Amadeus'}
-            
-        url = f"{self.base_url}/reference-data/locations/hotels/by-city"
-        headers = {
-            'Authorization': f'Bearer {token}'
-        }
-        
-        try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Erro na busca de hotéis: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro na busca de hotéis: {str(e)}'}
-    
-    def search_hotel_offers(self, params):
-        """
-        Busca ofertas de hotéis usando a API Hotel Offers
-        
-        Parâmetros:
-        - params: dicionário com parâmetros como:
-          - hotelIds: lista de IDs de hotéis
-          - adults: número de adultos
-          - checkInDate: data de check-in (YYYY-MM-DD)
-          - checkOutDate: data de check-out (YYYY-MM-DD)
-          - roomQuantity: quantidade de quartos
-          - priceRange: faixa de preço
-          - currency: moeda (ex: BRL)
-        """
-        token = self.get_token()
-        if not token:
-            return {'error': 'Falha na autenticação com a API Amadeus'}
-            
-        url = f"{self.base_url}/shopping/hotel-offers"
-        headers = {
-            'Authorization': f'Bearer {token}'
-        }
-        
-        try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Erro na busca de ofertas de hotéis: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro na busca de ofertas de hotéis: {str(e)}'}
-    
-    def get_flight_price(self, flight_offer):
-        """
-        Verifica o preço atual de uma oferta de voo
-        
-        Parâmetros:
-        - flight_offer: objeto com a oferta de voo
-        """
-        token = self.get_token()
-        if not token:
-            return {'error': 'Falha na autenticação com a API Amadeus'}
-            
-        url = f"{self.base_url}/shopping/flight-offers/pricing"
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
-        
-        data = {
-            'data': {
-                'type': 'flight-offers-pricing',
-                'flightOffers': [flight_offer]
-            }
-        }
-        
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Erro ao verificar preço do voo: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro ao verificar preço do voo: {str(e)}'}
-    
-    def get_hotel_offer(self, offer_id):
-        """
-        Obtém os detalhes de uma oferta específica de hotel
-        
-        Parâmetros:
-        - offer_id: ID da oferta de hotel
-        """
-        token = self.get_token()
-        if not token:
-            return {'error': 'Falha na autenticação com a API Amadeus'}
-            
-        url = f"{self.base_url}/shopping/hotel-offers/{offer_id}"
-        headers = {
-            'Authorization': f'Bearer {token}'
-        }
-        
-        try:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logging.error(f"Erro ao obter oferta de hotel: {str(e)}")
-            if hasattr(e, 'response') and e.response:
-                logging.error(f"Resposta da API: {e.response.text}")
-            return {'error': f'Erro ao obter oferta de hotel: {str(e)}'}
-
-# Exemplo de uso:
-# amadeus = AmadeusService()
-# params = {
-#     'originLocationCode': 'GRU',
-#     'destinationLocationCode': 'CDG',
-#     'departureDate': '2023-12-01',
-#     'adults': 1,
-#     'currencyCode': 'BRL'
-# }
-# result = amadeus.search_flights(params)
+# Primeira definição da classe removida para evitar duplicação
+# O código começa com imports
 import os
 import logging
 import requests
@@ -563,6 +346,166 @@ class AmadeusService:
         
         return mock_data
         
+    def search_best_prices(self, params):
+        """
+        Busca melhores preços para um período flexível
+        
+        Params:
+        - originLocationCode: código IATA da origem
+        - destinationLocationCode: código IATA do destino
+        - departureDate: data inicial para busca (formato YYYY-MM-DD)
+        - returnDate: data final para busca (opcional, formato YYYY-MM-DD)
+        - adults: número de adultos (default: 1)
+        - currencyCode: moeda (default: "BRL")
+        - max_dates_to_check: número máximo de datas a serem verificadas (para evitar muitas chamadas)
+        """
+        import random
+        from datetime import datetime, timedelta
+        
+        logging.info(f"Buscando melhores preços: {params}")
+        
+        if self.use_mock_data:
+            return self._get_mock_best_prices(params)
+            
+        try:
+            # Extrair parâmetros
+            origin = params.get('originLocationCode')
+            destination = params.get('destinationLocationCode')
+            start_date = params.get('departureDate')
+            end_date = params.get('returnDate')
+            adults = params.get('adults', 1)
+            currency = params.get('currencyCode', 'BRL')
+            max_dates = params.get('max_dates_to_check', 5)  # Limitar o número de datas
+            
+            # Validar parâmetros
+            if not origin or not destination or not start_date or not end_date:
+                return {"error": "Parâmetros incompletos para busca de melhores preços"}
+            
+            # Converter datas para objetos datetime
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+            except ValueError:
+                return {"error": "Formato de data inválido, use YYYY-MM-DD"}
+            
+            # Gerar datas entre o início e fim para verificação
+            date_range = []
+            current_date = start_date_obj
+            while current_date <= end_date_obj and len(date_range) < max_dates:
+                date_range.append(current_date.strftime('%Y-%m-%d'))
+                current_date += timedelta(days=7)  # Verificar semanalmente para eficiência
+            
+            # Buscar preços para cada data
+            best_prices = []
+            for departure_date in date_range:
+                # Configurar busca para uma data específica
+                search_params = {
+                    'originLocationCode': origin,
+                    'destinationLocationCode': destination,
+                    'departureDate': departure_date,
+                    'adults': adults,
+                    'currencyCode': currency,
+                    'max': 1  # Apenas a opção mais barata
+                }
+                
+                # Fazer a busca
+                flight_results = self.search_flights(search_params)
+                
+                # Verificar se a busca foi bem-sucedida
+                if 'error' not in flight_results and flight_results.get('data', []):
+                    flights = flight_results.get('data', [])
+                    if flights:
+                        # Obter o preço do primeiro voo (mais barato)
+                        flight = flights[0]
+                        price_info = flight.get('price', {})
+                        price = price_info.get('total', '0')
+                        
+                        # Adicionar à lista de melhores preços
+                        best_prices.append({
+                            'date': departure_date,
+                            'price': float(price),
+                            'currency': currency,
+                            'flight_id': flight.get('id', ''),
+                            # Gerar um link de afiliado (exemplo)
+                            'affiliate_link': f"https://example.com/flights?origin={origin}&destination={destination}&date={departure_date}"
+                        })
+            
+            # Ordenar por preço
+            best_prices.sort(key=lambda x: x['price'])
+            
+            return {
+                "best_prices": best_prices,
+                "currency": currency,
+                "origin": origin,
+                "destination": destination
+            }
+            
+        except Exception as e:
+            logging.error(f"Erro ao buscar melhores preços: {str(e)}")
+            # Se ocorrer um erro, usar dados simulados
+            self.use_mock_data = True
+            return self._get_mock_best_prices(params)
+            
+    def _get_mock_best_prices(self, params):
+        """Retorna dados simulados de melhores preços"""
+        import random
+        from datetime import datetime, timedelta
+        
+        origin = params.get('originLocationCode', 'GRU')
+        destination = params.get('destinationLocationCode', 'SSA')
+        start_date = params.get('departureDate', '2024-12-01')
+        end_date = params.get('returnDate', '2024-12-31')
+        currency = params.get('currencyCode', 'BRL')
+        
+        # Gerar datas no período solicitado
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        # Gerar até 5 datas aleatórias dentro do período
+        date_range = []
+        days_total = (end_date_obj - start_date_obj).days
+        
+        if days_total > 0:
+            for _ in range(min(5, days_total)):
+                random_days = random.randint(0, days_total)
+                date = start_date_obj + timedelta(days=random_days)
+                if date.strftime('%Y-%m-%d') not in date_range:
+                    date_range.append(date.strftime('%Y-%m-%d'))
+        else:
+            date_range.append(start_date)
+        
+        # Ordenar datas
+        date_range.sort()
+        
+        # Gerar preços para cada data
+        best_prices = []
+        base_price = 950  # Preço base para São Paulo -> Salvador
+        
+        for date in date_range:
+            # Variação de preço de +/- 20%
+            price_variation = random.uniform(0.8, 1.2)
+            price = round(base_price * price_variation, 2)
+            
+            best_prices.append({
+                'date': date,
+                'price': price,
+                'currency': currency,
+                'flight_id': f"mock-{origin}-{destination}-{date}",
+                'is_simulated': True,
+                'affiliate_link': f"https://example.com/flights?origin={origin}&destination={destination}&date={date}"
+            })
+        
+        # Ordenar por preço
+        best_prices.sort(key=lambda x: x['price'])
+        
+        return {
+            "best_prices": best_prices,
+            "currency": currency,
+            "origin": origin,
+            "destination": destination,
+            "is_simulated": True
+        }
+    
     def test_connection(self):
         """Testa a conexão com a API do Amadeus e retorna um diagnóstico"""
         results = {

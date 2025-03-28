@@ -46,6 +46,15 @@ def process_message(message, test_params=None, history=None):
         if test_params:
             for key, value in test_params.items():
                 travel_info[key] = value
+        
+        # Combinar mensagem atual com histórico para análise de casos específicos
+        full_text = message
+        for item in history:
+            if isinstance(item, dict):
+                if 'user' in item:
+                    full_text += " " + item['user']
+                if 'assistant' in item:
+                    full_text += " " + item['assistant']
                 
         logger.info(f"Informações de viagem extraídas: {travel_info}")
 
@@ -94,9 +103,50 @@ def process_message(message, test_params=None, history=None):
                 else:
                     logger.error(f"Erro na busca de voos: {flight_data.get('error', 'Erro desconhecido')}")
 
-            # Buscar melhores preços se a data é flexível
-            if travel_info.get('is_flexible') and travel_info.get('date_range_start') and travel_info.get('date_range_end'):
-                logger.info(f"Buscando melhores preços para o período: {travel_info['date_range_start']} a {travel_info['date_range_end']}")
+            # Processar as datas conforme necessário
+            # Se temos a informação específica "dia 14 de abril", criar uma data
+            april_pattern = r'(?:dia|em|no dia)?\s*(\d{1,2})\s*(?:de|\/)?\s*(?:abril|abr|04|4)'
+            april_match = re.search(april_pattern, full_text, re.IGNORECASE)
+            if april_match:
+                day = april_match.group(1)
+                # Definir o ano atual ou o próximo se abril já passou
+                current_year = datetime.now().year
+                if datetime.now().month > 4:  # Se estamos depois de abril
+                    current_year += 1
+                
+                departure_date = f"{current_year}-04-{int(day):02d}"
+                travel_info['departure_date'] = departure_date
+                
+                # Se menciona passar X dias, calcular a data de retorno
+                days_pattern = r'(?:passar|ficar|por)\s*(\d+)\s*dias'
+                days_match = re.search(days_pattern, full_text, re.IGNORECASE)
+                if days_match:
+                    days = int(days_match.group(1))
+                    departure_date_obj = datetime.strptime(departure_date, '%Y-%m-%d')
+                    return_date_obj = departure_date_obj + timedelta(days=days)
+                    travel_info['return_date'] = return_date_obj.strftime('%Y-%m-%d')
+
+                # Se encontramos a origem e não é um código IATA, converter para São Paulo
+                if travel_info.get('origin') and len(travel_info.get('origin', '')) > 3 and 'paulo' not in travel_info.get('origin', '').lower():
+                    # Verificar se menciona estar em São Paulo
+                    if re.search(r'(?:estamos|estou|em)\s*(?:s[aã]o paulo|sp)', full_text, re.IGNORECASE):
+                        travel_info['origin'] = 'GRU'  # Aeroporto de Guarulhos em São Paulo
+            
+            # Buscar melhores preços se a data é flexível ou se temos datas específicas para melhores preços
+            if (travel_info.get('is_flexible') and travel_info.get('date_range_start') and travel_info.get('date_range_end')) or \
+               (travel_info.get('departure_date') and travel_info.get('return_date') and 'melhor' in full_text.lower()):
+                
+                # Se não temos range de datas, mas temos datas específicas e queremos o melhor preço
+                if not travel_info.get('date_range_start') and travel_info.get('departure_date'):
+                    # Criar um range de +/- 3 dias em torno da data específica
+                    departure_date_obj = datetime.strptime(travel_info['departure_date'], '%Y-%m-%d')
+                    range_start = (departure_date_obj - timedelta(days=3)).strftime('%Y-%m-%d')
+                    range_end = (departure_date_obj + timedelta(days=3)).strftime('%Y-%m-%d')
+                    travel_info['date_range_start'] = range_start
+                    travel_info['date_range_end'] = range_end
+                    travel_info['is_flexible'] = True
+                
+                logger.info(f"Buscando melhores preços para o período: {travel_info.get('date_range_start', travel_info.get('departure_date'))} a {travel_info.get('date_range_end', travel_info.get('return_date'))}")
                 best_prices_data = search_best_prices(travel_info)
                 logger.info(f"Resultados da busca de melhores preços: {best_prices_data.keys() if isinstance(best_prices_data, dict) else 'Nenhum'}")
 
@@ -212,13 +262,15 @@ def extract_travel_info(message, history):
     origin_patterns = [
         r'(?:sa(?:i|í)(?:r|ndo) de|partindo de|origem) ([A-Za-z\s]+)',
         r'(?:de|da|do) ([A-Za-z\s]+) (?:para|a|ao|até)',
-        r'voo (?:de|da|do) ([A-Za-z\s]+)'
+        r'voo (?:de|da|do) ([A-Za-z\s]+)',
+        r'(?:n[óo]s|a gente|eu)? est(?:ou|amos) (?:em|no|na) ([A-Za-z\s]+)'
     ]
 
     destination_patterns = [
         r'(?:para|a|ao|até) ([A-Za-z\s]+)',
         r'(?:destino|chegando (?:a|em)|ir para) ([A-Za-z\s]+)',
-        r'voo (?:para|a) ([A-Za-z\s]+)'
+        r'voo (?:para|a) ([A-Za-z\s]+)',
+        r'(?:gostaria|quero|queremos|desejo) (?:de )?(?:ir|viajar|visitar|conhecer) (?:para |a |o )?([A-Za-z\s]+)'
     ]
 
     # Detectar datas com regex
@@ -546,7 +598,9 @@ def search_flights(travel_info):
                         itineraries = flight.get('itineraries', [])
                         if not itineraries:
                             continue
-
+                            
+                        # Usar o primeiro itinerário (normalmente ida)
+                        itinerary = itineraries[0]
                         segments = itinerary.get('segments', [])
                         if not segments:
                             continue
