@@ -17,7 +17,9 @@ skyscanner_service = SkyscannerService()
 
 def process_message(message, test_params=None, history=None):
     """
-    Processa uma mensagem do usuário no modo busca rápida
+    Processa uma mensagem do usuário no modo busca rápida, implementando um fluxo em duas etapas:
+    1. Extração e confirmação das informações com o cliente
+    2. Busca e apresentação dos resultados após confirmação
 
     Args:
         message (str): Mensagem do usuário
@@ -55,15 +57,48 @@ def process_message(message, test_params=None, history=None):
                     full_text += " " + item['user']
                 if 'assistant' in item:
                     full_text += " " + item['assistant']
-                
+        
         logger.info(f"Informações de viagem extraídas: {travel_info}")
-
-        # Se temos informações suficientes para fazer uma busca, adicionar ao contexto
+        
+        # Verificar se esta é uma mensagem de confirmação
+        is_confirmation = False
+        confirmation_patterns = [
+            r'\bsim\b', r'\bconfirmo\b', r'\bcorreto\b', r'\bpode\s+seguir\b',
+            r'\bconfirma(?:do)?\b', r'\bcontinue\b', r'\bvamos\s+em\s+frente\b', 
+            r'\bcerto\b', r'\bok\b', r'\bprossiga\b', r'\bprosseguir\b'
+        ]
+        
+        for pattern in confirmation_patterns:
+            if re.search(pattern, message.lower()):
+                is_confirmation = True
+                logger.info("Detectada confirmação do usuário")
+                break
+                
+        # Inicializar variáveis para resultados
         additional_context = ""
         flight_data = None
         best_prices_data = None
 
-        if is_ready_for_search(travel_info):
+        # Fase 1: Extração e confirmação - Se não for confirmação e não tiver histórico suficiente
+        if not is_confirmation and (len(history) < 2 or not is_ready_for_search(travel_info)):
+            logger.info("Etapa 1: Extração e confirmação de informações")
+            # Adicionar contexto para indicar que estamos na fase de extração/confirmação
+            additional_context = "\n\n[ETAPA_ATUAL: EXTRAÇÃO_E_CONFIRMAÇÃO]"
+            additional_context += f"\n\nInformações extraídas até o momento:\n"
+            additional_context += f"- Origem: {travel_info.get('origin', 'Não identificada')}\n"
+            additional_context += f"- Destino: {travel_info.get('destination', 'Não identificado')}\n"
+            additional_context += f"- Data de ida: {travel_info.get('departure_date', 'Não identificada')}\n"
+            additional_context += f"- Data de volta: {travel_info.get('return_date', 'Não identificada')}\n"
+            additional_context += f"- Passageiros: {travel_info.get('adults', 1)} adulto(s)\n"
+            additional_context += f"- Classe: {travel_info.get('class', 'ECONOMY')}\n"
+            
+            # Indicar explicitamente ao assistente que precisamos de confirmação
+            additional_context += "\n\n[INSTRUÇÃO: Solicite confirmação ao cliente antes de prosseguir com a busca]"
+            
+        # Fase 2: Busca e apresentação - Se for confirmação ou já tiver informações suficientes
+        elif is_confirmation or travel_info.get('confirmed') or is_ready_for_search(travel_info):
+            logger.info("Etapa 2: Busca e apresentação de resultados")
+            additional_context = "\n\n[ETAPA_ATUAL: BUSCA_E_APRESENTAÇÃO]"
             logger.info("Informações suficientes para busca encontradas")
 
             # Buscar voos específicos se temos datas específicas
@@ -234,7 +269,11 @@ def process_message(message, test_params=None, history=None):
 
 def extract_travel_info(message, history):
     """
-    Extrai informações de viagem da mensagem e histórico usando NLP
+    Extrai informações de viagem da mensagem e histórico usando técnicas de NLP
+    
+    Esta função foi aprimorada para suportar o processo em duas etapas:
+    1. Extração inicial das informações da mensagem do usuário
+    2. Refinamento baseado nas confirmações e clarificações
     """
     # Inicializar estrutura de dados
     travel_info = {
@@ -245,7 +284,9 @@ def extract_travel_info(message, history):
         'is_flexible': False,
         'date_range_start': None,
         'date_range_end': None,
-        'adults': 1
+        'adults': 1,
+        'class': 'ECONOMY',  # Classe padrão
+        'confirmed': False   # Flag para indicar se os dados foram confirmados pelo usuário
     }
 
     # Combinar mensagem atual com histórico para análise completa
@@ -256,21 +297,36 @@ def extract_travel_info(message, history):
                 full_text += " " + item['user']
             if 'assistant' in item:
                 full_text += " " + item['assistant']
-
-    # Detectar origem e destino com regex simples
-    # Padrões comuns de origem/destino em português
+    
+    # Verificar se as informações já foram confirmadas pelo usuário
+    confirmation_patterns = [
+        r'\bsim\b', r'\bconfirmo\b', r'\bcorreto\b', r'\bpode\s+seguir\b',
+        r'\bconfirma(?:do)?\b', r'\bcontinue\b', r'\bvamos\s+em\s+frente\b', 
+        r'\bcerto\b', r'\bok\b', r'\bprossiga\b', r'\bprosseguir\b'
+    ]
+    
+    # Marcar como confirmado se encontrarmos palavras de confirmação na mensagem atual
+    for pattern in confirmation_patterns:
+        if re.search(pattern, message.lower()):
+            travel_info['confirmed'] = True
+            break
+    
+    # Padrões aprimorados para extração de origem/destino em português brasileiro
     origin_patterns = [
-        r'(?:sa(?:i|í)(?:r|ndo) de|partindo de|origem) ([A-Za-z\s]+)',
-        r'(?:de|da|do) ([A-Za-z\s]+) (?:para|a|ao|até)',
-        r'voo (?:de|da|do) ([A-Za-z\s]+)',
-        r'(?:n[óo]s|a gente|eu)? est(?:ou|amos) (?:em|no|na) ([A-Za-z\s]+)'
+        r'(?:sa(?:i|í)(?:r|ndo) de|partindo de|origem|de) ([A-Za-z\sÀ-ú]+)(?= para| a | ao | até |\.)',
+        r'(?:de|da|do) ([A-Za-z\sÀ-ú]+) (?:para|a|ao|até)',
+        r'voo (?:de|da|do) ([A-Za-z\sÀ-ú]+)',
+        r'(?:n[óo]s|a gente|eu)? est(?:ou|amos) (?:em|no|na) ([A-Za-z\sÀ-ú]+)',
+        r'est(?:ou|amos) em ([A-Za-z\sÀ-ú]+)',
+        r'sa(?:i|í)(?:r|ndo) de ([A-Za-z\sÀ-ú]+)'
     ]
 
     destination_patterns = [
-        r'(?:para|a|ao|até) ([A-Za-z\s]+)',
-        r'(?:destino|chegando (?:a|em)|ir para) ([A-Za-z\s]+)',
-        r'voo (?:para|a) ([A-Za-z\s]+)',
-        r'(?:gostaria|quero|queremos|desejo) (?:de )?(?:ir|viajar|visitar|conhecer) (?:para |a |o )?([A-Za-z\s]+)'
+        r'(?:para|a|ao|até) ([A-Za-z\sÀ-ú]+)(?=\.|\s|$)',
+        r'(?:destino|chegando (?:a|em)|ir para) ([A-Za-z\sÀ-ú]+)',
+        r'voo (?:para|a) ([A-Za-z\sÀ-ú]+)',
+        r'(?:gostaria|quero|queremos|desejo|vamos|iremos) (?:de )?(?:ir|viajar|visitar|conhecer) (?:para |a |o )?([A-Za-z\sÀ-ú]+)',
+        r'para ([A-Za-z\sÀ-ú]+)'
     ]
 
     # Detectar datas com regex
@@ -300,6 +356,84 @@ def extract_travel_info(message, history):
             if dest != travel_info['origin']:
                 travel_info['destination'] = dest
                 break
+    
+    # Detectar quantidade de passageiros
+    passengers_patterns = [
+        r'(\d+)\s+(?:passageir[oa]s?|pessoas?|adult[oa]s?)',
+        r'(?:com|para)\s+(?:minha|meu)\s+(esposa|marido|namorad[oa]|amig[oa]|filh[oa])',
+        r'(?:viaj[oa]r|ir)\s+com\s+(\d+)\s+pessoas?',
+        r'(?:somos|iremos|vamos)\s+(?:em\s+)?(\d+)',
+        r'para\s+(?:mim|eu)\s+e\s+(?:minha|meu)\s+(esposa|marido|namorad[oa]|amig[oa]|filh[oa])',
+        r'eu\s+e\s+(?:minha|meu)\s+(esposa|marido|namorad[oa]|amig[oa]|filh[oa])'
+    ]
+    
+    for pattern in passengers_patterns:
+        matches = re.search(pattern, full_text, re.IGNORECASE)
+        if matches:
+            match_str = matches.group(1)
+            # Se for um número, usar esse valor
+            if match_str.isdigit():
+                travel_info['adults'] = int(match_str)
+            # Se for uma referência a acompanhante, considerar como 2 pessoas
+            elif match_str.lower() in ['esposa', 'marido', 'namorada', 'namorado', 'amigo', 'amiga', 'filho', 'filha']:
+                travel_info['adults'] = 2
+            break
+    
+    # Detectar duração da viagem para calcular data de retorno
+    duration_patterns = [
+        r'(?:passar|ficar)\s+(\d+)\s+dias',
+        r'por\s+(\d+)\s+dias',
+        r'durante\s+(\d+)\s+dias',
+        r'estadia\s+(?:de|por)\s+(\d+)\s+dias',
+        r'(\d+)\s+dias\s+(?:de|em)\s+(?:viagem|estadia|férias|ferias)',
+        r'(\d+)\s+(?:noites|diárias|pernoites)'
+    ]
+    
+    for pattern in duration_patterns:
+        matches = re.search(pattern, full_text, re.IGNORECASE)
+        if matches:
+            try:
+                duration_days = int(matches.group(1))
+                # Se temos data de ida mas não de volta, calcular a volta
+                if travel_info['departure_date'] and not travel_info['return_date'] and duration_days > 0:
+                    departure_date_obj = datetime.strptime(travel_info['departure_date'], '%Y-%m-%d')
+                    return_date_obj = departure_date_obj + timedelta(days=duration_days)
+                    travel_info['return_date'] = return_date_obj.strftime('%Y-%m-%d')
+                    logger.info(f"Calculada data de retorno com base na duração: {travel_info['return_date']}")
+            except (ValueError, IndexError) as e:
+                logger.warning(f"Erro ao processar duração da viagem: {e}")
+            break
+            
+    # Função auxiliar para normalizar texto
+    import unicodedata
+    def normalize_text(text):
+        return unicodedata.normalize('NFKD', text.lower()).encode('ASCII', 'ignore').decode('ASCII')
+    
+    # Detectar classe de viagem
+    class_patterns = [
+        r'classe\s+(econ[ôo]mica|executiva|primeira|business|premium)',
+        r'(econ[ôo]mica|executiva|primeira|business|premium)\s+classe',
+        r'passagens?\s+(econ[ôo]micas?|executivas?|premium)'
+    ]
+    
+    class_map = {
+        'economica': 'ECONOMY', 
+        'econômica': 'ECONOMY',
+        'executiva': 'BUSINESS',
+        'business': 'BUSINESS',
+        'primeira': 'FIRST',
+        'premium': 'PREMIUM_ECONOMY'
+    }
+    
+    for pattern in class_patterns:
+        matches = re.search(pattern, full_text, re.IGNORECASE)
+        if matches:
+            class_str = normalize_text(matches.group(1).lower())
+            for key, value in class_map.items():
+                if normalize_text(key) in class_str:
+                    travel_info['class'] = value
+                    break
+            break
 
     # Detectar flexibilidade de datas
     if re.search(r'(?:flex(?:ível|ibilidade)|qualquer data|melhor(?:es)? data)', full_text, re.IGNORECASE):
