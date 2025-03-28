@@ -229,54 +229,115 @@ document.addEventListener('DOMContentLoaded', function() {
         flightOptionsElement.classList.add('flight-options');
         
         let optionsHtml = '<div class="flight-options-container">';
-        optionsHtml += '<h3>Opções de Voos Disponíveis</h3>';
+        optionsHtml += '<h3>Opções de Voos para Sua Viagem</h3>';
         
-        // Adicionar resultados de busca de melhores preços
+        // Adicionar dois cards: Voo solicitado e Recomendação
         if (bestPricesData && bestPricesData.best_prices && bestPricesData.best_prices.length > 0) {
-            optionsHtml += '<div class="best-prices-section">';
-            optionsHtml += '<h4>Melhores Preços</h4>';
+            // Organizar dados para os dois cartões
+            const bestPrice = bestPricesData.best_prices[0]; // O melhor preço (menor)
+            const requestedPrice = bestPricesData.best_prices.length > 1 ? bestPricesData.best_prices[1] : bestPricesData.best_prices[0];
             
-            bestPricesData.best_prices.forEach((price, index) => {
-                // Formatar data para exibição
-                const dateObj = new Date(price.date);
-                const formattedDate = dateObj.toLocaleDateString('pt-BR');
-                
-                optionsHtml += `
-                <div class="flight-card">
-                    <div class="flight-info">
-                        <div class="flight-date">${formattedDate}</div>
-                        <div class="flight-price">R$ ${price.price.toFixed(2)}</div>
+            // Formatar datas
+            const requestedDateObj = new Date(requestedPrice.date);
+            const bestDateObj = new Date(bestPrice.date);
+            
+            const formattedRequestedDate = requestedDateObj.toLocaleDateString('pt-BR');
+            const formattedBestDate = bestDateObj.toLocaleDateString('pt-BR');
+            
+            // Obter nomes dos locais
+            const origin = bestPricesData.origin || "Origem";
+            const destination = bestPricesData.destination || "Destino";
+            
+            // Criar o card para o voo solicitado
+            optionsHtml += `
+            <div class="flight-option-section">
+                <div class="flight-option-header requested">
+                    <div class="option-label">Voo Solicitado</div>
+                </div>
+                <div class="flight-card highlight">
+                    <div class="flight-header">
+                        <div class="flight-title">
+                            <div class="flight-cities">${origin} → ${destination}</div>
+                            <div class="flight-date">${formattedRequestedDate}</div>
+                        </div>
+                        <div class="flight-price">R$ ${requestedPrice.price.toFixed(2)}</div>
+                    </div>
+                    <div class="flight-details">
+                        <div class="provider-info">
+                            <span class="provider-name">Via: ${requestedPrice.provider || 'Agência'}</span>
+                        </div>
                     </div>
                     <div class="flight-actions">
-                        <a href="${price.affiliate_link}" target="_blank" class="btn-purchase">
-                            <i class="fas fa-shopping-cart"></i> Comprar
+                        <a href="${requestedPrice.affiliate_link}" target="_blank" class="btn-purchase" title="Comprar esta passagem agora">
+                            <i class="fas fa-shopping-cart"></i> Comprar Agora
                         </a>
-                        <button class="btn-select" data-option="${index}" data-type="price">
-                            <i class="fas fa-check"></i> Selecionar
+                        <button class="btn-select" data-option="0" data-type="price" title="Ver mais detalhes sobre este voo">
+                            <i class="fas fa-info-circle"></i> Detalhes
                         </button>
                     </div>
-                </div>`;
-            });
+                </div>
+            </div>`;
             
-            optionsHtml += '</div>';
-        }
-        
-        // Adicionar resultados de busca de voos específicos
-        if (flightData && flightData.flights && flightData.flights.length > 0) {
-            optionsHtml += '<div class="flights-section">';
-            optionsHtml += '<h4>Voos Disponíveis</h4>';
-            
-            flightData.flights.forEach((flight, index) => {
-                // Formatar data/hora para exibição
-                const departureTime = new Date(flight.departure.time);
-                const arrivalTime = new Date(flight.arrival.time);
-                const formattedDeparture = departureTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                const formattedArrival = arrivalTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            // Mostrar o melhor preço apenas se for diferente do solicitado
+            if (bestPrice.price < requestedPrice.price || bestPrice.date !== requestedPrice.date) {
+                // Calcular a economia (em percentual)
+                const savings = ((requestedPrice.price - bestPrice.price) / requestedPrice.price) * 100;
+                const savingsPercentage = savings.toFixed(0);
                 
                 optionsHtml += `
+                <div class="flight-option-section">
+                    <div class="flight-option-header recommended">
+                        <div class="option-label">Melhor Oferta</div>
+                        ${savings > 5 ? `<div class="savings-badge">Economia de ${savingsPercentage}%</div>` : ''}
+                    </div>
+                    <div class="flight-card">
+                        <div class="flight-header">
+                            <div class="flight-title">
+                                <div class="flight-cities">${origin} → ${destination}</div>
+                                <div class="flight-date">${formattedBestDate}</div>
+                            </div>
+                            <div class="flight-price">R$ ${bestPrice.price.toFixed(2)}</div>
+                        </div>
+                        <div class="flight-details">
+                            <div class="provider-info">
+                                <span class="provider-name">Via: ${bestPrice.provider || 'Agência'}</span>
+                            </div>
+                        </div>
+                        <div class="flight-actions">
+                            <a href="${bestPrice.affiliate_link}" target="_blank" class="btn-purchase" title="Comprar esta passagem com economia">
+                                <i class="fas fa-shopping-cart"></i> Comprar
+                            </a>
+                            <button class="btn-select" data-option="1" data-type="price" title="Ver mais detalhes sobre este voo">
+                                <i class="fas fa-info-circle"></i> Detalhes
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+        
+        // Se tivermos dados específicos de voo, adicionar apenas o primeiro como alternativa
+        else if (flightData && flightData.flights && flightData.flights.length > 0) {
+            const flight = flightData.flights[0];
+            
+            // Formatar data/hora para exibição
+            const departureTime = new Date(flight.departure.time);
+            const arrivalTime = new Date(flight.arrival.time);
+            const formattedDeparture = departureTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const formattedArrival = arrivalTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const formattedDate = departureTime.toLocaleDateString('pt-BR');
+            
+            optionsHtml += `
+            <div class="flight-option-section">
+                <div class="flight-option-header recommended">
+                    <div class="option-label">Voo Disponível</div>
+                </div>
                 <div class="flight-card">
                     <div class="flight-header">
-                        <div class="airline">${flight.airline}</div>
+                        <div class="flight-title">
+                            <div class="flight-cities">${flight.departure.airport} → ${flight.arrival.airport}</div>
+                            <div class="flight-airline">${flight.airline}</div>
+                        </div>
                         <div class="flight-price">R$ ${flight.price.toFixed(2)}</div>
                     </div>
                     <div class="flight-details">
@@ -284,25 +345,19 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="departure">${formattedDeparture}</span>
                             <span class="flight-arrow">→</span>
                             <span class="arrival">${formattedArrival}</span>
-                        </div>
-                        <div class="flight-route">
-                            <span>${flight.departure.airport}</span>
-                            <span class="flight-arrow">→</span>
-                            <span>${flight.arrival.airport}</span>
+                            <span class="flight-date">${formattedDate}</span>
                         </div>
                     </div>
                     <div class="flight-actions">
                         <a href="${flight.affiliate_link}" target="_blank" class="btn-purchase">
                             <i class="fas fa-shopping-cart"></i> Comprar
                         </a>
-                        <button class="btn-select" data-option="${index}" data-type="flight">
-                            <i class="fas fa-check"></i> Selecionar
+                        <button class="btn-select" data-option="0" data-type="flight">
+                            <i class="fas fa-info-circle"></i> Detalhes
                         </button>
                     </div>
-                </div>`;
-            });
-            
-            optionsHtml += '</div>';
+                </div>
+            </div>`;
         }
         
         optionsHtml += '</div>';
@@ -320,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let selectedOption;
                 if (optionType === 'price') {
                     selectedOption = bestPricesData.best_prices[optionIndex];
-                    sendMessage(`Quero mais detalhes sobre o voo do dia ${new Date(selectedOption.date).toLocaleDateString('pt-BR')}`);
+                    sendMessage(`Quero mais detalhes sobre o voo para ${bestPricesData.destination} saindo dia ${new Date(selectedOption.date).toLocaleDateString('pt-BR')}`);
                 } else if (optionType === 'flight') {
                     selectedOption = flightData.flights[optionIndex];
                     sendMessage(`Quero mais detalhes sobre o voo da ${selectedOption.airline} de ${selectedOption.departure.airport} para ${selectedOption.arrival.airport}`);
