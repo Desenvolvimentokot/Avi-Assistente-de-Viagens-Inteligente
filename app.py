@@ -183,9 +183,23 @@ def chat():
                 else:
                     # Vamos buscar voos pela primeira vez
                     system_context = """
-                    Estamos prontos para buscar voos. Informe ao usuário que você está
-                    consultando a API da Amadeus para obter dados reais de voos. 
-                    NÃO SIMULE resultados - vamos obter dados reais após esta interação.
+                    INSTRUÇÕES CRÍTICAS PARA RESPOSTA:
+                    
+                    1. Estamos na etapa final: BUSCA DE VOOS NA API AMADEUS
+                    
+                    2. NÃO MENCIONE NENHUMA INFORMAÇÃO ESPECÍFICA DE RESULTADOS:
+                       - NÃO cite preços específicos (ex. R$3.200)
+                       - NÃO cite companhias aéreas específicas (ex. LATAM, Azul)
+                       - NÃO mencione horários específicos de voos
+                       - NÃO dê informações sobre duração de voos
+                       
+                    3. SUA RESPOSTA DEVE SER APENAS:
+                       "Estou consultando a API da Amadeus para encontrar os melhores voos para sua viagem a Miami. Um momento, por favor..."
+                       
+                    4. Os dados reais da API serão anexados automaticamente à sua resposta.
+                    
+                    AVISO: Suas respostas anteriores continham dados simulados, o que não é permitido. 
+                    Precisamos garantir que o usuário receba APENAS dados reais.
                     """
             
             # Obter resposta do GPT com o contexto específico do estágio

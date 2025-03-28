@@ -234,6 +234,20 @@ class BuscaRapidaService:
         adults = travel_info.get('adults', 1)
         currency = 'BRL'
         
+        # Validar que origem e destino são diferentes
+        if origin == destination:
+            logger.error(f"Erro na busca: origem ({origin}) e destino ({destination}) são iguais")
+            return {"error": "Origem e destino não podem ser iguais. Por favor, escolha locais diferentes."}
+            
+        # Validar que os códigos de aeroporto são válidos (3 letras)
+        if not (origin and len(origin) == 3 and origin.isalpha()):
+            logger.error(f"Código de origem inválido: {origin}")
+            return {"error": f"Código de aeroporto de origem inválido: {origin}. Use códigos IATA de 3 letras."}
+            
+        if not (destination and len(destination) == 3 and destination.isalpha()):
+            logger.error(f"Código de destino inválido: {destination}")
+            return {"error": f"Código de aeroporto de destino inválido: {destination}. Use códigos IATA de 3 letras."}
+            
         logger.info(f"Buscando melhores preços para {origin} -> {destination}")
         
         # Inicializar serviços de API
@@ -295,6 +309,20 @@ class BuscaRapidaService:
         adults = travel_info.get('adults', 1)
         travel_class = travel_info.get('class', 'ECONOMY')
         currency = 'BRL'
+        
+        # Validar que origem e destino são diferentes
+        if origin == destination:
+            logger.error(f"Erro na busca: origem ({origin}) e destino ({destination}) são iguais")
+            return {"error": "Origem e destino não podem ser iguais. Por favor, escolha locais diferentes."}
+            
+        # Validar que os códigos de aeroporto são válidos (3 letras)
+        if not (origin and len(origin) == 3 and origin.isalpha()):
+            logger.error(f"Código de origem inválido: {origin}")
+            return {"error": f"Código de aeroporto de origem inválido: {origin}. Use códigos IATA de 3 letras."}
+            
+        if not (destination and len(destination) == 3 and destination.isalpha()):
+            logger.error(f"Código de destino inválido: {destination}")
+            return {"error": f"Código de aeroporto de destino inválido: {destination}. Use códigos IATA de 3 letras."}
         
         logger.info(f"Buscando voos para {origin} -> {destination} em {departure_date}")
         

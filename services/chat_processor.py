@@ -94,8 +94,71 @@ class ChatProcessor:
         """
         if not current_context:
             current_context = {}
+            
+        # Identificar padrões específicos para ajudar na extração
+        message_lower = message.lower()
         
-        # Extrair informações
+        # Extração especial para "Miami"
+        # Se o usuário menciona Miami como destino, mas não especifica origem
+        if "miami" in message_lower and not current_context.get('destination'):
+            logger.info("Detectada menção a Miami na mensagem")
+            
+            # Verificar se tem uma origem identificável
+            has_origin_text = False
+            for pattern in [r'(?:de|da|do|saindo de|partindo de) ([a-zA-Z\s]+)',
+                           r'(?:origem|partida) (?:em|de|do|da)? ([a-zA-Z\s]+)']:
+                matches = re.search(pattern, message_lower)
+                if matches:
+                    has_origin_text = True
+                    break
+            
+            # Se não foi mencionada origem, assumimos São Paulo (GRU)
+            if not has_origin_text and not current_context.get('origin'):
+                logger.info("Origem não especificada para Miami, usando GRU (São Paulo) como padrão")
+                current_context['origin'] = 'GRU'
+            
+            # Definir Miami como destino
+            current_context['destination'] = 'MIA'
+        
+        # Extração de datas especiais como "15 de abril"
+        date_matches = re.findall(r'(\d+)\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)', message_lower)
+        for match in date_matches:
+            day = int(match[0])
+            month_name = match[1]
+            month = self.MONTHS.get(month_name, 0)
+            
+            if day > 0 and month > 0:
+                year = datetime.now().year
+                if month < datetime.now().month or (month == datetime.now().month and day < datetime.now().day):
+                    year += 1
+                    
+                try:
+                    date_obj = datetime(year, month, day)
+                    date_str = date_obj.strftime('%Y-%m-%d')
+                    logger.info(f"Encontrada data específica: {date_str}")
+                    
+                    if not current_context.get('departure_date'):
+                        current_context['departure_date'] = date_str
+                except Exception as e:
+                    logger.error(f"Erro ao processar data: {str(e)}")
+        
+        # Extração de período de estadia "X dias"
+        stay_matches = re.findall(r'(\d+)\s+dias', message_lower)
+        if stay_matches and len(stay_matches) > 0:
+            try:
+                days = int(stay_matches[0])
+                logger.info(f"Detectada menção a estadia de {days} dias")
+                
+                # Se temos uma data de partida, calculamos o retorno
+                if current_context.get('departure_date'):
+                    departure_date = datetime.strptime(current_context['departure_date'], '%Y-%m-%d')
+                    return_date = departure_date + timedelta(days=days)
+                    current_context['return_date'] = return_date.strftime('%Y-%m-%d')
+                    logger.info(f"Calculada data de retorno baseada em {days} dias: {current_context['return_date']}")
+            except Exception as e:
+                logger.error(f"Erro ao processar período de estadia: {str(e)}")
+        
+        # Agora extrair informações normalmente
         travel_info = self._extract_locations(message, current_context)
         travel_info.update(self._extract_dates(message, current_context))
         travel_info.update(self._extract_passengers(message, current_context))
