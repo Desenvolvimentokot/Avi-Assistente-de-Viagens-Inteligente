@@ -16,4 +16,6 @@ dependencies = [
     "pdfkit>=1.0.0",
     "reportlab>=4.3.1",
     "weasyprint>=65.0",
+    "pandas>=2.2.3",
+    "urllib3>=2.3.0",
 ]
