@@ -245,8 +245,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattedBestDate = bestDateObj.toLocaleDateString('pt-BR');
             
             // Obter nomes dos locais
-            const origin = bestPricesData.origin || "Origem";
-            const destination = bestPricesData.destination || "Destino";
+            const origin = requestedPrice.origin_info ? requestedPrice.origin_info.name : bestPricesData.origin;
+            const destination = requestedPrice.destination_info ? requestedPrice.destination_info.name : bestPricesData.destination;
+            
+            // Códigos de aeroporto
+            const originCode = requestedPrice.origin_info ? requestedPrice.origin_info.code : bestPricesData.origin;
+            const destinationCode = requestedPrice.destination_info ? requestedPrice.destination_info.code : bestPricesData.destination;
+            
+            // Extrair mais informações se disponíveis
+            const airline = requestedPrice.airline || '';
+            const flightNumber = requestedPrice.flight_number || '';
+            const departureTime = requestedPrice.departure_time || '';
+            const arrivalTime = requestedPrice.arrival_time || '';
+            const duration = requestedPrice.duration || '';
             
             // Criar o card para o voo solicitado
             optionsHtml += `
@@ -257,21 +268,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="flight-card highlight">
                     <div class="flight-header">
                         <div class="flight-title">
-                            <div class="flight-cities">${origin} → ${destination}</div>
+                            <div class="flight-cities">${origin} (${originCode}) → ${destination} (${destinationCode})</div>
                             <div class="flight-date">${formattedRequestedDate}</div>
                         </div>
                         <div class="flight-price">R$ ${requestedPrice.price.toFixed(2)}</div>
                     </div>
                     <div class="flight-details">
+                        ${airline ? `<div class="flight-airline"><strong>Companhia:</strong> ${airline} ${flightNumber}</div>` : ''}
+                        ${departureTime && arrivalTime ? `
+                            <div class="flight-time-info">
+                                <span class="departure"><strong>Saída:</strong> ${departureTime}</span>
+                                <span class="flight-arrow">→</span>
+                                <span class="arrival"><strong>Chegada:</strong> ${arrivalTime}</span>
+                                ${duration ? `<span class="duration"><strong>Duração:</strong> ${duration}</span>` : ''}
+                            </div>` : ''
+                        }
                         <div class="provider-info">
-                            <span class="provider-name">Via: ${requestedPrice.provider || 'Agência'}</span>
+                            <span class="provider-name"><strong>Via:</strong> ${requestedPrice.provider || 'Agência'}</span>
                         </div>
                     </div>
                     <div class="flight-actions">
                         <a href="${requestedPrice.affiliate_link}" target="_blank" class="btn-purchase" title="Comprar esta passagem agora">
                             <i class="fas fa-shopping-cart"></i> Comprar Agora
                         </a>
-                        <button class="btn-select" data-option="0" data-type="price" title="Ver mais detalhes sobre este voo">
+                        <button class="btn-details" data-option="0" data-type="price" title="Ver mais detalhes sobre este voo">
                             <i class="fas fa-info-circle"></i> Detalhes
                         </button>
                     </div>
@@ -284,6 +304,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const savings = ((requestedPrice.price - bestPrice.price) / requestedPrice.price) * 100;
                 const savingsPercentage = savings.toFixed(0);
                 
+                // Extrair mais informações do melhor preço se disponíveis
+                const bestAirline = bestPrice.airline || '';
+                const bestFlightNumber = bestPrice.flight_number || '';
+                const bestDepartureTime = bestPrice.departure_time || '';
+                const bestArrivalTime = bestPrice.arrival_time || '';
+                const bestDuration = bestPrice.duration || '';
+                
                 optionsHtml += `
                 <div class="flight-option-section">
                     <div class="flight-option-header recommended">
@@ -293,21 +320,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="flight-card">
                         <div class="flight-header">
                             <div class="flight-title">
-                                <div class="flight-cities">${origin} → ${destination}</div>
+                                <div class="flight-cities">${origin} (${originCode}) → ${destination} (${destinationCode})</div>
                                 <div class="flight-date">${formattedBestDate}</div>
                             </div>
                             <div class="flight-price">R$ ${bestPrice.price.toFixed(2)}</div>
                         </div>
                         <div class="flight-details">
+                            ${bestAirline ? `<div class="flight-airline"><strong>Companhia:</strong> ${bestAirline} ${bestFlightNumber}</div>` : ''}
+                            ${bestDepartureTime && bestArrivalTime ? `
+                                <div class="flight-time-info">
+                                    <span class="departure"><strong>Saída:</strong> ${bestDepartureTime}</span>
+                                    <span class="flight-arrow">→</span>
+                                    <span class="arrival"><strong>Chegada:</strong> ${bestArrivalTime}</span>
+                                    ${bestDuration ? `<span class="duration"><strong>Duração:</strong> ${bestDuration}</span>` : ''}
+                                </div>` : ''
+                            }
                             <div class="provider-info">
-                                <span class="provider-name">Via: ${bestPrice.provider || 'Agência'}</span>
+                                <span class="provider-name"><strong>Via:</strong> ${bestPrice.provider || 'Agência'}</span>
                             </div>
                         </div>
                         <div class="flight-actions">
                             <a href="${bestPrice.affiliate_link}" target="_blank" class="btn-purchase" title="Comprar esta passagem com economia">
                                 <i class="fas fa-shopping-cart"></i> Comprar
                             </a>
-                            <button class="btn-select" data-option="1" data-type="price" title="Ver mais detalhes sobre este voo">
+                            <button class="btn-details" data-option="1" data-type="price" title="Ver mais detalhes sobre este voo">
                                 <i class="fas fa-info-circle"></i> Detalhes
                             </button>
                         </div>
@@ -342,17 +378,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="flight-details">
                         <div class="flight-time">
-                            <span class="departure">${formattedDeparture}</span>
+                            <span class="departure"><strong>Saída:</strong> ${formattedDeparture}</span>
                             <span class="flight-arrow">→</span>
-                            <span class="arrival">${formattedArrival}</span>
-                            <span class="flight-date">${formattedDate}</span>
+                            <span class="arrival"><strong>Chegada:</strong> ${formattedArrival}</span>
+                            <span class="flight-date"><strong>Data:</strong> ${formattedDate}</span>
                         </div>
                     </div>
                     <div class="flight-actions">
                         <a href="${flight.affiliate_link}" target="_blank" class="btn-purchase">
                             <i class="fas fa-shopping-cart"></i> Comprar
                         </a>
-                        <button class="btn-select" data-option="0" data-type="flight">
+                        <button class="btn-details" data-option="0" data-type="flight">
                             <i class="fas fa-info-circle"></i> Detalhes
                         </button>
                     </div>
@@ -365,25 +401,186 @@ document.addEventListener('DOMContentLoaded', function() {
         
         chatMessages.appendChild(flightOptionsElement);
         
-        // Adicionar event listeners para os botões
-        const selectButtons = flightOptionsElement.querySelectorAll('.btn-select');
-        selectButtons.forEach(button => {
+        // Adicionar event listeners para os botões de detalhes
+        const detailButtons = flightOptionsElement.querySelectorAll('.btn-details');
+        detailButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const optionType = button.getAttribute('data-type');
-                const optionIndex = button.getAttribute('data-option');
+                const optionIndex = parseInt(button.getAttribute('data-option'));
                 
                 let selectedOption;
                 if (optionType === 'price') {
                     selectedOption = bestPricesData.best_prices[optionIndex];
-                    sendMessage(`Quero mais detalhes sobre o voo para ${bestPricesData.destination} saindo dia ${new Date(selectedOption.date).toLocaleDateString('pt-BR')}`);
+                    showFlightDetailsModal(selectedOption, bestPricesData);
                 } else if (optionType === 'flight') {
                     selectedOption = flightData.flights[optionIndex];
-                    sendMessage(`Quero mais detalhes sobre o voo da ${selectedOption.airline} de ${selectedOption.departure.airport} para ${selectedOption.arrival.airport}`);
+                    showFlightDetailsModal(selectedOption, null, true);
                 }
             });
         });
         
         scrollToBottom();
+    }
+    
+    // Função para exibir modal com detalhes do voo
+    function showFlightDetailsModal(flightData, bestPricesData, isFlightType = false) {
+        // Remover qualquer modal existente
+        const existingModal = document.querySelector('.flight-details-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Criar o modal
+        const modalElement = document.createElement('div');
+        modalElement.classList.add('flight-details-modal');
+        
+        // Determinar os dados a serem mostrados com base no tipo
+        let origin, destination, departureDate, departureTime, arrivalTime, 
+            airline, flightNumber, price, duration, connection, baggage;
+            
+        if (isFlightType) {
+            // Para dados do tipo flight
+            origin = flightData.departure.airport;
+            destination = flightData.arrival.airport;
+            
+            const depTime = new Date(flightData.departure.time);
+            const arrTime = new Date(flightData.arrival.time);
+            
+            departureDate = depTime.toLocaleDateString('pt-BR');
+            departureTime = depTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            arrivalTime = arrTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            airline = flightData.airline;
+            flightNumber = flightData.flight_number || '';
+            price = flightData.price.toFixed(2);
+            duration = flightData.duration || '';
+            connection = flightData.connection || 'Direto';
+            baggage = flightData.baggage || '1 bagagem (até 23kg)';
+        } else {
+            // Para dados do tipo price
+            origin = flightData.origin_info ? flightData.origin_info.name : bestPricesData.origin;
+            destination = flightData.destination_info ? flightData.destination_info.name : bestPricesData.destination;
+            
+            const originCode = flightData.origin_info ? flightData.origin_info.code : bestPricesData.origin;
+            const destinationCode = flightData.destination_info ? flightData.destination_info.code : bestPricesData.destination;
+            
+            const dateObj = new Date(flightData.date);
+            departureDate = dateObj.toLocaleDateString('pt-BR');
+            departureTime = flightData.departure_time || '';
+            arrivalTime = flightData.arrival_time || '';
+            
+            airline = flightData.airline || '';
+            flightNumber = flightData.flight_number || '';
+            price = flightData.price.toFixed(2);
+            duration = flightData.duration || '';
+            
+            connection = 'Direto';
+            if (flightData.has_connection && flightData.connection_airport) {
+                connection = `Conexão em ${flightData.connection_airport}`;
+                if (flightData.connection_time) {
+                    connection += ` (${flightData.connection_time})`;
+                }
+            }
+            
+            baggage = flightData.baggage_allowance || '1 bagagem (até 23kg)';
+        }
+        
+        // Montar o HTML do modal
+        const modalHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Detalhes do Voo</h2>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="flight-info-section">
+                            <h3>Informações do Voo</h3>
+                            <div class="flight-route">
+                                <div class="city-info origin">
+                                    <div class="city-name">${origin}</div>
+                                    <div class="city-code">${flightData.origin_info ? flightData.origin_info.code : bestPricesData.origin}</div>
+                                </div>
+                                <div class="route-line">
+                                    <div class="route-duration">${duration}</div>
+                                </div>
+                                <div class="city-info destination">
+                                    <div class="city-name">${destination}</div>
+                                    <div class="city-code">${flightData.destination_info ? flightData.destination_info.code : bestPricesData.destination}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flight-main-details">
+                                <div class="detail-item">
+                                    <div class="detail-label">Data</div>
+                                    <div class="detail-value">${departureDate}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Horário</div>
+                                    <div class="detail-value">${departureTime} - ${arrivalTime}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Duração</div>
+                                    <div class="detail-value">${duration}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flight-secondary-details">
+                                <div class="detail-item">
+                                    <div class="detail-label">Companhia Aérea</div>
+                                    <div class="detail-value">${airline}</div>
+                                </div>
+                                ${flightNumber ? `
+                                <div class="detail-item">
+                                    <div class="detail-label">Número do Voo</div>
+                                    <div class="detail-value">${flightNumber}</div>
+                                </div>` : ''}
+                                <div class="detail-item">
+                                    <div class="detail-label">Conexão</div>
+                                    <div class="detail-value">${connection}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Bagagem</div>
+                                    <div class="detail-value">${baggage}</div>
+                                </div>
+                                ${flightData.aircraft ? `
+                                <div class="detail-item">
+                                    <div class="detail-label">Aeronave</div>
+                                    <div class="detail-value">${flightData.aircraft}</div>
+                                </div>` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="price-section">
+                            <div class="price-header">Preço Total</div>
+                            <div class="price-value">R$ ${price}</div>
+                            <div class="price-provider">via ${flightData.provider}</div>
+                            
+                            <a href="${flightData.affiliate_link}" target="_blank" class="btn-modal-purchase">
+                                <i class="fas fa-shopping-cart"></i> Comprar esta Passagem
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modalElement.innerHTML = modalHTML;
+        document.body.appendChild(modalElement);
+        
+        // Adicionar event listener para fechar o modal
+        const closeButton = modalElement.querySelector('.modal-close');
+        const overlay = modalElement.querySelector('.modal-overlay');
+        
+        closeButton.addEventListener('click', () => {
+            modalElement.remove();
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                modalElement.remove();
+            }
+        });
     }
 
     function showTypingIndicator() {

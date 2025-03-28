@@ -578,12 +578,109 @@ class AmadeusService:
             return self._get_mock_best_prices(params)
             
     def _get_mock_best_prices(self, params):
-        """Retorna dados simulados de melhores preços"""
+        """Retorna dados simulados de melhores preços com dados de aeroportos reais"""
         import random
         from datetime import datetime, timedelta
         
-        origin = params.get('originLocationCode', 'GRU')
-        destination = params.get('destinationLocationCode', 'SSA')
+        # Verificar e corrigir códigos de aeroporto
+        origin_raw = params.get('originLocationCode', 'GRU')
+        destination_raw = params.get('destinationLocationCode', 'MIA')
+        
+        # Mapear códigos de aeroporto válidos
+        airport_map = {
+            # Principais aeroportos brasileiros
+            'GRU': {'code': 'GRU', 'name': 'São Paulo', 'full_name': 'Aeroporto de Guarulhos'},
+            'CGH': {'code': 'CGH', 'name': 'São Paulo', 'full_name': 'Aeroporto de Congonhas'},
+            'SDU': {'code': 'SDU', 'name': 'Rio de Janeiro', 'full_name': 'Aeroporto Santos Dumont'},
+            'GIG': {'code': 'GIG', 'name': 'Rio de Janeiro', 'full_name': 'Aeroporto do Galeão'},
+            'BSB': {'code': 'BSB', 'name': 'Brasília', 'full_name': 'Aeroporto de Brasília'},
+            'SSA': {'code': 'SSA', 'name': 'Salvador', 'full_name': 'Aeroporto de Salvador'},
+            'REC': {'code': 'REC', 'name': 'Recife', 'full_name': 'Aeroporto de Recife'},
+            'FOR': {'code': 'FOR', 'name': 'Fortaleza', 'full_name': 'Aeroporto de Fortaleza'},
+            'CWB': {'code': 'CWB', 'name': 'Curitiba', 'full_name': 'Aeroporto de Curitiba'},
+            'POA': {'code': 'POA', 'name': 'Porto Alegre', 'full_name': 'Aeroporto de Porto Alegre'},
+            'VCP': {'code': 'VCP', 'name': 'Campinas', 'full_name': 'Aeroporto de Viracopos'},
+            'CNF': {'code': 'CNF', 'name': 'Belo Horizonte', 'full_name': 'Aeroporto de Confins'},
+            
+            # Principais destinos internacionais
+            'MIA': {'code': 'MIA', 'name': 'Miami', 'full_name': 'Aeroporto de Miami'},
+            'JFK': {'code': 'JFK', 'name': 'Nova York', 'full_name': 'Aeroporto JFK'},
+            'LIS': {'code': 'LIS', 'name': 'Lisboa', 'full_name': 'Aeroporto de Lisboa'},
+            'MAD': {'code': 'MAD', 'name': 'Madri', 'full_name': 'Aeroporto de Madri'},
+            'CDG': {'code': 'CDG', 'name': 'Paris', 'full_name': 'Aeroporto Charles de Gaulle'},
+            'LHR': {'code': 'LHR', 'name': 'Londres', 'full_name': 'Aeroporto de Heathrow'},
+            'FCO': {'code': 'FCO', 'name': 'Roma', 'full_name': 'Aeroporto de Fiumicino'},
+            'EZE': {'code': 'EZE', 'name': 'Buenos Aires', 'full_name': 'Aeroporto de Ezeiza'},
+            'SCL': {'code': 'SCL', 'name': 'Santiago', 'full_name': 'Aeroporto de Santiago'},
+        }
+        
+        # Nome amigável para os destinos
+        name_to_code = {
+            'são paulo': 'GRU',
+            'sp': 'GRU', 
+            'guarulhos': 'GRU',
+            'congonhas': 'CGH',
+            'rio': 'GIG',
+            'rio de janeiro': 'GIG',
+            'galeão': 'GIG',
+            'santos dumont': 'SDU',
+            'brasília': 'BSB',
+            'brasilia': 'BSB',
+            'salvador': 'SSA',
+            'bahia': 'SSA',
+            'recife': 'REC',
+            'fortaleza': 'FOR',
+            'curitiba': 'CWB',
+            'porto alegre': 'POA',
+            'campinas': 'VCP',
+            'belo horizonte': 'CNF',
+            
+            'miami': 'MIA',
+            'nova york': 'JFK',
+            'new york': 'JFK',
+            'lisboa': 'LIS',
+            'madri': 'MAD',
+            'madrid': 'MAD',
+            'paris': 'CDG',
+            'londres': 'LHR',
+            'london': 'LHR',
+            'roma': 'FCO',
+            'rome': 'FCO',
+            'buenos aires': 'EZE',
+            'santiago': 'SCL',
+        }
+        
+        # Tentar obter códigos válidos
+        if len(origin_raw) == 3 and origin_raw.upper() in airport_map:
+            origin = origin_raw.upper()
+            origin_info = airport_map[origin]
+        else:
+            origin_lower = origin_raw.lower()
+            if origin_lower in name_to_code:
+                origin = name_to_code[origin_lower]
+                origin_info = airport_map[origin]
+            else:
+                # Usar um padrão para testes
+                origin = 'GRU'
+                origin_info = airport_map[origin]
+                
+        if len(destination_raw) == 3 and destination_raw.upper() in airport_map:
+            destination = destination_raw.upper()
+            destination_info = airport_map[destination]
+        else:
+            destination_lower = destination_raw.lower()
+            if destination_lower in name_to_code:
+                destination = name_to_code[destination_lower]
+                destination_info = airport_map[destination]
+            else:
+                # Se o usuário mencionar Miami, usar esse código
+                if "miami" in destination_lower or "mia" in destination_lower:
+                    destination = 'MIA'
+                # Caso contrário, usar um destino padrão
+                else:
+                    destination = 'MIA'
+                destination_info = airport_map[destination]
+                
         start_date = params.get('departureDate', '2024-12-01')
         end_date = params.get('returnDate', '2024-12-31')
         currency = params.get('currencyCode', 'BRL')
@@ -636,6 +733,73 @@ class AmadeusService:
             # Escolher um provedor aleatório
             selected_affiliate = random.choice(affiliate_links)
             
+            # Companhias preferenciais para diferentes rotas
+            preferred_airlines = {
+                'MIA': ['LATAM', 'American Airlines', 'GOL'],
+                'JFK': ['LATAM', 'American Airlines', 'Delta'],
+                'LIS': ['TAP Portugal', 'LATAM'],
+                'MAD': ['Iberia', 'Air Europa'],
+                'CDG': ['Air France', 'LATAM'],
+                'LHR': ['British Airways', 'LATAM'],
+                'FCO': ['Alitalia', 'LATAM'],
+                'EZE': ['Aerolíneas Argentinas', 'LATAM'],
+                'SCL': ['LATAM', 'Sky Airline'],
+            }
+            
+            # Aeroportos de conexão comuns
+            common_connections = {
+                'MIA': ['GRU', 'PTY', 'BOG'],  # São Paulo, Panamá, Bogotá
+                'JFK': ['GRU', 'ATL', 'MIA'],  # São Paulo, Atlanta, Miami
+                'LIS': ['GRU', 'MAD'],         # São Paulo, Madri
+                'MAD': ['GRU', 'LIS'],         # São Paulo, Lisboa
+                'CDG': ['GRU', 'LIS', 'MAD'],  # São Paulo, Lisboa, Madri
+                'LHR': ['GRU', 'CDG', 'MAD'],  # São Paulo, Paris, Madri
+                'FCO': ['GRU', 'LIS', 'CDG'],  # São Paulo, Lisboa, Paris
+                'EZE': ['GRU'],                # São Paulo
+                'SCL': ['GRU'],                # São Paulo
+            }
+            
+            # Selecionar companhia aérea preferencial para o destino
+            if destination in preferred_airlines:
+                airlines = preferred_airlines[destination]
+                airline = random.choice(airlines)
+            else:
+                airlines = ['LATAM', 'GOL', 'Azul', 'American Airlines']
+                airline = random.choice(airlines)
+                
+            # Calcular duração do voo (baseado em distâncias reais aproximadas)
+            durations = {
+                'MIA': '8h 25m',
+                'JFK': '9h 50m',
+                'LIS': '10h 15m',
+                'MAD': '10h 30m',
+                'CDG': '11h 20m',
+                'LHR': '11h 50m',
+                'FCO': '12h 10m',
+                'EZE': '3h 45m',
+                'SCL': '4h 30m',
+            }
+            
+            flight_duration = durations.get(destination, '8h 30m')
+            
+            # Calcular horários de partida e chegada
+            departure_datetime = datetime.strptime(f"{date} 10:00:00", '%Y-%m-%d %H:%M:%S')
+            arrival_datetime = departure_datetime + timedelta(hours=int(flight_duration.split('h')[0]), 
+                                                           minutes=int(flight_duration.split('h ')[1].replace('m', '')))
+            
+            # Verificar se há conexão
+            has_connection = random.choice([True, False])
+            connection_airport = None
+            connection_time = None
+            
+            if has_connection and destination in common_connections and common_connections[destination]:
+                connection_airport = random.choice(common_connections[destination])
+                connection_time = f"{random.randint(1, 3)}h {random.randint(10, 59)}m"
+            
+            # Número do voo (padrão IATA)
+            flight_number = f"{random.randint(100, 9999)}"
+            
+            # Adicionar detalhas do voo nos resultados
             best_prices.append({
                 'date': date,
                 'price': price,
@@ -643,7 +807,30 @@ class AmadeusService:
                 'flight_id': f"mock-{origin}-{destination}-{date}",
                 'is_simulated': True,
                 'affiliate_link': selected_affiliate["url"],
-                'provider': selected_affiliate["provider"]
+                'provider': selected_affiliate["provider"],
+                'origin_info': origin_info,
+                'destination_info': destination_info,
+                'airline': airline,
+                'flight_number': flight_number,
+                'departure_time': departure_datetime.strftime('%H:%M'),
+                'arrival_time': arrival_datetime.strftime('%H:%M'),
+                'duration': flight_duration,
+                'has_connection': has_connection,
+                'connection_airport': connection_airport,
+                'connection_time': connection_time,
+                'baggage_allowance': '1 bagagem de mão + 1 bagagem despachada',
+                'aircraft': random.choice(['Boeing 777', 'Boeing 787', 'Airbus A330', 'Airbus A350']),
+                'departure_date': date,
+                'departure_datetime': departure_datetime.strftime('%Y-%m-%d %H:%M'),
+                'arrival_datetime': arrival_datetime.strftime('%Y-%m-%d %H:%M'),
+                'flight_details': {
+                    'airline_code': airline[:2],
+                    'meal_service': True,
+                    'entertainment': True,
+                    'wifi': random.choice([True, False]),
+                    'power_outlets': True,
+                    'seat_pitch': f"{random.randint(29, 34)} polegadas",
+                }
             })
         
         # Ordenar por preço

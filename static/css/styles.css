@@ -749,7 +749,7 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
     margin-top: 15px;
 }
 
-.btn-purchase, .btn-select {
+.btn-purchase, .btn-select, .btn-details {
     padding: 10px 15px;
     border-radius: 30px;
     font-size: 14px;
@@ -779,19 +779,19 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
     transform: translateY(-2px);
 }
 
-.btn-select {
+.btn-select, .btn-details {
     background-color: white;
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
 }
 
-.btn-select:hover {
+.btn-select:hover, .btn-details:hover {
     background-color: var(--primary-color);
     color: white;
     box-shadow: 0 2px 5px rgba(46, 134, 222, 0.3);
 }
 
-.btn-purchase i, .btn-select i {
+.btn-purchase i, .btn-select i, .btn-details i {
     margin-right: 8px;
     font-size: 14px;
 }
@@ -823,6 +823,186 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
     background-color: #f87f2f;
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(255, 159, 67, 0.4);
+}
+
+/* Estilos para o modal de detalhes do voo */
+.flight-details-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--primary-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.modal-close:hover {
+    color: var(--error-color);
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.flight-info-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.flight-route {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.city-info {
+    text-align: center;
+    flex: 1;
+}
+
+.city-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.city-code {
+    font-size: 14px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.route-line {
+    flex: 2;
+    height: 2px;
+    background-color: var(--light-gray);
+    position: relative;
+    margin: 0 15px;
+}
+
+.route-duration {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    padding: 0 10px;
+    font-size: 14px;
+    color: #666;
+}
+
+.flight-main-details, .flight-secondary-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.detail-item {
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.detail-value {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.price-section {
+    background-color: #f5f9ff;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.price-header {
+    font-size: 14px;
+    color: #666;
+}
+
+.price-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 10px 0;
+}
+
+.price-provider {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.btn-modal-purchase {
+    display: inline-block;
+    background-color: var(--accent-color);
+    color: white;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.btn-modal-purchase:hover {
+    background-color: #f87f2f;
 }
 
 /* Adicionar estilos específicos para responsividade */
