@@ -169,11 +169,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         contentContainer.appendChild(contentElement);
         messageElement.appendChild(contentContainer);
-
         chatMessages.appendChild(messageElement);
 
-        // Scroll para o final
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Garantir que o texto não fique na vertical
+        if (isUser) {
+            contentElement.style.whiteSpace = 'normal';
+            contentElement.style.display = 'inline-block';
+        }
+
+        // Rolar para o final da conversa automaticamente
+        setTimeout(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 100);
     }
 
     function addPurchaseLink(url) {

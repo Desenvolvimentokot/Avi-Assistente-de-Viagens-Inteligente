@@ -294,6 +294,9 @@ body {
     background-color: var(--chat-user-color, #e1f1ff);
     border-radius: 18px 18px 0 18px;
     margin-left: auto;
+    display: flex;
+    flex-direction: row;
+    word-break: normal;
 }
 
 .message-box.assistant {

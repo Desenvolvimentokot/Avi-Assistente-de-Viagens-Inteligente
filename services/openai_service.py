@@ -92,7 +92,7 @@ class OpenAIService:
             # Contexto padrão do assistente de viagens
             messages.append({
                 "role": "system",
-                "content": "Você é Flai, um assistente de viagens especializado em ajudar os usuários a encontrar voos."
+                "content": "Você é Avi, um assistente de viagens especializado em ajudar os usuários a encontrar voos."
             })
         
         # Adicionar histórico da conversa
