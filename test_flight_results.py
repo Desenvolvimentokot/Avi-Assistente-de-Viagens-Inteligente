@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import requests
 import json
@@ -16,11 +15,11 @@ def test_flight_results_api():
     # Gerar uma sessão de teste
     session_id = str(uuid.uuid4())
     logger.info(f"Usando session_id de teste: {session_id}")
-    
+
     # URL da API
     base_url = "http://localhost:5000"  # Altere para a URL adequada se necessário
     api_url = f"{base_url}/api/flight_results/{session_id}"
-    
+
     # Dados de teste para a sessão
     test_data = {
         "travel_info": {
@@ -31,7 +30,7 @@ def test_flight_results_api():
             "adults": 1
         }
     }
-    
+
     # Primeiro, armazenar os dados na sessão
     logger.info("Criando sessão de teste no servidor...")
     session_url = f"{base_url}/api/test/create_session"
@@ -45,18 +44,18 @@ def test_flight_results_api():
     except Exception as e:
         logger.error(f"Erro ao criar sessão: {str(e)}")
         return
-    
+
     # Agora, testar a API de resultados
     logger.info(f"Testando API em: {api_url}")
     try:
         response = requests.get(api_url)
         logger.info(f"Status code: {response.status_code}")
-        
+
         # Verificar se a resposta é válida
         if response.status_code == 200:
             data = response.json()
             logger.info("Resposta recebida com sucesso!")
-            
+
             # Verificar se há erro na resposta
             if "error" in data:
                 logger.error(f"Erro na resposta: {data['error']}")
@@ -77,7 +76,7 @@ def test_flight_results_api():
                     logger.info(f"Resposta completa: {json.dumps(data, indent=2)}")
         else:
             logger.error(f"Erro na requisição: {response.text}")
-    
+
     except Exception as e:
         logger.error(f"Erro ao testar API: {str(e)}")
 

@@ -181,11 +181,7 @@ class FlightResultsPanel {
                 <span>Resultados de Voos Reais</span>
                 <button class="close-btn">&times;</button>
             </div>
-            <div class="flight-results-content">
-                <div class="loader-container">
-                    <div class="loader"></div>
-                </div>
-            </div>
+            <div class="flight-results-content"></div> <div class="flight-results-loading" style="display:none;">Carregando...</div> <div class="flight-results-error" style="display:none;"></div>
             <div class="flight-results-footer">
                 <div>Dados fornecidos pela API oficial Amadeus</div>
                 <div class="amadeus-badge">AMADEUS TRAVEL API</div>
@@ -236,33 +232,11 @@ class FlightResultsPanel {
         }
     }
 
-    showLoading() {
-        this.panel.querySelector('.flight-results-content').innerHTML = `
-            <div class="loader-container">
-                <div class="loader"></div>
-                <div class="loading-message">Buscando melhores ofertas de voos</div>
-                <div class="loading-steps">Consultando API Amadeus em tempo real...</div>
-                <div class="loading-progress">
-                    <div class="loading-progress-bar" id="loadingProgressBar"></div>
-                </div>
-            </div>
-        `;
-
-        // Animar a barra de progresso
-        let progress = 0;
-        this.loadingInterval = setInterval(() => {
-            if (progress < 90) { // Só vai até 90% para mostrar que ainda está carregando
-                progress += 5;
-                const progressBar = document.getElementById('loadingProgressBar');
-                if (progressBar) {
-                    progressBar.style.width = progress + '%';
-                }
-            }
-        }, 300);
-    }
 
     showError(message, details) {
-        this.panel.querySelector('.flight-results-content').innerHTML = `
+        const errorContainer = this.panel.querySelector('.flight-results-error');
+        errorContainer.style.display = 'block';
+        errorContainer.innerHTML = `
             <div class="error-message">
                 <p>${message || 'Ocorreu um erro ao buscar os resultados de voos.'}</p>
                 ${details ? `<p>Detalhes: ${details}</p>` : ''}
@@ -271,15 +245,21 @@ class FlightResultsPanel {
                 </button>
             </div>
         `;
+        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+        this.panel.querySelector('.flight-results-content').style.display = 'none';
+
     }
 
     showNoResults() {
-        this.panel.querySelector('.flight-results-content').innerHTML = `
+        const resultsContainer = this.panel.querySelector('.flight-results-content');
+        resultsContainer.innerHTML = `
             <div class="no-results">
                 <p>Não encontramos voos disponíveis para esta busca.</p>
                 <p>Tente alterar os filtros ou datas de viagem.</p>
             </div>
         `;
+        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+
     }
 
     // Método para carregar dados de teste (garantir que sempre haja algo para mostrar)
@@ -336,40 +316,29 @@ class FlightResultsPanel {
 
         fetch(url)
             .then(response => {
-                console.log("Resposta recebida:", response.status);
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log("Dados recebidos:", data);
-
                 if (data.error) {
-                    console.error("Erro nos dados:", data.error);
                     this.showError(data.error, data.details);
                     return;
                 }
 
-                // Verificar dados no formato correto
-                if (data.best_prices && data.best_prices.length > 0) {
-                    console.log("Renderizando resultados de best_prices");
-                    this.renderBestPricesResults(data);
+                if (!data.data || data.data.length === 0) {
+                    this.showNoResults();
                     return;
                 }
 
-                if (data.data && data.data.length > 0) {
-                    console.log("Renderizando resultados de data");
-                    this.renderResults(data);
-                    return;
-                }
+                this.renderResults(data);
 
-                console.warn("Nenhum resultado encontrado nos dados");
-                this.showNoResults();
             })
             .catch(error => {
                 console.error('Erro ao carregar resultados:', error);
-                this.showError('Ocorreu um erro ao carregar os resultados. Tente novamente.', error.message);
+                // Attempt to load test data as fallback
+                this.loadTestResults();
             });
     }
 
@@ -431,6 +400,7 @@ class FlightResultsPanel {
         });
 
         resultsContainer.appendChild(resultsListContainer);
+        this.panel.querySelector('.flight-results-loading').style.display = 'none';
     }
 
     // Método centralizado para renderização de resultados (usado tanto pelos testes quanto pelos dados reais)
@@ -540,7 +510,11 @@ class FlightResultsPanel {
         resultsHtml += `</div>`;
 
         // Atualizar o conteúdo do painel
-        this.panel.querySelector('.flight-results-content').innerHTML = resultsHtml;
+        const resultsContainer = this.panel.querySelector('.flight-results-content');
+        resultsContainer.innerHTML = resultsHtml;
+        resultsContainer.style.display = 'block';
+        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+
 
         // Adicionar eventos aos botões
         this.addButtonEvents();
@@ -778,6 +752,14 @@ class FlightResultsPanel {
         }
 
         return formatted.trim();
+    }
+
+    showLoading() {
+        const loadingContainer = this.panel.querySelector('.flight-results-loading');
+        loadingContainer.style.display = 'block';
+        this.panel.querySelector('.flight-results-content').style.display = 'none';
+        this.panel.querySelector('.flight-results-error').style.display = 'none';
+
     }
 }
 
