@@ -685,12 +685,13 @@ class ChatProcessor:
             if code == destination:
                 destination_name = info.get('city', destination)
         
-        # Gerar texto de introdução
+        # Garantir que nunca vamos usar placeholders no formato [texto]
+        # Isso evita que pareça que estamos simulando dados
         intro_texts = [
-            f"Encontrei algumas opções de voos de {origin_name} para {destination_name} com dados reais da API Amadeus:",
-            f"Aqui estão as opções de voos reais que encontrei para sua viagem de {origin_name} para {destination_name}:",
-            f"Consultei a API Amadeus e encontrei estas opções para sua viagem de {origin_name} para {destination_name}:",
-            f"Com base nos dados reais da API Amadeus, encontrei estas opções para sua viagem entre {origin_name} e {destination_name}:"
+            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nEncontrei algumas opções de voos de {origin_name} para {destination_name} com dados reais da API Amadeus:",
+            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nAqui estão as opções de voos reais que encontrei para sua viagem de {origin_name} para {destination_name}:",
+            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nConsultei a API Amadeus e encontrei estas opções para sua viagem de {origin_name} para {destination_name}:",
+            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nCom base nos dados reais da API Amadeus, encontrei estas opções para sua viagem entre {origin_name} e {destination_name}:"
         ]
         
         # Escolher uma introdução aleatória

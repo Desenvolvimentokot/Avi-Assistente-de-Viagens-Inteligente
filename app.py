@@ -181,13 +181,17 @@ def chat():
                     usando apenas os dados reais que já foram obtidos.
                     """
                 else:
-                    # Forçar resposta fixa para busca na API
-                    # Este é o ponto crítico: não permitimos que o GPT gere qualquer conteúdo
-                    # Usamos uma resposta fixa e padronizada que será substituída pelos dados reais
-                    gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"
+                    # SOLUÇÃO: Controlar totalmente o fluxo no backend para evitar simulações do GPT
+                    # Quando chegamos aqui, estamos na etapa de busca (step 2) sem dados ainda
+                    # Vamos forçar uma mensagem padronizada e impedir que o GPT invente dados
+                    
+                    # 1. Gerar mensagem padrão "Estou buscando na API Amadeus..."
+                    gpt_response = "Entendi! Vou consultar a API da Amadeus para encontrar opções reais para sua viagem. Por favor, aguarde um momento..."
+                    
+                    # 2. Definir resultado que substitui completamente o que viria do ChatGPT
                     gpt_result = {"response": gpt_response}
                     
-                    # Pular o resto do processamento e ir direto para a busca real
+                    # 3. Pular chamada do GPT completamente nesta etapa crítica
                     skip_gpt_call = True
             
             # Verificar se devemos pular a chamada do GPT

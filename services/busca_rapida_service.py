@@ -369,7 +369,14 @@ class BuscaRapidaService:
     def _format_search_results(self, search_results):
         """
         Formata os resultados da busca para apresentação ao usuário
+        
+        Esta função é crítica para garantir que apenas dados reais da API Amadeus
+        sejam apresentados ao usuário.
         """
+        # Verificar se há erro nos resultados
+        if 'error' in search_results:
+            return f"**ERRO NA BUSCA**: {search_results['error']}\n\nInfelizmente não foi possível completar sua busca. Por favor, tente com outras datas ou destinos."
+            
         # Verificar se temos resultados de melhores preços
         if 'best_prices' in search_results and search_results['best_prices']:
             return self._format_best_prices_results(search_results)
@@ -379,7 +386,7 @@ class BuscaRapidaService:
             return self._format_flight_results(search_results)
         
         # Caso não tenha resultados
-        return "Não foi possível encontrar opções que atendam aos seus critérios."
+        return "**RESULTADO DA BUSCA**: Não foi possível encontrar opções que atendam aos seus critérios na API Amadeus. Tente com datas ou aeroportos diferentes."
     
     def _format_best_prices_results(self, results):
         """
