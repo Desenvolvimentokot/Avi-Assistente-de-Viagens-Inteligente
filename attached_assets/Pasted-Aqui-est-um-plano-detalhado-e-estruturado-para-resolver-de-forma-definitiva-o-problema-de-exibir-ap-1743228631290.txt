@@ -1,0 +1,130 @@
+Aqui está um plano detalhado e estruturado para resolver de forma definitiva o problema de exibir apenas dados reais da API Amadeus – sem qualquer fallback ou simulação – integrado ao nosso fluxo de chat. Essa abordagem parte de uma revisão completa de todos os componentes (backend, serviço de dados e front-end) para que o fluxo seja:
+
+Coleta e Confirmação dos Dados pelo Chat (Avi)
+
+Busca Real de Voos com o Amadeus (via nosso novo serviço)
+
+Exibição dos Resultados Reais na Interface (sem usar o GPT para gerar ofertas)
+
+1. Objetivos Gerais
+Eliminar dados simulados: Nenhuma informação fictícia deve ser exibida; somente dados reais da API Amadeus.
+
+Usar o SDK oficial: Garantir que todas as chamadas à API usem o SDK oficial (ou chamadas REST diretas se necessário) sem interferência do GPT.
+
+Separar fluxos de conversa e de busca: O GPT (Avi) deve se concentrar em coletar e confirmar dados, enquanto o backend se encarrega de buscar os voos reais e enviar esses dados para o front-end.
+
+Exibição clara e consistente: Os resultados devem ser mostrados em “cartões” ou um painel integrado ao chat (ou como mensagem especial) com informações reais e um botão “Reservar Agora” que direcione para o link real da reserva.
+
+2. Fluxo de Trabalho Proposto
+Passo A – Coleta e Confirmação de Dados
+Entrada do Usuário:
+O usuário envia uma mensagem como:
+"Quero viajar de São Paulo para Miami dia 15 de junho, por 6 dias, saindo de São Paulo."
+
+Extração de Dados:
+A Avi (ChatGPT) processa a mensagem e extrai informações essenciais (origem, destino, data de ida e de volta, número de passageiros).
+Dica: Use o módulo services/chat_processor.py para extrair e validar essas informações. Garanta que datas relativas (ex.: "daqui a 1 semana") sejam convertidas para datas reais e formatadas (ex.: "15/06/2025 (Segunda)").
+
+Confirmação:
+A Avi envia de volta uma mensagem resumida com os dados extraídos e pede a confirmação do usuário.
+Exemplo:
+"Confirmando: de São Paulo (GRU) para Miami (MIA), ida em 15/06/2025 e volta em 21/06/2025, 1 passageiro. Está correto?"
+
+Passo B – Busca Real de Voos
+Desabilitar GPT para Ofertas:
+Após a confirmação, o endpoint de chat (por exemplo, /api/chat) não deve chamar o GPT para gerar ofertas de voo. Em vez disso, o backend deve chamar um novo serviço dedicado para buscar os voos reais.
+
+Criar Serviço de Dados de Voo:
+Crie um módulo novo, por exemplo, services/flight_data_provider.py ou services/flight_service_connector.py, que:
+
+Receba os parâmetros confirmados.
+
+Realize a chamada direta à API Amadeus (usando o SDK oficial, conforme implementado em services/amadeus_sdk_service.py ou similar).
+
+Formate a resposta em um objeto JSON padronizado contendo os dados reais dos voos (ex.: companhia, horário, preço, duração, link de reserva).
+
+Armazenamento e Sessão:
+O backend deve associar essa busca a um session_id válido (gerado quando o usuário inicia a conversa ou após a confirmação) e incluir na resposta do endpoint de chat a flag "show_flight_results": true e o session_id.
+
+Rota Dedicada para Resultados:
+Crie uma rota nova (ex.: /api/flight_results/<session_id>) que, quando chamada pelo front-end, retorne os dados reais da busca. Essa rota não deve utilizar o GPT para nada e somente repassar os dados coletados pelo nosso novo serviço.
+
+Passo C – Exibição dos Resultados no Front-end
+Integração no Chat:
+O front-end (JavaScript) deve ser modificado para:
+
+Observar a flag "show_flight_results": true na resposta do endpoint /api/chat.
+
+Usar o session_id recebido para disparar uma chamada AJAX para a rota /api/flight_results/<session_id>.
+
+Inserir os dados reais (em formato de cartões) na conversa ou abrir um painel lateral (ou modal) com os resultados.
+
+Design e UX:
+
+Exibição dos Cartões: Os cartões devem conter informações como: companhia aérea, número do voo, horários de partida e chegada, preço, duração e um botão “Reservar Agora” que direcione para a URL real da reserva.
+
+Animação de Carregamento: Enquanto os dados são buscados, exiba uma barra de carregamento ou animação (por exemplo, um ícone de avião animado ou uma progress bar) para informar ao usuário que a busca está em andamento.
+
+Botão de Fechar/Mostrar: Inclua um botão que permita ao usuário fechar ou reabrir o painel de resultados.
+
+Eliminação de Dados Simulados:
+Remova quaisquer referências ao fallback ou dados de teste. Se não houver resultados (erro na API), exiba uma mensagem clara do tipo:
+"Não foi possível obter dados reais da API Amadeus. Por favor, tente novamente mais tarde."
+
+3. Aspectos Técnicos e Cuidados
+No Backend (app.py e serviços):
+Remoção de Chamadas ao OpenAI para Ofertas de Voo:
+Certifique-se de que, no endpoint /api/chat, após a confirmação dos dados de viagem, o código NÃO invoque funções como openai_service.travel_assistant para gerar dados de voos. Toda a chamada deve ser para o nosso novo serviço que usa o Amadeus.
+
+Configuração do Banco de Dados:
+Verifique a string de conexão (já resolvemos o problema do sslmode duplicado). Certifique-se de que todas as funções que acessam o histórico de conversas utilizem a nova configuração com retries se necessário.
+
+Logging Extensivo:
+Adicione logs detalhados para rastrear o session_id, os parâmetros de busca e as respostas da API Amadeus. Isso ajudará a diagnosticar eventuais problemas.
+
+No Front-end (static/js):
+Modificação no chat.js:
+Atualize o código para, ao receber a resposta com "show_flight_results": true, disparar uma requisição para /api/flight_results/<session_id> e inserir os resultados na interface.
+
+Modificação no flight-results-panel.js:
+Refaça a lógica de inicialização do painel para garantir que ele seja aberto somente quando a flag for verdadeira e que os dados reais sejam exibidos. Remova quaisquer chamadas a funções de teste ou fallback.
+
+Interface Responsiva:
+Certifique-se de que a exibição dos cartões de voo seja compatível com diferentes tamanhos de tela (desktop e mobile).
+
+Animação e UX:
+Implemente uma barra de progresso (ou outro indicador visual) que apareça enquanto os dados estão sendo buscados. Utilize CSS e JavaScript para garantir transições suaves.
+
+4. Resumo do Fluxo Completo
+Usuário envia mensagem de busca de voo →
+O ChatGPT (Avi) coleta os dados e os confirma com o usuário.
+
+Após confirmação →
+O backend, ao receber os dados confirmados, chama o novo serviço (FlightDataProvider) que faz a chamada direta à API Amadeus para buscar os voos reais.
+Gera um session_id e inclui "show_flight_results": true na resposta.
+
+Front-end →
+Ao receber a resposta, o JavaScript extrai o session_id e dispara uma chamada AJAX para /api/flight_results/<session_id> para obter os dados reais.
+Enquanto os dados são carregados, uma animação de carregamento é exibida.
+
+Exibição dos resultados →
+Os cartões com os dados reais (companhia, horários, preço, etc.) são inseridos na conversa (ou num painel lateral/modal) e o botão “Reservar Agora” redireciona para o link real de compra.
+
+5. Conclusão e Próximos Passos
+Esse plano elimina qualquer possibilidade de exibição de dados simulados e garante que o fluxo de busca use apenas dados reais da API Amadeus. A chave é separar completamente o processamento do ChatGPT da busca real de voos – usando um novo serviço para essa finalidade e integrando os resultados diretamente na interface.
+
+Próximos passos para você passar ao Replit:
+
+Criar o novo serviço de busca de voos (FlightDataProvider ou FlightServiceConnector) no diretório services/.
+
+Modificar o endpoint /api/chat em app.py para, após confirmação do usuário, chamar esse serviço e retornar o session_id e a flag "show_flight_results": true.
+
+Criar uma nova rota /api/flight_results/<session_id> que retorna os dados reais da API Amadeus, utilizando o novo serviço.
+
+Atualizar o front-end (arquivos static/js/chat.js e static/js/flight-results-panel.js) para disparar a requisição à nova rota usando o session_id e exibir os resultados com uma animação de carregamento.
+
+Remover quaisquer referências a dados simulados ou ao endpoint de teste /api/flight_results/test.
+
+Testar o fluxo completo com logs detalhados e garantir que o session_id seja transmitido corretamente.
+
+Essa é a abordagem mais robusta e deve resolver os problemas que você vem enfrentando. Se precisar de mais alguma clarificação ou ajuste, estou à disposição para ajudar!

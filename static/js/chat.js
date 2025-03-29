@@ -214,6 +214,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Sessão ativa:", sessionId);
             }
 
+            // Verificar se estamos recebendo resposta de fallback do OpenAI
+            if (data.response && data.response.includes("BUSCANDO_DADOS_REAIS_NA_API_AMADEUS")) {
+                console.error("ATENÇÃO: Detectada resposta de fallback do OpenAI. O sistema deve usar APENAS dados reais da API Amadeus.");
+                console.log("Requisitando dados reais em vez de usar respostas OpenAI...");
+                
+                // Substituir a mensagem por algo mais informativo
+                data.response = "Estou consultando a API da Amadeus para encontrar as melhores opções de voos. Por favor, aguarde um momento...";
+            }
+            
             // Adicionar resposta ao chat
             addMessage(data.response, false);
             

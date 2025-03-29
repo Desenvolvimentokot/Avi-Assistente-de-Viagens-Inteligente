@@ -360,36 +360,46 @@ def chat():
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # CONEXÃO DIRETA COM O AMADEUS-TEST
-                    # Usar o novo conector direto com o buscador Amadeus-test
+                    # CONEXÃO DIRETA COM A API AMADEUS
+                    # Usar o novo conector direto com a API Amadeus
                     from services.flight_service_connector import flight_service_connector
                     
                     search_results = None
                     try:
-                        # Enviar as informações de viagem diretamente para o buscador Amadeus-test
-                        # Isso evita a chamada à API do OpenAI para buscar voos
-                        logging.info("BUSCA DIRETA: Enviando para o buscador Amadeus-test...")
+                        # Enviar as informações de viagem diretamente para a API Amadeus
+                        # IMPORTANTE: Este fluxo evita COMPLETAMENTE a chamada à API do OpenAI para buscar voos
+                        logger.info(f"BUSCA DIRETA: Enviando para API Amadeus via conector - Sessão: {session_id}")
+                        logger.info(f"Parâmetros de busca: {current_travel_info.get('origin')} -> {current_travel_info.get('destination')}")
                         
-                        # Fazer a busca com o novo conector direto
+                        # Fazer a busca com o conector dedicado
                         search_results = flight_service_connector.search_flights_from_chat(
                             travel_info=current_travel_info,
                             session_id=session_id
                         )
                         
-                        logging.info(f"RESULTADOS DIRETOS: {json.dumps(search_results)[:200]}...")
-                        
-                        # Armazenar resultados da busca
-                        current_travel_info['search_results'] = search_results
-                        
-                        # Usar o formatador do conector para preparar a resposta
-                        formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
-                        
-                        # Extrair a mensagem e a flag para mostrar o painel
-                        response_text = formatted_response.get('message', 'Não foi possível formatar os resultados.')
-                        show_flight_results = formatted_response.get('show_flight_results', False)
-                        
-                        # IMPORTANTE: Forçar abertura do painel SEMPRE neste ponto
-                        show_flight_results = True
+                        if not search_results:
+                            logger.error("Busca direta retornou resultados vazios")
+                            response_text = "Desculpe, não consegui encontrar voos para a sua busca. Poderia verificar as informações fornecidas?"
+                            show_flight_results = False
+                        elif 'error' in search_results:
+                            logger.error(f"Erro na busca direta: {search_results['error']}")
+                            response_text = f"Ocorreu um erro ao buscar voos: {search_results['error']}"
+                            show_flight_results = False
+                        else:
+                            logger.info(f"RESULTADOS DIRETOS OBTIDOS: {len(search_results.get('data', []))} voos encontrados")
+                            
+                            # Armazenar resultados da busca
+                            current_travel_info['search_results'] = search_results
+                            
+                            # Usar o formatador do conector para preparar a resposta
+                            formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
+                            
+                            # Extrair a mensagem e a flag para mostrar o painel
+                            response_text = formatted_response.get('message', 'Encontrei algumas opções de voos para você! Confira no painel lateral.')
+                            
+                            # IMPORTANTE: Forçar abertura do painel quando houver resultados
+                            show_flight_results = True
+                            logger.info("Painel de resultados será exibido automaticamente")
                         
                         # Preparar dados para resposta
                         current_travel_info['show_flight_results'] = show_flight_results

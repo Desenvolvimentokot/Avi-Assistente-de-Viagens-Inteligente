@@ -1,0 +1,242 @@
+Plano de Solução Definitivo
+1. Objetivos
+Separar completamente o fluxo de extração/confirmação (ChatGPT/Avi) do fluxo de busca e exibição dos dados reais da Amadeus.
+
+Eliminar qualquer chamada à OpenAI para geração de dados de voos; o GPT deve apenas coletar e confirmar os dados.
+
+Utilizar exclusivamente um serviço intermediário (por exemplo, FlightServiceConnector) para fazer chamadas diretas à API Amadeus e retornar dados reais.
+
+Exibir os resultados reais na interface do usuário de forma clara – seja integrados à conversa ou em um painel lateral que possa ser aberto e fechado via um botão fixo (“Mural de Ofertas”).
+
+2. Fluxo de Trabalho (Workflow)
+Passo 1 – Coleta e Confirmação de Dados (Fluxo A)
+Responsabilidade do ChatGPT (Avi):
+
+Extração: O GPT deve coletar informações essenciais do usuário (origem, destino, datas, número de passageiros, etc.).
+
+Confirmação: Depois de coletar as informações, Avi exibirá uma mensagem de confirmação, por exemplo:
+
+"Você deseja viajar de São Paulo (GRU) para Miami (MIA) partindo em 29/05/2025 por 12 dias. Está correto?"
+
+Ação do Usuário: O usuário confirma ou corrige os dados.
+
+Passo 2 – Busca Real na API Amadeus (Fluxo B)
+Após a Confirmação:
+
+O backend receberá os parâmetros validados.
+
+Será gerado um session_id único para esta busca.
+
+Serviço Intermediário: Um novo serviço (ex.: FlightServiceConnector) será chamado para fazer a requisição diretamente à API Amadeus usando o SDK oficial (ou chamadas REST diretas, se necessário).
+
+Validação: O serviço validará os parâmetros (garantindo que a origem e destino não sejam iguais, datas no formato correto, etc.).
+
+Chamada à API: Realizará a chamada e obterá os dados reais de voos.
+
+Formatação: Os resultados serão processados e formatados em um JSON com estrutura de “cartões de voo” contendo informações reais como companhia aérea, horários, preços, duração e links reais para compra (deep linking).
+
+Armazenamento: Os resultados reais serão armazenados (no backend, em sessão ou em LocalStorage) associados ao session_id.
+
+Passo 3 – Exibição dos Resultados
+Integração Frontend:
+
+Nova Rota: Será criada uma rota no Flask, por exemplo, /api/flight_results/<session_id>, que retorna apenas os dados reais formatados pelo serviço intermediário.
+
+Interface de Exibição:
+
+Opção 1 (Integrada no Chat): Inserir os cartões de voo diretamente na conversa como uma mensagem especial da Avi.
+
+Opção 2 (Painel Lateral – “Mural de Ofertas”):
+
+Remover todos os mecanismos antigos de painel lateral.
+
+Criar um botão fixo “Mural de Ofertas” no cabeçalho que, quando clicado, faz uma requisição ao endpoint /api/flight_results/<session_id>.
+
+Exibir os resultados reais em um painel modal ou lateral, com uma animação de carregamento (barra de progresso ou animação de avião) enquanto a requisição é processada.
+
+Incluir um botão “Reservar agora” em cada cartão, redirecionando para a URL de compra real.
+
+Importante:
+
+Nenhum fallback de dados simulados deve existir em nenhum lugar. Qualquer tentativa de fallback deve retornar uma mensagem de erro clara (“Faça uma busca real para ver os resultados.”).
+
+O sistema não deve chamar o OpenAI para gerar resultados de voo.
+
+3. Detalhamento Técnico da Implementação
+3.1. Backend (Flask)
+Consolidação do Serviço Amadeus:
+
+Arquivo: services/amadeus_sdk_service.py
+
+Objetivo: Garantir que esse arquivo esteja limpo de qualquer lógica de dados simulados.
+
+Ação: Revisar e confirmar que todos os métodos (como search_flights, search_hotels, search_hotel_offers, etc.) façam chamadas diretas à API Amadeus e retornem os dados reais.
+
+Criar o Serviço Intermediário:
+
+Arquivo Novo: services/flight_service_connector.py
+
+Responsabilidade:
+
+Receber os parâmetros confirmados do usuário.
+
+Validar os parâmetros.
+
+Fazer a chamada à API Amadeus usando o SDK oficial.
+
+Formatar os dados em um JSON contendo os “cartões de voo” com todos os detalhes reais.
+
+Exemplo de Função:
+
+python
+Copy
+def get_flight_results(params):
+    # Validar parâmetros (ex: origem, destino, datas)
+    if params['originLocationCode'] == params['destinationLocationCode']:
+        return {"error": "Origem e destino não podem ser iguais."}
+    # Chamar a API via SDK
+    response = amadeus_sdk_service.search_flights(params)
+    if "error" in response:
+        return response
+    # Processar e formatar os dados (incluindo links reais de compra)
+    formatted_results = format_flight_data(response["data"])
+    return {"data": formatted_results}
+Nova Rota para Dados de Voos:
+
+Arquivo: app_routes.py (ou criar um novo blueprint)
+
+Rota: /api/flight_results/<session_id>
+
+Responsabilidade:
+
+Recuperar os parâmetros e resultados associados ao session_id.
+
+Se os dados estiverem disponíveis, retornar o JSON formatado com os resultados reais.
+
+Se não, retornar um erro claro.
+
+Modificar o Endpoint /api/chat:
+
+Local: app.py
+
+Ação:
+
+Quando o usuário confirmar os dados da viagem, o endpoint deve:
+
+Salvar os parâmetros de busca.
+
+Gerar e retornar um session_id.
+
+Incluir na resposta a flag show_flight_results: true.
+
+Importante: Não chamar o OpenAI para gerar dados de voo – redirecionar o fluxo para o novo serviço intermediário.
+
+3.2. Frontend (JavaScript/CSS)
+Atualização do Chat:
+
+Arquivo: static/js/chat.js
+
+Ação:
+
+Remover qualquer lógica que invoque fallback ou dados simulados.
+
+Quando a resposta do endpoint /api/chat incluir show_flight_results: true e um session_id, disparar um evento (por exemplo, showFlightResults) com o session_id.
+
+Nova Exibição dos Resultados:
+
+Opção Integrada no Chat (recomendado para simplicidade):
+
+Inserir os “cartões de voo” diretamente na área de chat, como uma mensagem especial da Avi.
+
+Ou, se preferir o painel lateral:
+
+Arquivo: static/js/flight-results-panel.js
+
+Ação:
+
+Criar ou atualizar o painel para que ele não abra automaticamente na página, mas sim quando o usuário clicar em um botão fixo “Mural de Ofertas”.
+
+Esse botão deve estar no cabeçalho e, ao ser clicado, fazer uma requisição para /api/flight_results/<session_id> e exibir os resultados em um modal/painel lateral.
+
+Adicionar uma animação de carregamento (por exemplo, uma barra de progresso) enquanto a requisição está em andamento.
+
+Certificar-se de que os resultados exibidos são os dados reais formatados e incluir botões “Reservar agora” que redirecionem para a URL de compra.
+
+Eliminação de Chamadas ao OpenAI:
+
+Revisar todos os arquivos JavaScript e serviços (especialmente no chat e nos painéis) para remover quaisquer chamadas à OpenAI para geração de ofertas de voo. O GPT deverá ser usado apenas para a parte de conversação e extração/validação dos dados.
+
+Logs e Depuração:
+
+Adicionar logs detalhados no frontend para rastrear o session_id e a requisição ao endpoint /api/flight_results/<session_id>.
+
+Garantir que, se ocorrer um erro (por exemplo, dados não encontrados), uma mensagem clara seja exibida ao usuário (“Por favor, refaça sua pesquisa para ver os resultados reais.”).
+
+4. Pontos Críticos e Cuidados
+Persistência do Session ID:
+Certificar-se de que o session_id gerado pelo backend seja salvo em LocalStorage ou em um objeto global (por exemplo, window.flightSharedData) e esteja disponível para o frontend durante toda a sessão.
+
+Remoção Completa de Dados Simulados:
+Verificar que não haja nenhuma referência a funções ou métodos que retornem dados de teste (por exemplo, loadTestResults() ou chamadas ao endpoint /api/flight_results/test).
+
+Sincronização entre Componentes:
+O fluxo deve garantir que a requisição à API Amadeus (via FlightServiceConnector) seja disparada somente após o usuário confirmar os dados e que os resultados sejam enviados ao frontend imediatamente para exibição.
+
+Interface do Usuário:
+
+O botão “Mural de Ofertas” deve ser fixo no cabeçalho para que o usuário possa acessá-lo a qualquer momento.
+
+O painel (ou mensagem dentro do chat) deve incluir uma animação de carregamento enquanto os resultados são buscados.
+
+Os cartões de voo devem exibir informações reais (companhia, horários, preço, duração) e ter um botão “Reservar agora” com link real.
+
+Teste de Integração:
+Realizar testes ponta a ponta para garantir que o fluxo completo (extração → confirmação → busca real → exibição dos resultados) funcione sem chamar o OpenAI para gerar dados de voo.
+
+5. Estimativa de Sucesso
+Com essa abordagem estruturada e separada, a chance de sucesso é estimada em 90% a 95% – desde que todas as etapas sejam implementadas e testadas corretamente, e que os dados reais da API Amadeus sejam retornados sem interferência de chamadas à OpenAI.
+
+6. Resumo Final para o Replit
+Para o Replit, o plano é o seguinte:
+
+Consolidação e Criação do Serviço Intermediário:
+
+Remover qualquer lógica de fallback ou dados simulados.
+
+Criar/ajustar o FlightServiceConnector em services/flight_service_connector.py para receber os parâmetros confirmados e fazer a requisição direta à API Amadeus, formatando os dados em “cartões de voo” com links reais.
+
+Modificação do Endpoint /api/chat:
+
+Ajustar o endpoint para, após confirmação dos dados pelo usuário, gerar um session_id e retornar a flag show_flight_results: true junto com o session_id.
+
+Remover qualquer chamada ao OpenAI para gerar resultados de voos.
+
+Nova Rota para Resultados de Voos:
+
+Criar uma nova rota /api/flight_results/<session_id> (no app_routes.py) que, usando o FlightServiceConnector, retorna os dados reais da API Amadeus.
+
+Garantir tratamento de erros adequado.
+
+Atualização do Frontend:
+
+No arquivo static/js/chat.js, remover referências a dados simulados e ajustar o disparo do evento para abrir o painel.
+
+Criar um botão fixo “Mural de Ofertas” no cabeçalho que, ao ser clicado, faz a requisição ao novo endpoint e exibe os resultados na interface.
+
+No arquivo static/js/flight-results-panel.js, ajustar a exibição para que o painel só abra quando o usuário clicar no botão, com uma animação de carregamento, e exiba os dados reais formatados em cartões com botões “Reservar agora”.
+
+Logs e Depuração:
+
+Adicionar logs detalhados para rastrear o session_id, o fluxo de requisições e eventuais erros.
+
+Testar rigorosamente o fluxo ponta a ponta para garantir que nenhuma chamada à OpenAI seja feita para a busca de voos.
+
+Interface e Experiência do Usuário:
+
+Garantir que a interface do “Mural de Ofertas” seja esteticamente alinhada com o site, com animações de carregamento, botões de fechar/abrir e mensagens de erro amigáveis.
+
+Validar a experiência tanto em desktop quanto em dispositivos móveis.
+
+Essa é a proposta completa e definitiva. Por favor, revise cada etapa e, se estiver de acordo, o Replit poderá executar as modificações para que o sistema utilize apenas os dados reais da API Amadeus e exiba os resultados conforme o fluxo correto.
+
+Caso haja alguma dúvida ou ajuste adicional, estou à disposição para esclarecer.
