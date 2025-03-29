@@ -4,19 +4,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (flightsMuralButton) {
         flightsMuralButton.addEventListener('click', function() {
             console.log("Botão do Mural de Voos clicado");
-
+            
             // Verificar se temos o objeto global do painel
             if (window.flightResultsPanel) {
                 // Mostrar o painel com o ID da sessão atual
                 window.flightResultsPanel.showPanel();
-
+                
                 // FORÇA TESTE PRIMEIRO para garantir que algo seja exibido
                 if (!sessionId) {
                     console.log("TESTE: Usando endpoint de teste por não ter sessionId");
                     window.flightResultsPanel.loadTestResults();
                     return;
                 }
-
+                
                 // Se tivermos um ID de sessão, carregar resultados
                 if (sessionId) {
                     console.log("Mostrando painel com sessionId:", sessionId);
@@ -46,33 +46,33 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error("Botão do Mural de Voos não encontrado");
     }
-
+    
     // Listener para evento de seleção de voo
     document.addEventListener('flightSelected', (event) => {
         console.log('Chat: Evento flightSelected recebido:', event.detail);
-
+        
         if (event.detail && event.detail.flightData) {
             // Obter os dados do voo selecionado
             const flightData = event.detail.flightData;
-
+            
             // Armazenar no contexto
             if (chatContext) {
                 chatContext.selectedFlight = flightData;
             }
-
+            
             // Se estiver aguardando seleção, adicionar mensagem confirmando
             const firstSegment = flightData.itineraries[0].segments[0];
             const lastSegment = flightData.itineraries[0].segments[flightData.itineraries[0].segments.length - 1];
-
+            
             // Formatar mensagem com detalhes básicos do voo selecionado
             const message = `✅ Voo selecionado: ${firstSegment.carrierCode} de ${firstSegment.departure.iataCode} para ${lastSegment.arrival.iataCode} por ${flightData.price.currency} ${parseFloat(flightData.price.total).toFixed(2)}`;
-
+            
             // Adicionar como mensagem do assistente
             addMessage(message, false);
-
+            
             // Adicionar mensagem sugerindo continuar a conversa
             addMessage("Você pode me fazer perguntas específicas sobre este voo ou solicitar outras informações para sua viagem.", false);
-
+            
             // Scroll para mostrar a mensagem
             scrollToBottom();
         }
@@ -127,11 +127,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Resetar chat para o novo modo
                 chatMessages.innerHTML = '';
                 addWelcomeMessage();
-
+                
                 // Ocultar a explicação após primeiro clique
                 const welcomeInfo = document.getElementById('welcome-options-info');
                 if (welcomeInfo) welcomeInfo.style.display = 'none';
-
+                
                 // Alterar a cor de fundo se for planejamento completo
                 if (mode === 'full-planning') {
                     document.querySelector('.chat-container').classList.add('planning-mode');
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Adicionar resposta ao chat
             addMessage(data.response, false);
-
+            
             // Atualiza o histórico local com a resposta
             chatHistory.push({assistant: data.response});
 
@@ -233,36 +233,39 @@ document.addEventListener('DOMContentLoaded', function() {
             // O backend envia a flag "show_flight_results" quando deve exibir o painel lateral
             if (data.show_flight_results) {
                 console.log("Recebido show_flight_results=true, mostrando painel lateral");
-
-                // Garantir que temos uma sessão válida
-                const sessionId = getChatSessionId();
-                console.log("ID da sessão atual:", sessionId);
-
-                // Aguardar a inicialização do painel e então mostrar resultados
+                
+                // FORÇAR EXIBIÇÃO DO PAINEL LATERAL COM RESULTADOS
+                // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
                 setTimeout(() => {
-                    console.log('Executando disparo do evento de exibição do painel (timeout)');
-                    // Verificar se o painel está inicializado
-                    if (typeof flightResultsPanel !== 'undefined') {
-                        const event = new CustomEvent('showFlightResults', {
-                            detail: { sessionId: sessionId }
-                        });
-                        document.dispatchEvent(event);
-                        console.log("Evento showFlightResults disparado com sessionId:", sessionId);
+                    console.log("Executando disparo do evento de exibição do painel (timeout)");
+                    
+                    // Verificar se temos a instância global do painel
+                    if (window.flightResultsPanel) {
+                        // Disparar evento customizado para mostrar o painel de resultados
+                        document.dispatchEvent(new CustomEvent('showFlightResults', {
+                            detail: {
+                                sessionId: data.session_id || sessionId
+                            }
+                        }));
+                        
+                        // Adicionar uma pequena mensagem de direcionamento na conversa
+                        addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);
                     } else {
-                        console.error("Painel de resultados de voos não inicializado!");
-                        // Tentar inicializar o painel se não estiver disponível
-                        if (typeof initFlightResultsPanel === 'function') {
-                            initFlightResultsPanel();
-                            setTimeout(() => {
-                                const event = new CustomEvent('showFlightResults', {
-                                    detail: { sessionId: sessionId }
-                                });
-                                document.dispatchEvent(event);
-                                console.log("Evento showFlightResults disparado após inicialização, sessionId:", sessionId);
-                            }, 300);
-                        }
+                        console.error("ERRO CRÍTICO: Panel not initialized: flightResultsPanel not found");
+                        
+                        // Tentar inicializar manualmente como fallback
+                        window.flightResultsPanel = new FlightResultsPanel();
+                        
+                        // Tentar novamente após inicialização
+                        setTimeout(() => {
+                            document.dispatchEvent(new CustomEvent('showFlightResults', {
+                                detail: {
+                                    sessionId: data.session_id || sessionId || 'test'
+                                }
+                            }));
+                        }, 500);
                     }
-                }, 500);
+                }, 1000);
             }
 
             // MANTÉM o código legado para compatibilidade com o sistema atual
@@ -270,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.flight_data || data.best_prices_data) {
                 addFlightOptions(data.flight_data, data.best_prices_data);
             }
-
+            
             // Se houver link de compra direto, mostrar botão
             if (data.purchase_link) {
                 addPurchaseLink(data.purchase_link);
@@ -294,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
-
+        
         // Processa o texto para manter formatação markdown básica
         if (!isUser) {
             // Converte markdown para HTML
@@ -317,22 +320,22 @@ document.addEventListener('DOMContentLoaded', function() {
             contentElement.style.display = 'inline-block';
         }
     }
-
+    
     // Funções para converter markdown básico para HTML
     function convertMarkdownHeaders(text) {
         return text.replace(/### (.*?)$/gm, '<h3>$1</h3>')
                   .replace(/## (.*?)$/gm, '<h2>$1</h2>')
                   .replace(/# (.*?)$/gm, '<h1>$1</h1>');
     }
-
+    
     function convertMarkdownBold(text) {
         return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     }
-
+    
     function convertMarkdownItalic(text) {
         return text.replace(/\*(.*?)\*/g, '<em>$1</em>');
     }
-
+    
     function convertMarkdownLists(text) {
         return text.replace(/- (.*?)$/gm, '<ul><li>$1</li></ul>').replace(/<\/ul><ul>/g, '');
     }
@@ -350,45 +353,45 @@ document.addEventListener('DOMContentLoaded', function() {
         chatMessages.appendChild(purchaseElement);
         scrollToBottom();
     }
-
+    
     function addFlightOptions(flightData, bestPricesData) {
         // Se não tivermos dados de voos ou preços, não fazer nada
         if (!flightData && !bestPricesData) return;
-
+        
         const flightOptionsElement = document.createElement('div');
         flightOptionsElement.classList.add('flight-options');
-
+        
         let optionsHtml = '<div class="flight-options-container">';
         optionsHtml += '<h3>Opções de Voos para Sua Viagem</h3>';
-
+        
         // Adicionar dois cards: Voo solicitado e Recomendação
         if (bestPricesData && bestPricesData.best_prices && bestPricesData.best_prices.length > 0) {
             // Organizar dados para os dois cartões
             const bestPrice = bestPricesData.best_prices[0]; // O melhor preço (menor)
             const requestedPrice = bestPricesData.best_prices.length > 1 ? bestPricesData.best_prices[1] : bestPricesData.best_prices[0];
-
+            
             // Formatar datas
             const requestedDateObj = new Date(requestedPrice.date);
             const bestDateObj = new Date(bestPrice.date);
-
+            
             const formattedRequestedDate = requestedDateObj.toLocaleDateString('pt-BR');
             const formattedBestDate = bestDateObj.toLocaleDateString('pt-BR');
-
+            
             // Obter nomes dos locais
             const origin = requestedPrice.origin_info ? requestedPrice.origin_info.name : bestPricesData.origin;
             const destination = requestedPrice.destination_info ? requestedPrice.destination_info.name : bestPricesData.destination;
-
+            
             // Códigos de aeroporto
             const originCode = requestedPrice.origin_info ? requestedPrice.origin_info.code : bestPricesData.origin;
             const destinationCode = requestedPrice.destination_info ? requestedPrice.destination_info.code : bestPricesData.destination;
-
+            
             // Extrair mais informações se disponíveis
             const airline = requestedPrice.airline || '';
             const flightNumber = requestedPrice.flight_number || '';
             const departureTime = requestedPrice.departure_time || '';
             const arrivalTime = requestedPrice.arrival_time || '';
             const duration = requestedPrice.duration || '';
-
+            
             // Criar o card para o voo solicitado
             optionsHtml += `
             <div class="flight-option-section">
@@ -427,20 +430,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             </div>`;
-
+            
             // Mostrar o melhor preço apenas se for diferente do solicitado
             if (bestPrice.price < requestedPrice.price || bestPrice.date !== requestedPrice.date) {
                 // Calcular a economia (em percentual)
                 const savings = ((requestedPrice.price - bestPrice.price) / requestedPrice.price) * 100;
                 const savingsPercentage = savings.toFixed(0);
-
+                
                 // Extrair mais informações do melhor preço se disponíveis
                 const bestAirline = bestPrice.airline || '';
                 const bestFlightNumber = bestPrice.flight_number || '';
                 const bestDepartureTime = bestPrice.departure_time || '';
                 const bestArrivalTime = bestPrice.arrival_time || '';
                 const bestDuration = bestPrice.duration || '';
-
+                
                 optionsHtml += `
                 <div class="flight-option-section">
                     <div class="flight-option-header recommended">
@@ -481,18 +484,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>`;
             }
         }
-
+        
         // Se tivermos dados específicos de voo, adicionar apenas o primeiro como alternativa
         else if (flightData && flightData.flights && flightData.flights.length > 0) {
             const flight = flightData.flights[0];
-
+            
             // Formatar data/hora para exibição
             const departureTime = new Date(flight.departure.time);
             const arrivalTime = new Date(flight.arrival.time);
             const formattedDeparture = departureTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const formattedArrival = arrivalTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const formattedDate = departureTime.toLocaleDateString('pt-BR');
-
+            
             optionsHtml += `
             <div class="flight-option-section">
                 <div class="flight-option-header recommended">
@@ -525,19 +528,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>`;
         }
-
+        
         optionsHtml += '</div>';
         flightOptionsElement.innerHTML = optionsHtml;
-
+        
         chatMessages.appendChild(flightOptionsElement);
-
+        
         // Adicionar event listeners para os botões de detalhes
         const detailButtons = flightOptionsElement.querySelectorAll('.btn-details');
         detailButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const optionType = button.getAttribute('data-type');
                 const optionIndex = parseInt(button.getAttribute('data-option'));
-
+                
                 let selectedOption;
                 if (optionType === 'price') {
                     selectedOption = bestPricesData.best_prices[optionIndex];
@@ -548,42 +551,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
-
+        
         scrollToBottom();
     }
-
+    
     // Função para exibir modal com detalhes do voo
     function showFlightDetailsModal(flightData, bestPricesData, isFlightType = false) {
         // Verificar se os dados são simulados
         const isSimulated = flightData.is_simulated || 
                           (bestPricesData && bestPricesData.is_simulated);
-
+        
         // Remover qualquer modal existente
         const existingModal = document.querySelector('.flight-details-modal');
         if (existingModal) {
             existingModal.remove();
         }
-
+        
         // Criar o modal
         const modalElement = document.createElement('div');
         modalElement.classList.add('flight-details-modal');
-
+        
         // Determinar os dados a serem mostrados com base no tipo
         let origin, destination, departureDate, departureTime, arrivalTime, 
             airline, flightNumber, price, duration, connection, baggage;
-
+            
         if (isFlightType) {
             // Para dados do tipo flight
             origin = flightData.departure.airport;
             destination = flightData.arrival.airport;
-
+            
             const depTime = new Date(flightData.departure.time);
             const arrTime = new Date(flightData.arrival.time);
-
+            
             departureDate = depTime.toLocaleDateString('pt-BR');
             departureTime = depTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             arrivalTime = arrTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-
+            
             airline = flightData.airline;
             flightNumber = flightData.flight_number || '';
             price = flightData.price.toFixed(2);
@@ -594,20 +597,20 @@ document.addEventListener('DOMContentLoaded', function() {
             // Para dados do tipo price
             origin = flightData.origin_info ? flightData.origin_info.name : bestPricesData.origin;
             destination = flightData.destination_info ? flightData.destination_info.name : bestPricesData.destination;
-
+            
             const originCode = flightData.origin_info ? flightData.origin_info.code : bestPricesData.origin;
             const destinationCode = flightData.destination_info ? flightData.destination_info.code : bestPricesData.destination;
-
+            
             const dateObj = new Date(flightData.date);
             departureDate = dateObj.toLocaleDateString('pt-BR');
             departureTime = flightData.departure_time || '';
             arrivalTime = flightData.arrival_time || '';
-
+            
             airline = flightData.airline || '';
             flightNumber = flightData.flight_number || '';
             price = flightData.price.toFixed(2);
             duration = flightData.duration || '';
-
+            
             connection = 'Direto';
             if (flightData.has_connection && flightData.connection_airport) {
                 connection = `Conexão em ${flightData.connection_airport}`;
@@ -615,10 +618,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     connection += ` (${flightData.connection_time})`;
                 }
             }
-
+            
             baggage = flightData.baggage_allowance || '1 bagagem (até 23kg)';
         }
-
+        
         // Montar o HTML do modal
         // Verificar se há um aviso de dados simulados para adicionar
         let simulatedDataWarning = '';
@@ -631,7 +634,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         }
-
+        
         const modalHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
@@ -656,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="city-code">${flightData.destination_info ? flightData.destination_info.code : bestPricesData.destination}</div>
                                 </div>
                             </div>
-
+                            
                             <div class="flight-main-details">
                                 <div class="detail-item">
                                     <div class="detail-label">Data</div>
@@ -671,7 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="detail-value">${duration}</div>
                                 </div>
                             </div>
-
+                            
                             <div class="flight-secondary-details">
                                 <div class="detail-item">
                                     <div class="detail-label">Companhia Aérea</div>
@@ -697,12 +700,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>` : ''}
                             </div>
                         </div>
-
+                        
                         <div class="price-section">
                             <div class="price-header">Preço Total</div>
                             <div class="price-value">R$ ${price}</div>
                             <div class="price-provider">via ${flightData.provider}</div>
-
+                            
                             <a href="${flightData.affiliate_link}" target="_blank" class="btn-modal-purchase">
                                 <i class="fas fa-shopping-cart"></i> Comprar esta Passagem
                             </a>
@@ -711,18 +714,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-
+        
         modalElement.innerHTML = modalHTML;
         document.body.appendChild(modalElement);
-
+        
         // Adicionar event listener para fechar o modal
         const closeButton = modalElement.querySelector('.modal-close');
         const overlay = modalElement.querySelector('.modal-overlay');
-
+        
         closeButton.addEventListener('click', () => {
             modalElement.remove();
         });
-
+        
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 modalElement.remove();
@@ -802,7 +805,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Simulação de verificação de preços
         fetch('/api/price-alerts/check')
         .then(response => response.json())
-        .then(data => {            console.log('Verificando preços para ' + (data.monitored_offers || 0) + ' ofertas monitoradas');
+        .then(data => {
+            console.log('Verificando preços para ' + (data.monitored_offers || 0) + ' ofertas monitoradas');
             // Se houver alertas, notificar o usuário
             if (data.alerts && data.alerts.length > 0) {
                 // Exibir alerta de preço
@@ -938,7 +942,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Resetar sessão e histórico
         sessionId = null;
         chatHistory = [];
-
+        
         // Resetar ID de conversa e contexto
         currentConversationId = null;
         chatContext = {
@@ -957,105 +961,9 @@ document.addEventListener('DOMContentLoaded', function() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // Controle para evitar múltiplas requisições
-    let flightSearchInProgress = false;
-
-    // Exibir resultados de voos quando solicitado
-    function showFlightResults(sessionId) {
-        // Evitar múltiplas chamadas simultâneas
-        if (flightSearchInProgress) {
-            console.log("Busca de voos já em andamento. Ignorando solicitação duplicada.");
-            return;
-        }
-
-        console.log("Recebido show_flight_results=true, mostrando painel lateral");
-        flightSearchInProgress = true;
-
-        // Mostrar o painel lateral
-        document.getElementById('flight-results-panel').classList.add('show');
-
-        // Mostrar mensagem de busca em andamento
-        const loadingMessage = document.createElement('div');
-        loadingMessage.className = 'chat-message system';
-        loadingMessage.innerHTML = `
-            <div class="message-content">
-                <p><em>🔍 Consultando API Amadeus. Por favor, aguarde enquanto buscamos as melhores opções de voos para você...</em></p>
-            </div>
-        `;
-        document.getElementById('chat-messages').appendChild(loadingMessage);
-
-        // Dar um pequeno delay para garantir que o painel seja exibido antes de carregar os resultados
-        setTimeout(() => {
-            console.log("Executando disparo do evento de exibição do painel (timeout)");
-            // Disparar evento personalizado para notificar o painel que deve carregar os resultados
-            const event = new CustomEvent('showFlightResults', { 
-                detail: { sessionId: sessionId }
-            });
-            document.dispatchEvent(event);
-
-            // Após 5 segundos, permitir novas buscas (tempo suficiente para que a primeira requisição seja processada)
-            setTimeout(() => {
-                flightSearchInProgress = false;
-            }, 5000);
-        }, 300);
-    }
-
-    // Função para detectar busca de voos na mensagem do usuário
-    function detectFlightSearchInMessage(message) {
-        // Palavras-chave que indicam busca de voos
-        const flightKeywords = [
-            'voos', 'voo', 'passagem', 'passagens', 'voar para', 'viagem para',
-            'avião', 'companhia aérea', 'amadeus', 'buscar voo'
-        ];
-
-        // Verificar se a mensagem contém alguma das palavras-chave
-        const messageLower = message.toLowerCase();
-        return flightKeywords.some(keyword => messageLower.includes(keyword.toLowerCase()));
-    }
-
     // Start functions
     loadConversations();
     loadUserProfile();
     loadTravelPlans();
     startPriceMonitoring();
 });
-
-function getChatSessionId() {
-    return sessionId;
-}
-
-function getCurrentSessionId() {
-    return sessionId;
-}
-
-function isFlightSearchMessage(message) {
-    // Expressões regulares para identificar buscas de voo
-    const flightPatterns = [
-        /v[oô]os?.+(?:para|de)/i,
-        /passagens?.+(?:para|de)/i,
-        /bilhetes?.+(?:para|de)/i,
-        /viajar.+(?:para|de)/i,
-        /(?:buscar|procurar|encontrar|achar).+v[oô]os?/i,
-        /(?:buscar|procurar|encontrar|achar).+passagens?/i,
-        /(?:quero|gostaria).+(?:ir|viajar|voar)/i,
-        /viagem.+para/i
-    ];
-
-    // Verificar se a mensagem contém algum dos padrões
-    return flightPatterns.some(pattern => pattern.test(message));
-}
-
-// Função para verificar se a resposta contém dados de voo
-function hasFlightData(responseText) {
-    const flightDataPatterns = [
-        /encontrei.{1,50}v[oô]os?/i,
-        /resultados.{1,30}v[oô]os?/i,
-        /op[çc][õo]es.{1,30}v[oô]os?/i,
-        /passagens.{1,30}dispon[íi]veis/i,
-        /voos.{1,50}partir de.{1,30}R\$/i,
-        /consultar tarifa/i,
-        /pre[çc]os.{1,30}v[oô]os?/i
-    ];
-
-    return flightDataPatterns.some(pattern => pattern.test(responseText));
-}

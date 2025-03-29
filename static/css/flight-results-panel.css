@@ -1,125 +1,24 @@
-/* Estilos para barra de progresso */
-.flight-results-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    text-align: center;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background-color: #f0f0f0;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 15px 0;
-}
-
-.progress-bar-fill {
-    height: 100%;
-    background-color: #4285f4;
-    width: 30%;
-    animation: progress 1.5s infinite ease-in-out;
-    border-radius: 4px;
-}
-
-.loading-message {
-    font-size: 16px;
-    color: #666;
-    margin-top: 10px;
-    font-weight: 500;
-}
-
-@keyframes progress {
-    0% {
-        margin-left: -30%;
-    }
-    100% {
-        margin-left: 100%;
-    }
-}
-
-
-/* Estilos para o painel de resultados de voos */
-.flight-results-panel {
-    position: fixed;
-    top: 0;
-    right: -500px; /* Inicialmente fora da tela */
-    width: 480px;
-    height: 100vh;
-    background-color: #ffffff;
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-    transition: right 0.3s ease;
-    z-index: 1000;
-    overflow-y: auto;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-/* Estilos para o indicador de carregamento */
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    text-align: center;
-    padding: 20px;
-}
-
-.loading-spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 20px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.error-message {
-    padding: 20px;
-    text-align: center;
-    color: #721c24;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    border-radius: 5px;
-    margin: 20px 0;
-}
-
-.error-details {
-    font-size: 14px;
-    margin-top: 10px;
-    color: #6c757d;
-    font-family: monospace;
-    text-align: left;
-    padding: 10px;
-    background-color: #f8f9fa;
-    border-radius: 3px;
-    max-height: 100px;
-    overflow-y: auto;
-}
-
-.no-results {
-    padding: 20px;
-    text-align: center;
-    color: #0c5460;
-    background-color: #d1ecf1;
-    border: 1px solid #bee5eb;
-    border-radius: 5px;
-    margin: 20px 0;
-}
-
-/* Restante dos estilos será mantido se já existirem */
-
 /* Estilos para o painel lateral de resultados de voos */
+.flight-results-panel {
+  position: fixed;
+  top: 70px; /* Posicionado abaixo do cabeçalho */
+  right: -450px;
+  width: 450px;
+  height: calc(100vh - 70px); /* Altura ajustada para não cobrir o cabeçalho */
+  background-color: #ffffff;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+.flight-results-panel.active {
+  right: 0;
+}
 
 .flight-results-header {
   background-color: #4a90e2;
@@ -629,14 +528,14 @@
     width: 100%;
     right: -100%;
   }
-
+  
   .toggle-flight-panel-btn.panel-visible {
     right: 10px;
     bottom: 10px;
     top: auto;
     transform: none;
   }
-
+  
   .flight-details-modal-content {
     width: 95%;
     max-height: 90vh;
