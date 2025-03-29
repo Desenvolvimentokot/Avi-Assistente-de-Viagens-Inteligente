@@ -660,7 +660,13 @@ class FlightPanel {
         `;
     }
     
-    // Carregar resultados de voos
+    // IMPLEMENTAÇÃO DO PLANO: FORÇAR ABERTURA DO PAINEL COM DADOS REAIS
+    loadFlightData(sessionId) {
+        // Alias para compatibilidade (fornecer método mais intuitivo)
+        this.loadFlightResults(sessionId);
+    }
+    
+    // Carregar resultados de voos (ENDPOINT ÚNICO PARA DADOS REAIS)
     loadFlightResults(sessionId) {
         // Validar o ID de sessão
         if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
@@ -669,14 +675,18 @@ class FlightPanel {
             return;
         }
         
-        // Guardar o ID da sessão
+        // Guardar o ID da sessão e mostrar o painel
         this.sessionId = sessionId;
-        console.log(`Carregando resultados para sessão: ${sessionId}`);
+        console.log(`🔍 BUSCANDO DADOS REAIS para sessão: ${sessionId}`);
+        
+        // Sempre mostrar o painel antes de começar o carregamento
+        this.show();
         
         // Mostrar loading
         this.showLoading();
         
-        // Fazer a requisição para a API
+        // SOLUÇÃO DO PLANO: Única chamada de API para dados reais
+        // Fazer a requisição para o endpoint exclusivo de voos reais
         fetch(`/api/flight_results/${sessionId}`)
             .then(response => {
                 console.log('Resposta da API:', response.status);
@@ -686,12 +696,16 @@ class FlightPanel {
                 return response.json();
             })
             .then(data => {
-                console.log('Dados recebidos:', data);
+                console.log('✅ DADOS REAIS recebidos:', data);
                 this.searchData = data;
                 this.renderFlightResults(data);
+                
+                // Salvar a sessão no localStorage para persistência
+                localStorage.setItem('currentSessionId', sessionId);
+                localStorage.setItem('lastFlightData', JSON.stringify(data));
             })
             .catch(error => {
-                console.error('Erro ao buscar resultados:', error);
+                console.error('Erro ao buscar resultados reais:', error);
                 this.showError(`Não foi possível carregar os resultados: ${error.message}`);
             });
     }

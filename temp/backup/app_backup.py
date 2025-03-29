@@ -308,8 +308,6 @@ def chat():
                     """
                     
             elif step == 2:  # Etapa de busca e apresentação de resultados
-                # IMPLEMENTAÇÃO DO PLANO DE AÇÃO: SEPARAÇÃO TOTAL DA BUSCA
-                
                 # Se já buscamos antes, apenas continuar a conversa
                 if current_travel_info.get('search_results'):
                     system_context = """
@@ -317,13 +315,14 @@ def chat():
                     usando apenas os dados reais que já foram obtidos.
                     """
                 else:
-                    # SOLUÇÃO DEFINITIVA: Pular completamente o ChatGPT neste ponto
-                    # Quando estamos na etapa de busca (step 2), não precisamos do ChatGPT
-                    # Os dados reais virão diretamente da API Amadeus
+                    # SOLUÇÃO: Controlar totalmente o fluxo no backend para evitar simulações do GPT
+                    # Quando chegamos aqui, estamos na etapa de busca (step 2) sem dados ainda
+                    # Vamos forçar uma mensagem padronizada e impedir que o GPT invente dados
                     
-                    # Forçar a flag para pular ChatGPT imediatamente
-                    logger.warning("🚫 ETAPA 2 DETECTADA: PULANDO GPT COMPLETAMENTE")
-                    skip_gpt_call = True
+                    # ESTA PARTE ESTÁ OBSOLETA E FOI MOVIDA PARA A INTERCEPTAÇÃO CENTRAL
+                    # Não é mais necessário definir skip_gpt_call aqui, pois agora verificamos
+                    # diretamente antes da chamada do GPT no ponto crítico do código
+                    pass
             
             # INTERCEPÇÃO CRÍTICA: VERIFICAR ESTÁGIO DE BUSCA CONFIRMADA
             # Aqui detectamos se estamos no estágio de busca após confirmação 
@@ -376,13 +375,9 @@ def chat():
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # IMPLEMENTAÇÃO DO PLANO: CONEXÃO DIRETA COM A API AMADEUS
-                    # Usar o conector unificado para a API Amadeus (via SDK oficial)
-                    # Este é o ponto crítico onde fazemos a busca real em vez de usar OpenAI
+                    # CONEXÃO DIRETA COM A API AMADEUS
+                    # Usar o novo conector direto com a API Amadeus
                     from services.flight_service_connector import flight_service_connector
-                    
-                    # Log para rastrear este ponto crítico
-                    logger.warning("🔍 BUSCA REAL: Chamando Amadeus API diretamente, pulando completamente o GPT")
                     
                     search_results = None
                     try:

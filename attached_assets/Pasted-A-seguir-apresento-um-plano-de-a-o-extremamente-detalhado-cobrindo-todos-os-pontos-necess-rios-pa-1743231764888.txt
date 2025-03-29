@@ -1,0 +1,267 @@
+A seguir, apresento um plano de ação extremamente detalhado, cobrindo todos os pontos necessários para (1) separar completamente o uso do ChatGPT da busca real de voos, (2) consolidar o uso do Amadeus, e (3) reconstruir o mural lateral de modo que ele exiba dados reais de forma confiável e melhore a experiência do usuário.
+
+1. Diagnóstico Atual
+Uso Indevido do ChatGPT para Buscar Voos
+
+O fluxo ainda faz chamadas ao OpenAI (openai_service.travel_assistant()) antes de acionar a busca real na API Amadeus.
+
+Isso leva a placeholders ou dados fictícios.
+
+Múltiplas Implementações de Serviço
+
+amadeus_service.py, amadeus_sdk_service.py, flight_data_provider.py, flight_service_connector.py etc.
+
+Gera duplicações e caminhos de código concorrentes.
+
+Mural Lateral Inconsistente
+
+Ele “fica só lá buscando” e nunca exibe dados reais ou finaliza o carregamento.
+
+O session_id não está sendo transmitido e/ou usado corretamente.
+
+O front-end não faz a requisição correta para exibir os resultados.
+
+Fluxo de Chat e Mural
+
+Mesmo após a Avi dizer que consultará a Amadeus, o mural não recebe dados reais ou fica em loop de carregamento.
+
+O chat, por sua vez, mostra alguma mensagem (“Encontrei as seguintes opções…”) que não bate com o mural.
+
+2. Objetivo
+Remover completamente qualquer fallback ou chamada ao OpenAI para geração de voos.
+
+Unificar o serviço de busca em apenas um conector para a API Amadeus (usando o SDK oficial).
+
+Reconstruir o mural lateral (ou outro componente) para exibir dados reais, com fluxo de carregamento e exibição final.
+
+Alinhar o fluxo do chat e do mural: quando o usuário confirmar os dados, a busca real ocorre e o mural exibe os voos.
+
+3. Grande Visão do Novo Fluxo
+3.1. Fluxo de Chat
+Etapa 0: O usuário informa destino, datas, etc.
+
+O ChatGPT (Avi) somente extrai informações e confirma com o usuário (sem qualquer tentativa de gerar voos).
+
+Etapa 1: Confirmação de dados.
+
+Avi pergunta: “Posso buscar passagens reais na Amadeus?”
+
+Se o usuário disser “Sim, confirmado!”, passamos para a etapa final.
+
+Etapa 2: Busca Real (API Amadeus).
+
+Skip GPT: antes de qualquer chamada ao ChatGPT, definimos skip_gpt_call = True.
+
+O backend faz a chamada real ao nosso conector Amadeus (ex: flight_service_connector.py).
+
+Retornamos um JSON com:
+
+"show_flight_results": true
+
+"session_id": <id ou token da busca>
+
+"data": <lista de voos reais> (opcional) ou sem “data” se quisermos que o mural faça uma requisição extra.
+
+Etapa 3: Exibição dos resultados.
+
+O front-end detecta "show_flight_results": true e dispara a exibição do mural com session_id.
+
+O mural ou exibe diretamente data (se já veio no JSON) ou faz requisição a /api/flight_results/<session_id>.
+
+3.2. Mural Lateral (ou outro componente)
+Recebe o session_id ou a própria lista de voos.
+
+Exibe um loader (“Buscando voos reais…”) enquanto carrega.
+
+Mostra cartões de voos reais com companhias, horários, preços, links de compra.
+
+Se o session_id for inválido ou a API não retornar nada, exibe mensagem de erro clara (“Não foi possível encontrar voos para estes parâmetros.”).
+
+4. Passo a Passo de Implementação
+4.1. Remover Chamadas ao OpenAI para Voos
+app.py:
+
+Localize o trecho que chama openai_service.travel_assistant() quando a etapa é de busca de voos.
+
+Geralmente em torno de if step == 2: ....
+
+Antes desse trecho, faça uma verificação:
+
+python
+Copy
+if step == 2 and current_travel_info.get('confirmed'):
+    skip_gpt_call = True
+    # chame a busca real de voos
+Comente ou remova qualquer código que chame o GPT para gerar ofertas de voo.
+
+Mantenha o GPT apenas para extração de dados, mas finalize seu uso antes da busca real.
+
+openai_service.py:
+
+Comente ou remova qualquer função que tente gerar dados de passagens (ex: “Simule voos”).
+
+Deixe apenas as funções de conversação genérica, caso seja necessário para extrair datas ou destinos.
+
+chat_processor.py:
+
+Se houver algo como “gpt_response = openai_service.travel_assistant()” na hora de buscar voos, remova ou condicione para if not skip_gpt_call.
+
+4.2. Unificar o Serviço Amadeus
+Escolher uma implementação principal, por exemplo amadeus_sdk_service.py ou flight_service_connector.py.
+
+Excluir (ou comentar) todos os outros: flight_data_provider.py, amadeus_service.py antigo, etc.
+
+Garantir que esse conector principal:
+
+Receba os parâmetros (origem, destino, data, etc.).
+
+Use o SDK oficial para fazer a busca.
+
+Retorne JSON real (sem placeholders).
+
+4.3. Criar Endpoint Único para Busca de Voos
+Ex: /api/flight_results/<session_id> ou /api/search_flights:
+
+Recebe parâmetros ou session_id.
+
+Chama o conector do Amadeus.
+
+Retorna os dados reais num JSON.
+
+Ou retorne os dados diretamente na resposta do /api/chat na etapa 2.
+
+Exemplo:
+
+json
+Copy
+{
+  "show_flight_results": true,
+  "session_id": "abc123",
+  "real_flights": [ ...voos... ]
+}
+4.4. Reconstruir o Mural Lateral
+Remover a versão atual do mural que “fica só buscando” e crie outro do zero:
+
+HTML: um container lateral <div id="flightResultsPanel">.
+
+CSS: estilo fixo à direita, com transição suave e um botão “Fechar” e um loader no topo.
+
+JS (flight-results-panel.js):
+
+Função showPanel() que remove display: none; e mostra o painel.
+
+Função hidePanel() que esconde o painel.
+
+Função loadAndShowResults(sessionId) que faz:
+
+showPanel()
+
+Exibe spinner “Buscando voos reais…”
+
+Faz fetch("/api/flight_results/" + sessionId) (ou usa o data que veio do chat).
+
+Quando chega a resposta, remove o spinner e exibe os cartões de voos.
+
+Evitar fallback de teste. Se sessionId for inválido, mostrar “Nenhum resultado. Realize a busca novamente.”
+
+4.5. Integração Chat–Mural
+No chat.js:
+
+Após a Avi confirmar e enviar a resposta do backend com show_flight_results: true e session_id: 'abc123', verifique:
+
+js
+Copy
+if (data.show_flight_results) {
+  flightResultsPanel.loadAndShowResults(data.session_id);
+}
+Isso chama flightResultsPanel.loadAndShowResults(), que faz a requisição real (ou exibe os dados do JSON) e mostra o painel.
+
+4.6. Logs e Debug
+Adicione logs em cada passo:
+
+Log no app.py dizendo “ETAPA 2 DETECTADA: PULANDO GPT, CHAMANDO AMADEUS”
+
+Log no conector Amadeus: “Chamando a API real com params X”
+
+Log no flight-results-panel.js: “Carregando dados para session_id: X”
+
+Se ainda surgir “Enviando requisição para OpenAI API…”, significa que skip_gpt_call não está setado ou o fluxo antigo está sendo executado.
+
+5. Solução para o Loader Infinito no Mural
+O problema de o mural “ficar só lá buscando” ocorre porque:
+
+O front-end nunca recebe dados reais ou
+
+O session_id é inválido, e o mural fica em loop.
+
+5.1. Medidas Concretas
+No loadAndShowResults(sessionId):
+
+Se !sessionId, mostre “Erro: sem sessionId válido. Faça nova busca.”
+
+Caso tenha sessionId, faça a requisição:
+
+js
+Copy
+fetch(`/api/flight_results/${sessionId}`)
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      // Exibe data.error
+    } else {
+      // Renderiza data real
+    }
+  })
+  .catch(...);
+Garantir que no backend a rota /api/flight_results/<session_id> retorne algo como:
+
+json
+Copy
+{
+  "data": [...voos...],
+  "error": null
+}
+ou
+
+json
+Copy
+{
+  "error": "Session inválida"
+}
+6. Solução Completa e Coesa
+Remoção de qualquer fallback: Apague do front-end e do backend a função loadTestResults(), endpoints /api/flight_results/test, etc.
+
+Etapa 2: Assim que a Avi confirmar os dados, o backend:
+
+Não chama o GPT.
+
+Usa o conector para buscar voos reais.
+
+Retorna JSON com “show_flight_results: true” e “session_id” (ou “real_flights” embutidos).
+
+Front-end:
+
+Se show_flight_results: true, chama flightResultsPanel.loadAndShowResults(sessionId).
+
+O mural exibe o loader e faz a requisição real à rota de voos.
+
+Ao receber os voos, mostra os cartões.
+
+Nenhuma chamada ao GPT para a etapa de voos. GPT só serve para conversar e extrair dados do usuário (origem, destino, datas, preferências).
+
+Testes:
+
+Verificar logs para garantir que não apareça “Enviando requisição para OpenAI API” na etapa 2.
+
+Confirmar que o mural recebe dados reais e exibe “Melhor Opção” ou “Alternativa Econômica” (se quisermos) usando as informações da API Amadeus.
+
+7. Conclusão e Benefícios
+Separação total do fluxo de conversação (etapas 0 e 1) do fluxo de busca real (etapa 2).
+
+Mural robusto, sem loader infinito, exibindo dados somente quando o backend retorna o JSON real.
+
+Eliminação de caminhos duplicados e fallback de teste.
+
+Facilidade de debug: logs deixam claro quando chamamos o GPT e quando chamamos a Amadeus.
+
+Esta solução é radicalmente diferente do que vinha sendo tentado. Ela não permite que o GPT seja chamado para buscar passagens em nenhuma circunstância, resolvendo de vez o problema do fallback. Se implementada exatamente conforme descrito, o mural deixará de ficar em loop, e o site mostrará os voos reais de forma clara e confiável.

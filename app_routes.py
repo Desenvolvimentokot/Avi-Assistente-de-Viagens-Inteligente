@@ -25,13 +25,20 @@ flight_search_sessions = {}
 @api_blueprint.route('/api/flight_results/<session_id>', methods=['GET'])
 def get_flight_results(session_id):
     """
+    IMPLEMENTAÇÃO DO PLANO DE AÇÃO: ENDPOINT UNIFICADO PARA MURAL DE VOOS
+    
     Obtém os resultados de voos reais da API Amadeus para uma sessão específica,
     usando exclusivamente o serviço FlightServiceConnector para garantir que
     apenas dados reais da API Amadeus sejam retornados.
     
+    Este endpoint é o ÚNICO ponto de acesso para o painel lateral obter dados,
+    eliminando qualquer caminho que possa mostrar dados não-reais.
+    
     Args:
         session_id: ID da sessão do chat
     """
+    # Mensagem clara de início de processamento para debug
+    logger.warning(f"🛫 ENDPOINT REAL: Processando solicitação de voos para sessão {session_id}")
     try:
         logger.info(f"Recebida solicitação para resultados de voos - Sessão: {session_id}")
         
