@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testes API Amadeus - Dados Reais</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+        }
+        .test-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            grid-column: span 2;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #fdf3f2;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e74c3c;
+        }
+        .success {
+            color: #27ae60;
+            background-color: #f0f9f4;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #27ae60;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .flight-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-gap: 20px;
+            margin-top: 20px;
+        }
+        .flight-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .flight-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .flight-card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .flight-airline {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .flight-price {
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .flight-route {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .flight-duration {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .flight-stops {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .flight-city {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .flight-time {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-active {
+            background-color: #e1f5fe;
+            color: #0288d1;
+        }
+        .status-error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .api-connection {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        .api-status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste Direto da API Amadeus - Dados Reais</h1>
+        
+        <div class="api-connection">
+            <div class="api-status">
+                Status da API: <span id="apiStatus" class="status-badge">Verificando...</span>
+            </div>
+            <button id="checkApiBtn" type="button">Verificar Conexão com API</button>
+        </div>
+
+        <div class="tab-container">
+            <ul class="tabs">
+                <li class="tab active" data-tab="flights">Pesquisa de Voos</li>
+                <li class="tab" data-tab="advanced">Pesquisa Avançada</li>
+                <li class="tab" data-tab="raw">API Raw (JSON)</li>
+            </ul>
+            
+            <!-- Tab de Pesquisa de Voos -->
+            <div id="flights" class="tab-content active">
+                <form id="flightSearchForm" class="test-form">
+                    <div class="form-group">
+                        <label for="origin">Origem (código IATA):</label>
+                        <input type="text" id="origin" name="origin" placeholder="Ex: GRU" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="destination">Destino (código IATA):</label>
+                        <input type="text" id="destination" name="destination" placeholder="Ex: CDG" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="departureDate">Data de Ida:</label>
+                        <input type="date" id="departureDate" name="departureDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="returnDate">Data de Volta (opcional):</label>
+                        <input type="date" id="returnDate" name="returnDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="adults">Número de Adultos:</label>
+                        <input type="number" id="adults" name="adults" min="1" max="9" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="currency">Moeda:</label>
+                        <select id="currency" name="currency">
+                            <option value="BRL">BRL (Real Brasileiro)</option>
+                            <option value="USD">USD (Dólar Americano)</option>
+                            <option value="EUR">EUR (Euro)</option>
+                        </select>
+                    </div>
+                    <button type="submit">Buscar Voos Reais</button>
+                </form>
+
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Consultando API Amadeus em tempo real...</p>
+                </div>
+
+                <div id="flightResults" class="result-container">
+                    <h2>Resultados da Pesquisa</h2>
+                    <p>Preencha o formulário acima e clique em "Buscar Voos Reais" para ver os resultados da API Amadeus.</p>
+                </div>
+            </div>
+            
+            <!-- Tab de Pesquisa Avançada -->
+            <div id="advanced" class="tab-content">
+                <form id="advancedSearchForm" class="test-form">
+                    <div class="form-group">
+                        <label for="advOrigin">Origem (código IATA):</label>
+                        <input type="text" id="advOrigin" name="origin" placeholder="Ex: GRU" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="advDestination">Destino (código IATA):</label>
+                        <input type="text" id="advDestination" name="destination" placeholder="Ex: CDG" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="advDateRangeStart">Período Inicial:</label>
+                        <input type="date" id="advDateRangeStart" name="dateRangeStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="advDateRangeEnd">Período Final:</label>
+                        <input type="date" id="advDateRangeEnd" name="dateRangeEnd" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="advAdults">Número de Adultos:</label>
+                        <input type="number" id="advAdults" name="adults" min="1" max="9" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="advCurrency">Moeda:</label>
+                        <select id="advCurrency" name="currency">
+                            <option value="BRL">BRL (Real Brasileiro)</option>
+                            <option value="USD">USD (Dólar Americano)</option>
+                            <option value="EUR">EUR (Euro)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxDates">Número máximo de datas:</label>
+                        <input type="number" id="maxDates" name="maxDates" min="1" max="10" value="3">
+                    </div>
+                    <button type="submit">Buscar Melhores Preços</button>
+                </form>
+
+                <div id="advancedLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Consultando API Amadeus em tempo real...</p>
+                </div>
+
+                <div id="advancedResults" class="result-container">
+                    <h2>Resultados da Pesquisa Avançada</h2>
+                    <p>Preencha o formulário acima e clique em "Buscar Melhores Preços" para ver os melhores preços da API Amadeus.</p>
+                </div>
+            </div>
+            
+            <!-- Tab de API Raw -->
+            <div id="raw" class="tab-content">
+                <form id="rawApiForm" class="test-form">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="endpoint">Endpoint:</label>
+                        <select id="endpoint" name="endpoint">
+                            <option value="flights">Flight Offers Search</option>
+                            <option value="bestPrices">Best Prices Search</option>
+                            <option value="token">Token de Autenticação</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="rawParams">Parâmetros JSON:</label>
+                        <textarea id="rawParams" style="width: 100%; height: 150px; font-family: monospace;">
+{
+  "originLocationCode": "GRU",
+  "destinationLocationCode": "CDG",
+  "departureDate": "2025-06-15",
+  "adults": 1,
+  "currencyCode": "BRL"
+}
+                        </textarea>
+                    </div>
+                    <button type="submit">Executar Chamada API</button>
+                </form>
+
+                <div id="rawLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Executando chamada à API Amadeus...</p>
+                </div>
+
+                <div id="rawResults" class="result-container">
+                    <h2>Resposta Raw da API</h2>
+                    <pre id="rawOutput">Preencha o formulário acima e clique em "Executar Chamada API" para ver a resposta bruta da API Amadeus.</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar data mínima como hoje
+            const today = new Date();
+            const dateString = today.toISOString().split('T')[0];
+            document.getElementById('departureDate').min = dateString;
+            document.getElementById('returnDate').min = dateString;
+            document.getElementById('advDateRangeStart').min = dateString;
+            document.getElementById('advDateRangeEnd').min = dateString;
+            
+            // Pré-configurar datas para facilitar o teste
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+            const nextWeekString = nextWeek.toISOString().split('T')[0];
+            
+            const twoWeeks = new Date(today);
+            twoWeeks.setDate(today.getDate() + 14);
+            const twoWeeksString = twoWeeks.toISOString().split('T')[0];
+            
+            document.getElementById('departureDate').value = nextWeekString;
+            document.getElementById('returnDate').value = twoWeeksString;
+            document.getElementById('advDateRangeStart').value = nextWeekString;
+            document.getElementById('advDateRangeEnd').value = twoWeeksString;
+            
+            // Verificar API ao carregar a página
+            checkApiStatus();
+            
+            // Configurar tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    
+                    // Remover classe active de todas as tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Adicionar classe active à tab clicada
+                    tab.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Pesquisa de voos simples
+            document.getElementById('flightSearchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const params = {
+                    originLocationCode: formData.get('origin').toUpperCase(),
+                    destinationLocationCode: formData.get('destination').toUpperCase(),
+                    departureDate: formData.get('departureDate'),
+                    adults: parseInt(formData.get('adults')),
+                    currencyCode: formData.get('currency')
+                };
+                
+                // Adicionar data de retorno se fornecida
+                const returnDate = formData.get('returnDate');
+                if (returnDate) {
+                    params.returnDate = returnDate;
+                }
+                
+                searchFlights(params);
+            });
+            
+            // Pesquisa avançada
+            document.getElementById('advancedSearchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const params = {
+                    originLocationCode: formData.get('origin').toUpperCase(),
+                    destinationLocationCode: formData.get('destination').toUpperCase(),
+                    departureDate: formData.get('dateRangeStart'),
+                    returnDate: formData.get('dateRangeEnd'),
+                    adults: parseInt(formData.get('adults')),
+                    currencyCode: formData.get('currency'),
+                    max_dates_to_check: parseInt(formData.get('maxDates'))
+                };
+                
+                searchBestPrices(params);
+            });
+            
+            // API Raw
+            document.getElementById('rawApiForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const endpoint = document.getElementById('endpoint').value;
+                let params;
+                try {
+                    params = JSON.parse(document.getElementById('rawParams').value);
+                } catch (error) {
+                    showRawError('Erro ao analisar JSON: ' + error.message);
+                    return;
+                }
+                
+                executeRawApiCall(endpoint, params);
+            });
+            
+            // Botão de verificação de API
+            document.getElementById('checkApiBtn').addEventListener('click', checkApiStatus);
+        });
+        
+        function checkApiStatus() {
+            const statusEl = document.getElementById('apiStatus');
+            statusEl.textContent = 'Verificando...';
+            statusEl.className = 'status-badge';
+            
+            fetch('/api/amadeus/check')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        statusEl.textContent = 'Conectado ✓';
+                        statusEl.className = 'status-badge status-active';
+                    } else {
+                        statusEl.textContent = 'Erro de Conexão ✗';
+                        statusEl.className = 'status-badge status-error';
+                    }
+                })
+                .catch(error => {
+                    statusEl.textContent = 'Erro de Conexão ✗';
+                    statusEl.className = 'status-badge status-error';
+                    console.error('Erro ao verificar API:', error);
+                });
+        }
+        
+        function searchFlights(params) {
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('flightResults').innerHTML = '';
+            
+            // Chamar a API
+            fetch('/api/amadeus/flights', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Esconder loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Verificar se temos erro
+                if (data.error) {
+                    showError(data.error, 'flightResults');
+                    return;
+                }
+                
+                // Mostrar os resultados
+                renderFlightResults(data, 'flightResults');
+            })
+            .catch(error => {
+                // Esconder loading e mostrar erro
+                document.getElementById('loading').style.display = 'none';
+                showError('Erro ao buscar voos: ' + error.message, 'flightResults');
+            });
+        }
+        
+        function searchBestPrices(params) {
+            // Mostrar loading
+            document.getElementById('advancedLoading').style.display = 'block';
+            document.getElementById('advancedResults').innerHTML = '';
+            
+            // Chamar a API
+            fetch('/api/amadeus/best-prices', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Esconder loading
+                document.getElementById('advancedLoading').style.display = 'none';
+                
+                // Verificar se temos erro
+                if (data.error) {
+                    showError(data.error, 'advancedResults');
+                    return;
+                }
+                
+                // Mostrar os resultados
+                renderBestPricesResults(data, 'advancedResults');
+            })
+            .catch(error => {
+                // Esconder loading e mostrar erro
+                document.getElementById('advancedLoading').style.display = 'none';
+                showError('Erro ao buscar melhores preços: ' + error.message, 'advancedResults');
+            });
+        }
+        
+        function executeRawApiCall(endpoint, params) {
+            // Mostrar loading
+            document.getElementById('rawLoading').style.display = 'block';
+            document.getElementById('rawOutput').textContent = 'Aguarde...';
+            
+            // Determinar o endpoint base na nossa API
+            let apiUrl = '';
+            switch(endpoint) {
+                case 'flights':
+                    apiUrl = '/api/amadeus/flights';
+                    break;
+                case 'bestPrices':
+                    apiUrl = '/api/amadeus/best-prices';
+                    break;
+                case 'token':
+                    apiUrl = '/api/amadeus/token';
+                    break;
+                default:
+                    apiUrl = '/api/amadeus/flights';
+            }
+            
+            // Chamar a API
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Esconder loading
+                document.getElementById('rawLoading').style.display = 'none';
+                
+                // Mostrar os resultados brutos
+                document.getElementById('rawOutput').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                // Esconder loading e mostrar erro
+                document.getElementById('rawLoading').style.display = 'none';
+                document.getElementById('rawOutput').textContent = 'Erro: ' + error.message;
+            });
+        }
+        
+        function renderFlightResults(data, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            const offers = data.data || [];
+            if (offers.length === 0) {
+                showMessage('Nenhum resultado encontrado. Tente outras datas ou destinos.', containerId, 'info');
+                return;
+            }
+            
+            const resultHeader = document.createElement('div');
+            resultHeader.innerHTML = `
+                <h2>Voos Encontrados (${offers.length})</h2>
+                <p>Resultados reais da API Amadeus:</p>
+            `;
+            container.appendChild(resultHeader);
+            
+            const flightCards = document.createElement('div');
+            flightCards.className = 'flight-cards';
+            
+            offers.forEach(offer => {
+                try {
+                    // Extrair informações de cada oferta
+                    const itinerary = offer.itineraries[0];
+                    const firstSegment = itinerary.segments[0];
+                    const lastSegment = itinerary.segments[itinerary.segments.length - 1];
+                    const price = offer.price.total;
+                    const currency = offer.price.currency;
+                    
+                    // Formatar a duração total
+                    const duration = formatDuration(itinerary.duration);
+                    
+                    // Contar o número de conexões
+                    const stops = itinerary.segments.length - 1;
+                    const stopsText = stops === 0 ? 'Voo Direto' : 
+                                      stops === 1 ? '1 Conexão' : 
+                                      `${stops} Conexões`;
+                    
+                    // Criar card
+                    const card = document.createElement('div');
+                    card.className = 'flight-card';
+                    card.innerHTML = `
+                        <div class="flight-card-header">
+                            <div class="flight-airline">${firstSegment.carrierCode}</div>
+                            <div class="flight-price">${currency} ${parseFloat(price).toFixed(2)}</div>
+                        </div>
+                        <div class="flight-card-body">
+                            <div class="flight-route">
+                                <div class="flight-segment">
+                                    <div class="flight-city">${firstSegment.departure.iataCode}</div>
+                                    <div class="flight-time">${formatDateTime(firstSegment.departure.at)}</div>
+                                </div>
+                                <div class="flight-segment">
+                                    <div class="flight-city">${lastSegment.arrival.iataCode}</div>
+                                    <div class="flight-time">${formatDateTime(lastSegment.arrival.at)}</div>
+                                </div>
+                            </div>
+                            <div class="flight-duration">${duration}</div>
+                            <div class="flight-stops">${stopsText}</div>
+                        </div>
+                    `;
+                    
+                    flightCards.appendChild(card);
+                } catch (error) {
+                    console.error('Erro ao processar oferta de voo:', error);
+                }
+            });
+            
+            container.appendChild(flightCards);
+            
+            // Adicionar JSON bruto expandível
+            const rawDataToggle = document.createElement('div');
+            rawDataToggle.style.marginTop = '20px';
+            rawDataToggle.innerHTML = `
+                <button id="toggleRawData" style="margin-bottom: 10px; background-color: #2c3e50;">
+                    Mostrar/Ocultar JSON Bruto
+                </button>
+                <pre id="rawJsonData" style="display: none;">${JSON.stringify(data, null, 2)}</pre>
+            `;
+            container.appendChild(rawDataToggle);
+            
+            document.getElementById('toggleRawData').addEventListener('click', function() {
+                const rawJson = document.getElementById('rawJsonData');
+                rawJson.style.display = rawJson.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+        
+        function renderBestPricesResults(data, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (!data.best_prices || data.best_prices.length === 0) {
+                showMessage('Nenhum resultado encontrado para os melhores preços. Tente outras datas ou destinos.', containerId, 'info');
+                return;
+            }
+            
+            const resultHeader = document.createElement('div');
+            resultHeader.innerHTML = `
+                <h2>Melhores Preços Encontrados (${data.best_prices.length})</h2>
+                <p>Resultados reais da API Amadeus:</p>
+            `;
+            container.appendChild(resultHeader);
+            
+            const priceCards = document.createElement('div');
+            priceCards.className = 'flight-cards';
+            
+            data.best_prices.forEach(price => {
+                try {
+                    // Formatar data
+                    const dateObj = new Date(price.date);
+                    const formattedDate = dateObj.toLocaleDateString('pt-BR');
+                    
+                    // Criar card
+                    const card = document.createElement('div');
+                    card.className = 'flight-card';
+                    card.innerHTML = `
+                        <div class="flight-card-header">
+                            <div class="flight-airline">${price.origin} → ${price.destination}</div>
+                            <div class="flight-price">R$ ${price.price.toFixed(2)}</div>
+                        </div>
+                        <div class="flight-card-body">
+                            <div class="flight-route">
+                                <div class="flight-segment">
+                                    <div class="flight-city">${price.origin}</div>
+                                </div>
+                                <div class="flight-segment">
+                                    <div class="flight-city">${price.destination}</div>
+                                </div>
+                            </div>
+                            <div class="flight-duration">Data: ${formattedDate}</div>
+                        </div>
+                    `;
+                    
+                    priceCards.appendChild(card);
+                } catch (error) {
+                    console.error('Erro ao processar melhor preço:', error);
+                }
+            });
+            
+            container.appendChild(priceCards);
+            
+            // Adicionar JSON bruto expandível
+            const rawDataToggle = document.createElement('div');
+            rawDataToggle.style.marginTop = '20px';
+            rawDataToggle.innerHTML = `
+                <button id="toggleAdvRawData" style="margin-bottom: 10px; background-color: #2c3e50;">
+                    Mostrar/Ocultar JSON Bruto
+                </button>
+                <pre id="advRawJsonData" style="display: none;">${JSON.stringify(data, null, 2)}</pre>
+            `;
+            container.appendChild(rawDataToggle);
+            
+            document.getElementById('toggleAdvRawData').addEventListener('click', function() {
+                const rawJson = document.getElementById('advRawJsonData');
+                rawJson.style.display = rawJson.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+        
+        function showError(message, containerId) {
+            const container = document.getElementById(containerId);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            container.innerHTML = '';
+            container.appendChild(errorDiv);
+        }
+        
+        function showRawError(message) {
+            document.getElementById('rawOutput').textContent = 'Erro: ' + message;
+        }
+        
+        function showMessage(message, containerId, type = 'success') {
+            const container = document.getElementById(containerId);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.innerHTML = message;
+            container.innerHTML = '';
+            container.appendChild(messageDiv);
+        }
+        
+        function formatDuration(durationString) {
+            // Formato PT2H30M => 2h 30m
+            const hours = durationString.match(/(\d+)H/);
+            const minutes = durationString.match(/(\d+)M/);
+            
+            let formatted = '';
+            if (hours && hours[1]) {
+                formatted += `${hours[1]}h `;
+            }
+            if (minutes && minutes[1]) {
+                formatted += `${minutes[1]}m`;
+            }
+            
+            return formatted.trim();
+        }
+        
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            
+            return `${hours}:${minutes} · ${day}/${month}`;
+        }
+    </script>
+</body>
+</html>
