@@ -139,12 +139,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Verificar se estamos no estágio de busca de dados reais da Amadeus
             // O backend envia a flag "show_flight_results" quando deve exibir o painel lateral
             if (data.show_flight_results) {
-                // Mostrar painel lateral com resultados reais da API
-                if (typeof window.showFlightResultsPanel === 'function') {
-                    window.showFlightResultsPanel(sessionId);
+                console.log("Recebido show_flight_results=true, mostrando painel lateral");
+                
+                // Verificar se temos a instância global do painel
+                if (window.flightResultsPanel) {
+                    // Disparar evento customizado para mostrar o painel de resultados
+                    document.dispatchEvent(new CustomEvent('showFlightResults', {
+                        detail: {
+                            sessionId: sessionId
+                        }
+                    }));
                     
                     // Adicionar uma pequena mensagem de direcionamento na conversa
                     addMessage("👉 Os resultados reais da API Amadeus estão disponíveis no painel lateral.", false);
+                } else {
+                    console.error("Panel not initialized: flightResultsPanel not found");
                 }
             }
 
