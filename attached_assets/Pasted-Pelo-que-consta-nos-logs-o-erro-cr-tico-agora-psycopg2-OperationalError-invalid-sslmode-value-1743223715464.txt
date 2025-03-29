@@ -1,0 +1,56 @@
+Pelo que consta nos logs, o erro crítico agora é:
+
+(psycopg2.OperationalError) invalid sslmode value: "('require', 'require')"
+
+Esse erro indica que, na string de conexão com o PostgreSQL, o parâmetro sslmode está sendo definido incorretamente – em vez de ser uma única string (por exemplo, "require"), ele está sendo passado como um tuple ("('require', 'require')"). Isso faz com que o psycopg2 rejeite a conexão, interrompendo o fluxo de recuperação de conversas e, consequentemente, afetando o funcionamento geral do sistema (incluindo a exibição dos dados reais da API Amadeus).
+
+Possíveis Causas
+Configuração Incorreta no DATABASE_URL:
+Verifique o arquivo .env ou as variáveis de ambiente definidas no Replit. Se estiver usando PostgreSQL, a string de conexão deve incluir o parâmetro sslmode como, por exemplo:
+
+perl
+Copy
+DATABASE_URL=postgresql://user:password@host:port/dbname?sslmode=require
+Certifique-se de que não haja duplicidade ou formatação incorreta, como a presença de um tuple.
+
+Concatenação ou Leitura Incorreta da Configuração:
+Algum código no seu app.py ou na configuração do SQLAlchemy pode estar lendo ou concatenando o valor do sslmode de forma equivocada. Por exemplo, se você estiver fazendo algo como:
+
+python
+Copy
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL") + "?sslmode=('require', 'require')"
+isso está errado. O correto é garantir que o valor passado seja apenas "require" (ou outro valor aceito) e não uma tuple.
+
+Recomendações de Ação
+Revisar o Arquivo de Configuração (.env):
+Abra o seu arquivo .env e verifique a linha referente ao DATABASE_URL. Ela deve estar no formato correto, como:
+
+perl
+Copy
+DATABASE_URL=postgresql://user:password@host:port/dbname?sslmode=require
+Remova qualquer duplicidade ou formatação que envolva parênteses ou tuplas.
+
+Verificar a Configuração no Código:
+No app.py (ou onde você configura o SQLAlchemy), certifique-se de que a URL está sendo lida corretamente e que nenhum código está alterando o valor de sslmode para uma tuple.
+
+Testar a Conexão de Forma Isolada:
+Crie um pequeno script Python que tente se conectar ao banco usando a mesma string de conexão. Isso ajudará a confirmar se a configuração está correta:
+
+python
+Copy
+import psycopg2
+conn = psycopg2.connect("postgresql://user:password@host:port/dbname?sslmode=require")
+print("Conexão estabelecida com sucesso!")
+conn.close()
+Se esse script funcionar, a configuração está correta. Caso contrário, ajuste conforme necessário.
+
+Monitorar o Pool de Conexões:
+Verifique se o SQLAlchemy está configurado com parâmetros adequados para o pool de conexões, evitando timeouts ou encerramentos inesperados.
+
+Impacto no Fluxo do Sistema
+O erro de SSL interrompe a recuperação do histórico de conversas, o que afeta o fluxo completo (extração, confirmação e exibição de resultados reais no painel lateral). Se a conexão com o banco falhar, o sistema não conseguirá armazenar ou recuperar o sessionId, e isso pode levar o sistema a usar caminhos de fallback (que, no seu caso, acabam mostrando dados simulados).
+
+Conclusão
+Para resolver o problema, é fundamental ajustar a string de conexão com o banco de dados de forma que o parâmetro sslmode seja definido corretamente como uma string única ("require") e não como um tuple. Uma vez corrigido isso, o fluxo do sistema deverá ser retomado normalmente, e os dados reais da API Amadeus poderão ser exibidos conforme esperado.
+
+Você pode testar essas alterações e me informar se os erros de SSL desapareceram dos logs. Se persistirem outros problemas, podemos analisar os novos logs para seguir com os ajustes.

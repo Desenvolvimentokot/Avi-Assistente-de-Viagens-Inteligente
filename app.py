@@ -95,9 +95,29 @@ database_url = os.environ.get("DATABASE_URL", "sqlite:///flai.db")
 
 # Adicionar parâmetros específicos para PostgreSQL para melhorar a estabilidade da conexão
 if database_url.startswith('postgresql'):
-    # Se já tiver parâmetros, adicionar mais, senão, iniciar com o caractere '?'
-    separator = '&' if '?' in database_url else '?'
-    database_url = f"{database_url}{separator}sslmode=require&connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5"
+    # Verificar se sslmode já está definido na URL
+    if 'sslmode=' not in database_url:
+        # Se já tiver parâmetros, adicionar mais, senão, iniciar com o caractere '?'
+        separator = '&' if '?' in database_url else '?'
+        database_url = f"{database_url}{separator}sslmode=require"
+    
+    # Certificar-se de que os outros parâmetros de conexão estão presentes
+    needed_params = {
+        'connect_timeout': '10', 
+        'keepalives': '1', 
+        'keepalives_idle': '30', 
+        'keepalives_interval': '10', 
+        'keepalives_count': '5'
+    }
+    
+    for param, value in needed_params.items():
+        if f"{param}=" not in database_url:
+            database_url = f"{database_url}&{param}={value}"
+    
+    logger.info(f"Database URL configurada com parâmetros de conexão SSL")
+    # Log para debug, mas omitindo detalhes sensíveis
+    safe_url = re.sub(r"postgresql://[^:]+:[^@]+@", "postgresql://user:***@", database_url)
+    logger.debug(f"URL do banco de dados (sensível): {safe_url}")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
