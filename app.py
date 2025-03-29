@@ -315,11 +315,12 @@ def chat():
             # Construir a resposta
             response = {"response": response_text, "error": False}
             
-            # Verificar se devemos mostrar o painel lateral de resultados
-            # Isso acontece quando o usuário acabou de confirmar e temos resultados de busca
-            # OU quando estamos no passo 2 (mostrar resultados)
+            # FORÇAR EXIBIÇÃO DO PAINEL SEMPRE QUE ESTIVERMOS NO PASSO 2
+            # Isso é um HOTFIX para garantir que o painel seja sempre mostrado
             if step == 2:
                 response['show_flight_results'] = True
+                print("FORÇANDO EXIBIÇÃO DO PAINEL DE VOOS - CONFIRMADO")
+                logging.info("FORÇANDO EXIBIÇÃO DO PAINEL DE VOOS - CONFIRMADO")
             
             # Atualiza o armazenamento
             conversation_store[session_id]['history'] = history

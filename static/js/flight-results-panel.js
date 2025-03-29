@@ -11,6 +11,12 @@ class FlightResultsPanel {
         this.isActive = false;
         this.currentSessionId = null;
         this.selectedFlightData = null; // Para armazenar a escolha do usuário
+        
+        // Expor a instância globalmente para debug e acesso direto
+        window.flightResultsPanel = this;
+        
+        console.log("Painel de resultados de voos inicializado - Instância global disponível");
+        
         this.init();
         
         // Configurar armazenamento compartilhado
