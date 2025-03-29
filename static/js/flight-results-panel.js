@@ -281,15 +281,14 @@ class FlightResultsPanel {
         `;
     }
 
-    // Método para carregar dados de teste (garantir que sempre haja algo para mostrar)
+    // Método para informar que dados de teste não estão mais disponíveis
     loadTestResults() {
-        // Mostrar o painel e indicar carregamento
+        // Mostrar o painel
         this.showPanel();
-        this.showLoading();
         
         console.log("Carregando dados de teste...");
         
-        // Usar o endpoint de teste
+        // Usar o endpoint de teste (que agora retorna uma mensagem de erro)
         fetch('/api/flight_results/test')
             .then(response => {
                 if (!response.ok) {
@@ -299,22 +298,24 @@ class FlightResultsPanel {
             })
             .then(data => {
                 console.log("Dados de teste carregados com sucesso:", data);
-                // Limpar o loader
-                clearInterval(this.loadingInterval);
                 
-                // Mostrar os resultados
-                this.renderFlightResults(data);
-                
-                // Destacar que são dados de teste
-                const headerEl = this.panel.querySelector('.flight-results-header span');
-                if (headerEl) {
-                    headerEl.textContent = "Resultados de Teste - API Amadeus";
-                    headerEl.style.color = "white";
+                // Limpar qualquer loader em andamento
+                if (this.loadingInterval) {
+                    clearInterval(this.loadingInterval);
                 }
+                
+                // Mostrar a mensagem de erro em vez de tentar renderizar dados
+                if (data.error) {
+                    this.showError(data.error);
+                    return;
+                }
+                
+                // Este código não deve ser executado, mas deixamos por segurança
+                this.renderFlightResults(data);
             })
             .catch(error => {
                 console.error("Erro ao carregar dados de teste:", error);
-                this.showError("Erro ao carregar dados de teste. Por favor, tente novamente.");
+                this.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
             });
     }
     

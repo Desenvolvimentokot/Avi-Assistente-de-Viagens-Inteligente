@@ -10,10 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Mostrar o painel com o ID da sessão atual
                 window.flightResultsPanel.showPanel();
                 
-                // FORÇA TESTE PRIMEIRO para garantir que algo seja exibido
+                // Não permitimos mais dados de teste - mostrar mensagem adequada em vez de forçar testes
                 if (!sessionId) {
-                    console.log("TESTE: Usando endpoint de teste por não ter sessionId");
-                    window.flightResultsPanel.loadTestResults();
+                    console.log("Sem sessionId válido - mostrando mensagem de orientação");
+                    window.flightResultsPanel.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
                     return;
                 }
                 
@@ -33,8 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log("Usando sessionId do localStorage:", savedSessionId);
                         window.flightResultsPanel.loadAndShowResults(savedSessionId);
                     } else {
-                        // Último recurso: mostrar dados de teste
-                        window.flightResultsPanel.loadTestResults();
+                        // Não usamos mais dados de teste - mostrar mensagem orientando o usuário
+                        window.flightResultsPanel.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
                     }
                 }
             } else {
@@ -258,11 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Tentar novamente após inicialização
                         setTimeout(() => {
-                            document.dispatchEvent(new CustomEvent('showFlightResults', {
-                                detail: {
-                                    sessionId: data.session_id || sessionId || 'test'
+                            // Verificar se temos um ID de sessão válido
+                            if (data.session_id || sessionId) {
+                                document.dispatchEvent(new CustomEvent('showFlightResults', {
+                                    detail: {
+                                        sessionId: data.session_id || sessionId
+                                    }
+                                }));
+                            } else {
+                                console.error("Tentativa de mostrar painel sem sessionId válido");
+                                if (window.flightResultsPanel) {
+                                    window.flightResultsPanel.showError("Para ver resultados de voos, complete uma busca através da conversa com a Avi.");
                                 }
-                            }));
+                            }
                         }, 500);
                     }
                 }, 1000);

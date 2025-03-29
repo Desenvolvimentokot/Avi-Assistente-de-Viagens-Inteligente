@@ -1,0 +1,30 @@
+Olá Replit Agent,
+
+Estou enfrentando um problema crítico na integração do painel de resultados de voos com a API do Amadeus. O fluxo de trabalho deve seguir exatamente este modelo:
+
+1. O usuário envia uma solicitação de busca de voos (ex.: "Quero viajar de São Paulo para Miami em 29 de maio").
+2. A Avi (nosso chat GPT) extrai e confirma todas as informações necessárias com o usuário.
+3. Após a confirmação, o sistema deve enviar os parâmetros reais para a API do Amadeus e aguardar a resposta.
+4. Quando a API retornar os dados reais de voos, estes dados devem ser exibidos NO PAINEL LATERAL (mural de ofertas) e não pelo GPT.
+5. É fundamental que o sistema nunca apresente dados simulados; ou seja, toda a exibição dos resultados deve ser proveniente da API do Amadeus.
+6. Se ocorrer algum erro na chamada à API, em vez de retornar dados simulados, deve ser exibida uma mensagem de erro clara.
+7. Além disso, o painel lateral deve ser acessível via um botão fixo "Mural de Ofertas" (ao lado do ícone de notificações), para que o usuário possa abrir ou fechar o painel quando desejar.
+
+Problemas identificados:
+- Atualmente, o sistema ainda apresenta dados simulados em vez dos dados reais da API do Amadeus.
+- Parece que há uma lógica de fallback que retorna dados de teste, mesmo quando há dados reais disponíveis.
+- A comunicação entre o chat (Avi) e o painel não está sendo feita de forma correta; o fluxo de "confirmação dos dados → chamada à API → exibição dos resultados reais" não está sendo respeitado.
+
+Minha proposta de resolução é a seguinte:
+- Remover ou desativar qualquer lógica de fallback que retorne dados simulados.
+- Forçar que, após a confirmação dos dados pelo usuário, o backend faça uma chamada real à API Amadeus e armazene esses resultados num estado compartilhado.
+- Atualizar o painel lateral para buscar exclusivamente esse estado compartilhado (via uma rota /api/flight_results ou similar) e exibir apenas os dados reais.
+- Adicionar logs detalhados para confirmar que os dados recebidos são reais e não simulados.
+- Garantir que, se a API falhar, seja exibida uma mensagem de erro em vez de dados simulados.
+- Manter o fluxo de conversa com o GPT (Avi) separado, de modo que ele apenas conduza a conversa e não tente gerar ofertas de voo.
+
+Por favor, revise o código nos arquivos responsáveis pela integração com a API Amadeus (por exemplo, os arquivos no diretório services, flight_results_panel.js e as rotas do backend) e implemente essa solução. Preciso que o sistema siga rigorosamente o fluxo:
+
+Cliente envia mensagem → Avi extrai e confirma informações → Usuário confirma → Sistema envia requisição à API Amadeus com dados reais → API retorna resultados reais → Painel lateral exibe os dados reais (sem fallback para simulação) → Avi usa esses dados como fonte de verdade em respostas futuras.
+
+Aguardo sua implementação dessa solução robusta e definitiva para que o painel lateral exiba apenas dados reais. Obrigado!
