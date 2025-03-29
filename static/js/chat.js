@@ -136,7 +136,20 @@ document.addEventListener('DOMContentLoaded', function() {
             // Scroll para mostrar a nova mensagem
             scrollToBottom();
 
-            // Se tivermos resultados de voos ou preços, exibir em um formato visual atraente
+            // Verificar se estamos no estágio de busca de dados reais da Amadeus
+            // O backend envia a flag "show_flight_results" quando deve exibir o painel lateral
+            if (data.show_flight_results) {
+                // Mostrar painel lateral com resultados reais da API
+                if (typeof window.showFlightResultsPanel === 'function') {
+                    window.showFlightResultsPanel(sessionId);
+                    
+                    // Adicionar uma pequena mensagem de direcionamento na conversa
+                    addMessage("👉 Os resultados reais da API Amadeus estão disponíveis no painel lateral.", false);
+                }
+            }
+
+            // MANTÉM o código legado para compatibilidade com o sistema atual
+            // Eventualmente este código será substituído completamente pelo painel lateral
             if (data.flight_data || data.best_prices_data) {
                 addFlightOptions(data.flight_data, data.best_prices_data);
             }

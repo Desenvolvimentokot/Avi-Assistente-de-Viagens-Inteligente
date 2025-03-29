@@ -8,6 +8,9 @@ from flask import Flask, render_template, jsonify, request, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 
+# Importar o blueprint de rotas da API
+from app_routes import api_blueprint
+
 # Importação dos serviços e modelos
 from services.amadeus_sdk_service import AmadeusSDKService
 from services.busca_rapida_service import BuscaRapidaService
@@ -23,6 +26,9 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 app.config["DEBUG"] = True
+
+# Registrar o blueprint da API
+app.register_blueprint(api_blueprint)
 
 # Configure database
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///flai.db")
@@ -308,6 +314,11 @@ def chat():
             
             # Construir a resposta
             response = {"response": response_text, "error": False}
+            
+            # Verificar se devemos mostrar o painel lateral de resultados
+            # Isso acontece quando o usuário acabou de confirmar e temos resultados de busca
+            if step == 2 and current_travel_info.get('search_results'):
+                response['show_flight_results'] = True
             
             # Atualiza o armazenamento
             conversation_store[session_id]['history'] = history
