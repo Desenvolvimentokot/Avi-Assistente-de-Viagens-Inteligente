@@ -957,6 +957,56 @@ document.addEventListener('DOMContentLoaded', function() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
+    // Função para mostrar o painel de resultados de voos
+    function showFlightResults(sessionId) {
+        console.log("Chamando showFlightResults com sessionId:", sessionId);
+
+        // Mostrar o painel imediatamente, mesmo sem ID de sessão
+        if (window.flightResultsPanel) {
+            // Se temos ID de sessão, carregamos os resultados
+            if (sessionId) {
+                window.flightResultsPanel.loadAndShowResults(sessionId);
+            } else {
+                // Caso contrário, apenas mostramos o painel com carregamento
+                window.flightResultsPanel.showPanel();
+                window.flightResultsPanel.showLoadingAnimation("Consultando API Amadeus...");
+
+                // Salvar o estado atual da conversa para que o painel possa recuperá-lo depois
+                localStorage.setItem('currentChatState', JSON.stringify({
+                    messages: chatMessages,
+                    currentSessionId: getCurrentSessionId()
+                }));
+            }
+        } else {
+            // Se o painel não estiver inicializado, tentar novamente após um breve atraso
+            setTimeout(() => {
+                if (window.flightResultsPanel) {
+                    if (sessionId) {
+                        window.flightResultsPanel.loadAndShowResults(sessionId);
+                    } else {
+                        window.flightResultsPanel.showPanel();
+                        window.flightResultsPanel.showLoadingAnimation("Consultando API Amadeus...");
+                    }
+                } else {
+                    console.error("Não foi possível mostrar o painel de resultados de voos");
+                }
+            }, 500);
+        }
+    }
+
+    // Função para detectar busca de voos na mensagem do usuário
+    function detectFlightSearchInMessage(message) {
+        // Palavras-chave que indicam busca de voos
+        const flightKeywords = [
+            'voos', 'voo', 'passagem', 'passagens', 'voar para', 'viagem para',
+            'avião', 'companhia aérea', 'amadeus', 'buscar voo'
+        ];
+
+        // Verificar se a mensagem contém alguma das palavras-chave
+        const messageLower = message.toLowerCase();
+        return flightKeywords.some(keyword => messageLower.includes(keyword.toLowerCase()));
+    }
+
     // Start functions
     loadConversations();
     loadUserProfile();
@@ -965,5 +1015,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function getChatSessionId() {
+    return sessionId;
+}
+
+function getCurrentSessionId() {
     return sessionId;
 }

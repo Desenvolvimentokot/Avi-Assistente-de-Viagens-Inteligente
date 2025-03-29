@@ -23,33 +23,44 @@ def get_flight_results(session_id):
         session_id: ID da sessão do chat
     """
     try:
+        # Log detalhado para diagnóstico
+        logging.info(f"==== INICIANDO BUSCA DE VOOS PARA SESSÃO: {session_id} ====")
+        
+        # Verificar token Amadeus no início para diagnóstico
+        from services.amadeus_service import AmadeusService
+        amadeus_service = AmadeusService()
+        token = amadeus_service.get_token()
+        
+        if token:
+            logging.info(f"✅ Token Amadeus válido obtido: {token[:5]}...{token[-5:]} (mascarado)")
+        else:
+            logging.error("❌ Falha ao obter token Amadeus - Verificar credenciais!")
+        
         # Verificar se o session_id é nulo ou vazio e usar um padrão se necessário
         if not session_id or session_id == 'null':
-            logging.warning("Session ID é nulo ou vazio. Usando dados de teste.")
+            logging.warning("⚠️ Session ID é nulo ou vazio. Usando dados de teste.")
             # Redirecionar para o endpoint de teste
             return get_test_results()
         
-        # Verificar se temos resultados para esta sessão
+        # Verificar se temos resultados para esta sessão em cache
         if session_id in flight_search_sessions:
-            logging.info(f"Retornando resultados da sessão em cache para {session_id}")
+            logging.info(f"🔄 Retornando resultados em cache para sessão {session_id}")
             return jsonify(flight_search_sessions[session_id])
         
-        # Caso contrário, verificar se temos parâmetros de busca salvos em outra estrutura
+        # Caso contrário, verificar se temos parâmetros de busca salvos
         from app import conversation_store
         
-        # Log para debug
-        logging.info(f"Sessão {session_id} - Verificando no conversation_store")
+        logging.info(f"🔍 Buscando informações de viagem na sessão {session_id}")
         
         if session_id in conversation_store:
             travel_info = conversation_store[session_id].get('travel_info', {})
             
-            # Log para debug
-            logging.info(f"Sessão {session_id} - Travel info: {travel_info}")
+            # Log detalhado das informações de viagem
+            logging.info(f"📋 Dados de viagem encontrados: {json.dumps(travel_info, indent=2)}")
             
             # Verificar se temos resultados já salvos
             if travel_info.get('search_results'):
-                # Já temos resultados salvos, retorná-los
-                logging.info(f"Sessão {session_id} - Retornando resultados já salvos")
+                logging.info(f"✅ Resultados já processados, retornando dados salvos")
                 flight_search_sessions[session_id] = travel_info['search_results']
                 return jsonify(travel_info['search_results'])
             
@@ -57,22 +68,19 @@ def get_flight_results(session_id):
             if (travel_info.get('origin') and travel_info.get('destination') and 
                 (travel_info.get('departure_date') or travel_info.get('date_range_start'))):
                 
-                logging.info(f"Sessão {session_id} - Iniciando busca com parâmetros: {travel_info}")
-                
-                # Inicializar o serviço Amadeus
-                from services.amadeus_service import AmadeusService
-                amadeus_service = AmadeusService()
+                logging.info(f"🚀 Parâmetros completos, iniciando busca na API Amadeus")
                 
                 # Definir explicitamente para NÃO usar dados simulados
                 amadeus_service.use_mock_data = False
-                logging.info("Tentando obter dados REAIS da API Amadeus")
+                logging.info("🔄 Configurado para usar DADOS REAIS da API Amadeus")
                 
                 # Verificar se o serviço está funcionando
                 conn_test = amadeus_service.test_connection()
                 if conn_test.get("success"):
-                    logging.info(f"Conexão com a API Amadeus bem-sucedida: {conn_test}")
+                    logging.info(f"✅ Conexão com API Amadeus bem-sucedida: {conn_test}")
                 else:
-                    logging.error(f"Falha na conexão com a API Amadeus: {conn_test}")
+                    logging.error(f"❌ FALHA na conexão com API Amadeus: {conn_test}")
+                    logging.error("⚠️ Tentando usar dados simulados como fallback")
                 
                 # Detectar o tipo de busca necessária (data específica ou período)
                 search_results = None
@@ -305,4 +313,71 @@ def create_test_session():
         return jsonify({
             "success": False,
             "error": f"Erro ao criar sessão de teste: {str(e)}"
+        }), 500
+
+@api_blueprint.route('/api/flight_search/status/<session_id>', methods=['GET'])
+def get_flight_search_status(session_id):
+    """
+    Endpoint para verificar o status de uma busca de voos em andamento
+    Útil para o frontend monitorar o progresso da busca
+    """
+    try:
+        from app import conversation_store
+        
+        # Status padrão
+        status = {
+            "session_id": session_id,
+            "status": "unknown",
+            "message": "Sessão não encontrada",
+            "search_in_progress": False,
+            "has_results": False
+        }
+        
+        # Verificar se a sessão existe
+        if session_id in conversation_store:
+            travel_info = conversation_store[session_id].get('travel_info', {})
+            
+            # Verificar se temos resultados
+            if travel_info.get('search_results'):
+                status["status"] = "completed"
+                status["message"] = "Busca concluída com sucesso"
+                status["has_results"] = True
+                status["search_in_progress"] = False
+                
+                # Adicionar contagem de resultados para informação
+                if "data" in travel_info["search_results"]:
+                    status["result_count"] = len(travel_info["search_results"]["data"])
+                elif "best_prices" in travel_info["search_results"]:
+                    status["result_count"] = len(travel_info["search_results"]["best_prices"])
+                else:
+                    status["result_count"] = 0
+            
+            # Verificar se temos parâmetros de busca mas sem resultados (busca em andamento)
+            elif (travel_info.get('origin') and travel_info.get('destination') and 
+                  (travel_info.get('departure_date') or travel_info.get('date_range_start'))):
+                status["status"] = "in_progress"
+                status["message"] = "Busca em andamento"
+                status["search_in_progress"] = True
+                status["has_results"] = False
+                status["search_params"] = {
+                    "origin": travel_info.get('origin'),
+                    "destination": travel_info.get('destination'),
+                    "departure_date": travel_info.get('departure_date') or travel_info.get('date_range_start')
+                }
+            else:
+                status["status"] = "pending"
+                status["message"] = "Aguardando parâmetros de busca completos"
+                status["search_in_progress"] = False
+                status["has_results"] = False
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logging.error(f"Erro ao verificar status da busca: {str(e)}")
+        return jsonify({
+            "session_id": session_id,
+            "status": "error",
+            "message": f"Erro ao verificar status: {str(e)}",
+            "search_in_progress": False,
+            "has_results": False
         }), 500

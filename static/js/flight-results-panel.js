@@ -309,8 +309,48 @@ class FlightResultsPanel {
         }
 
         this.currentSessionId = sessionId;
-        this.showLoading();
+        this.showLoadingAnimation("Consultando API Amadeus em tempo real...");
 
+        // Primeiro verificar o status da busca
+        this.checkSearchStatus(sessionId);
+    }
+    
+    // Método para verificar o status da busca e atualizar a interface
+    checkSearchStatus(sessionId) {
+        if (!sessionId) return;
+        
+        fetch(`/api/flight_search/status/${sessionId}`)
+            .then(response => response.json())
+            .then(status => {
+                console.log("Status da busca:", status);
+                
+                if (status.status === "completed" && status.has_results) {
+                    // Busca concluída, carregar resultados
+                    this.fetchResults(sessionId);
+                } else if (status.status === "in_progress" || status.status === "pending") {
+                    // Busca em andamento, atualizar mensagem e verificar novamente
+                    const message = status.status === "in_progress" 
+                        ? `Buscando voos de ${status.search_params?.origin || '?'} para ${status.search_params?.destination || '?'}...`
+                        : "Aguardando parâmetros de busca...";
+                    
+                    this.showLoadingAnimation(message);
+                    
+                    // Verificar novamente após um intervalo
+                    setTimeout(() => this.checkSearchStatus(sessionId), 1500);
+                } else {
+                    // Status desconhecido ou erro, tentar carregar diretamente
+                    this.fetchResults(sessionId);
+                }
+            })
+            .catch(error => {
+                console.error("Erro ao verificar status da busca:", error);
+                // Em caso de erro, tentar carregar resultados diretamente
+                this.fetchResults(sessionId);
+            });
+    }
+    
+    // Método para buscar resultados da API
+    fetchResults(sessionId) {
         const url = `/api/flight_results/${sessionId}`;
         console.log("Buscando resultados de:", url);
 
@@ -327,13 +367,17 @@ class FlightResultsPanel {
                     return;
                 }
 
-                if (!data.data || data.data.length === 0) {
+                // Verificar o tipo de dados retornado
+                if (data.best_prices && data.best_prices.length > 0) {
+                    console.log("Renderizando resultados de melhores preços");
+                    this.renderBestPricesResults(data);
+                } else if (data.data && data.data.length > 0) {
+                    console.log("Renderizando resultados de voos");
+                    this.renderResults(data);
+                } else {
+                    console.log("Nenhum resultado encontrado");
                     this.showNoResults();
-                    return;
                 }
-
-                this.renderResults(data);
-
             })
             .catch(error => {
                 console.error('Erro ao carregar resultados:', error);
@@ -783,7 +827,48 @@ class FlightResultsPanel {
         loadingContainer.style.display = 'block';
         this.panel.querySelector('.flight-results-content').style.display = 'none';
         this.panel.querySelector('.flight-results-error').style.display = 'none';
-
+        
+        // Adicionar barra de progresso animada
+        if (!loadingContainer.querySelector('.progress-bar')) {
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            progressBar.innerHTML = '<div class="progress-bar-fill"></div>';
+            loadingContainer.appendChild(progressBar);
+        }
+        
+        // Mostrar mensagem de carregamento padrão
+        this.showLoadingAnimation("Carregando resultados...");
+    }
+    
+    showLoadingAnimation(message) {
+        // Mostrar o painel se não estiver visível
+        this.showPanel();
+        
+        const loadingContainer = this.panel.querySelector('.flight-results-loading');
+        
+        // Atualizar mensagem de carregamento
+        if (!loadingContainer.querySelector('.loading-message')) {
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'loading-message';
+            loadingContainer.appendChild(loadingMessage);
+        }
+        
+        // Atualizar a mensagem
+        loadingContainer.querySelector('.loading-message').textContent = message || "Carregando...";
+        
+        // Mostrar contêiner de carregamento
+        loadingContainer.style.display = 'block';
+        this.panel.querySelector('.flight-results-content').style.display = 'none';
+        this.panel.querySelector('.flight-results-error').style.display = 'none';
+        
+        // Reiniciar animação da barra de progresso
+        const progressFill = loadingContainer.querySelector('.progress-bar-fill');
+        if (progressFill) {
+            progressFill.style.animationName = 'none';
+            setTimeout(() => {
+                progressFill.style.animationName = 'progress';
+            }, 10);
+        }
     }
 }
 
