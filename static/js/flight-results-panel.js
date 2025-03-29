@@ -321,8 +321,9 @@ class FlightResultsPanel {
     loadAndShowResults(sessionId) {
         // Verificar se temos um sessionId válido
         if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
-            console.warn("SessionId inválido, usando dados de teste");
-            this.loadTestResults();
+            console.warn("SessionId inválido, não podemos usar dados de teste");
+            this.showError("Não é possível exibir resultados sem uma sessão válida. Por favor, refaça sua pesquisa com a Avi.");
+            // NÃO CARREGAR DADOS DE TESTE
             return;
         }
         
