@@ -3,6 +3,8 @@ import logging
 import json
 import uuid
 import re
+import time
+import sqlalchemy.exc
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -358,46 +360,36 @@ def chat():
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # Buscar voos reais da API - NOVA IMPLEMENTAÇÃO
-                    from services.flight_data_provider import flight_data_provider
+                    # CONEXÃO DIRETA COM O AMADEUS-TEST
+                    # Usar o novo conector direto com o buscador Amadeus-test
+                    from services.flight_service_connector import flight_service_connector
                     
                     search_results = None
                     try:
-                        # Usar flight_data_provider para buscar voos diretamente
-                        if current_travel_info.get('date_range_start') and current_travel_info.get('date_range_end'):
-                            # Busca de período flexível (melhores preços)
-                            search_results = flight_data_provider.search_best_prices(
-                                origin=current_travel_info.get('origin'),
-                                destination=current_travel_info.get('destination'),
-                                date_range_start=current_travel_info.get('date_range_start'),
-                                date_range_end=current_travel_info.get('date_range_end'),
-                                adults=current_travel_info.get('adults', 1),
-                                currency='BRL',
-                                max_dates=3,
-                                session_id=session_id
-                            )
-                        else:
-                            # Busca de data específica (voos)
-                            search_results = flight_data_provider.search_flights(
-                                origin=current_travel_info.get('origin'),
-                                destination=current_travel_info.get('destination'),
-                                departure_date=current_travel_info.get('departure_date'),
-                                return_date=current_travel_info.get('return_date'),
-                                adults=current_travel_info.get('adults', 1),
-                                currency='BRL',
-                                session_id=session_id
-                            )
+                        # Enviar as informações de viagem diretamente para o buscador Amadeus-test
+                        # Isso evita a chamada à API do OpenAI para buscar voos
+                        logging.info("BUSCA DIRETA: Enviando para o buscador Amadeus-test...")
+                        
+                        # Fazer a busca com o novo conector direto
+                        search_results = flight_service_connector.search_flights_from_chat(
+                            travel_info=current_travel_info,
+                            session_id=session_id
+                        )
+                        
+                        logging.info(f"RESULTADOS DIRETOS: {json.dumps(search_results)[:200]}...")
                         
                         # Armazenar resultados da busca
                         current_travel_info['search_results'] = search_results
                         
-                        # INTEGRAÇÃO DIRETA:
-                        # Usar flight_data_provider para formatar os resultados para o chat
-                        formatted_response = flight_data_provider.format_flight_results_for_chat(search_results)
+                        # Usar o formatador do conector para preparar a resposta
+                        formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
                         
                         # Extrair a mensagem e a flag para mostrar o painel
                         response_text = formatted_response.get('message', 'Não foi possível formatar os resultados.')
                         show_flight_results = formatted_response.get('show_flight_results', False)
+                        
+                        # IMPORTANTE: Forçar abertura do painel SEMPRE neste ponto
+                        show_flight_results = True
                         
                         # Preparar dados para resposta
                         current_travel_info['show_flight_results'] = show_flight_results
