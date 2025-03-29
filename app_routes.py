@@ -2,7 +2,7 @@
 Rotas da API para o painel de resultados de voos reais
 """
 import logging
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 # Importar os serviços necessários
 from services.amadeus_sdk_service import AmadeusSDKService
@@ -92,4 +92,309 @@ def get_flight_results(session_id):
         logging.error(f"Erro ao obter resultados de voos: {str(e)}")
         return jsonify({
             "error": f"Ocorreu um erro ao buscar os resultados: {str(e)}"
+        }), 500
+
+
+@api_blueprint.route('/api/flight_results/test', methods=['GET'])
+def test_flight_results():
+    """
+    Endpoint de teste para verificar a funcionalidade do painel lateral
+    Retorna dados de exemplo para testar a interface sem chamar a API real
+    """
+    try:
+        # Criar dados de exemplo para simular a resposta da API Amadeus
+        # Este é apenas para teste de desenvolvimento da interface
+        test_data = {
+            "data": [
+                {
+                    "type": "flight-offer",
+                    "id": "1",
+                    "source": "GDS",
+                    "instantTicketingRequired": False,
+                    "nonHomogeneous": False,
+                    "oneWay": False,
+                    "lastTicketingDate": "2025-07-01",
+                    "numberOfBookableSeats": 9,
+                    "itineraries": [
+                        {
+                            "duration": "PT9H45M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-09T08:00:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-09T17:45:00"
+                                    },
+                                    "carrierCode": "LA",
+                                    "number": "8180",
+                                    "aircraft": {
+                                        "code": "789"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "LA"
+                                    },
+                                    "duration": "PT9H45M",
+                                    "id": "1",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        },
+                        {
+                            "duration": "PT9H30M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-19T19:30:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-20T05:00:00"
+                                    },
+                                    "carrierCode": "LA",
+                                    "number": "8195",
+                                    "aircraft": {
+                                        "code": "789"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "LA"
+                                    },
+                                    "duration": "PT9H30M",
+                                    "id": "2",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        }
+                    ],
+                    "price": {
+                        "currency": "BRL",
+                        "total": "5678.42",
+                        "base": "4890.00",
+                        "fees": [
+                            {
+                                "amount": "0.00",
+                                "type": "SUPPLIER"
+                            },
+                            {
+                                "amount": "0.00",
+                                "type": "TICKETING"
+                            }
+                        ],
+                        "grandTotal": "5678.42"
+                    }
+                },
+                {
+                    "type": "flight-offer",
+                    "id": "2",
+                    "source": "GDS",
+                    "instantTicketingRequired": False,
+                    "nonHomogeneous": False,
+                    "oneWay": False,
+                    "lastTicketingDate": "2025-07-01",
+                    "numberOfBookableSeats": 9,
+                    "itineraries": [
+                        {
+                            "duration": "PT10H15M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-09T09:30:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-09T19:45:00"
+                                    },
+                                    "carrierCode": "AA",
+                                    "number": "978",
+                                    "aircraft": {
+                                        "code": "77W"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "AA"
+                                    },
+                                    "duration": "PT10H15M",
+                                    "id": "3",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        },
+                        {
+                            "duration": "PT9H40M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-19T21:40:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-20T07:20:00"
+                                    },
+                                    "carrierCode": "AA",
+                                    "number": "905",
+                                    "aircraft": {
+                                        "code": "77W"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "AA"
+                                    },
+                                    "duration": "PT9H40M",
+                                    "id": "4",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        }
+                    ],
+                    "price": {
+                        "currency": "BRL",
+                        "total": "6142.87",
+                        "base": "5300.00",
+                        "fees": [
+                            {
+                                "amount": "0.00",
+                                "type": "SUPPLIER"
+                            },
+                            {
+                                "amount": "0.00",
+                                "type": "TICKETING"
+                            }
+                        ],
+                        "grandTotal": "6142.87"
+                    }
+                },
+                {
+                    "type": "flight-offer",
+                    "id": "3",
+                    "source": "GDS",
+                    "instantTicketingRequired": False,
+                    "nonHomogeneous": False,
+                    "oneWay": False,
+                    "lastTicketingDate": "2025-07-01",
+                    "numberOfBookableSeats": 9,
+                    "itineraries": [
+                        {
+                            "duration": "PT14H15M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-09T16:15:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "PTY",
+                                        "at": "2025-08-09T20:10:00"
+                                    },
+                                    "carrierCode": "CM",
+                                    "number": "702",
+                                    "aircraft": {
+                                        "code": "738"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "CM"
+                                    },
+                                    "duration": "PT5H55M",
+                                    "id": "5",
+                                    "numberOfStops": 0
+                                },
+                                {
+                                    "departure": {
+                                        "iataCode": "PTY",
+                                        "at": "2025-08-09T21:55:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-10T02:30:00"
+                                    },
+                                    "carrierCode": "CM",
+                                    "number": "432",
+                                    "aircraft": {
+                                        "code": "738"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "CM"
+                                    },
+                                    "duration": "PT2H35M",
+                                    "id": "6",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        },
+                        {
+                            "duration": "PT12H20M",
+                            "segments": [
+                                {
+                                    "departure": {
+                                        "iataCode": "MIA",
+                                        "at": "2025-08-19T15:35:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "PTY",
+                                        "at": "2025-08-19T18:15:00"
+                                    },
+                                    "carrierCode": "CM",
+                                    "number": "433",
+                                    "aircraft": {
+                                        "code": "738"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "CM"
+                                    },
+                                    "duration": "PT2H40M",
+                                    "id": "7",
+                                    "numberOfStops": 0
+                                },
+                                {
+                                    "departure": {
+                                        "iataCode": "PTY",
+                                        "at": "2025-08-19T19:35:00"
+                                    },
+                                    "arrival": {
+                                        "iataCode": "GRU",
+                                        "at": "2025-08-20T03:55:00"
+                                    },
+                                    "carrierCode": "CM",
+                                    "number": "701",
+                                    "aircraft": {
+                                        "code": "738"
+                                    },
+                                    "operating": {
+                                        "carrierCode": "CM"
+                                    },
+                                    "duration": "PT6H20M",
+                                    "id": "8",
+                                    "numberOfStops": 0
+                                }
+                            ]
+                        }
+                    ],
+                    "price": {
+                        "currency": "BRL",
+                        "total": "4980.35",
+                        "base": "4250.00",
+                        "fees": [
+                            {
+                                "amount": "0.00",
+                                "type": "SUPPLIER"
+                            },
+                            {
+                                "amount": "0.00",
+                                "type": "TICKETING"
+                            }
+                        ],
+                        "grandTotal": "4980.35"
+                    }
+                }
+            ]
+        }
+        
+        return jsonify(test_data)
+    
+    except Exception as e:
+        logging.error(f"Erro ao gerar dados de teste: {str(e)}")
+        return jsonify({
+            "error": f"Ocorreu um erro ao gerar dados de teste: {str(e)}"
         }), 500
