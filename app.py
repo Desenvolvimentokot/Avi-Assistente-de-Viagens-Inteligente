@@ -358,62 +358,51 @@ def chat():
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # Buscar voos reais da API
+                    # Buscar voos reais da API - NOVA IMPLEMENTAÇÃO
+                    from services.flight_data_provider import flight_data_provider
+                    
                     search_results = None
                     try:
-                        # Detectar o tipo de busca necessária (data específica ou período)
+                        # Usar flight_data_provider para buscar voos diretamente
                         if current_travel_info.get('date_range_start') and current_travel_info.get('date_range_end'):
-                            # Busca de período flexível
-                            search_params = {
-                                'originLocationCode': current_travel_info.get('origin'),
-                                'destinationLocationCode': current_travel_info.get('destination'),
-                                'departureDate': current_travel_info.get('date_range_start'),
-                                'returnDate': current_travel_info.get('date_range_end'),
-                                'adults': current_travel_info.get('adults', 1),
-                                'currencyCode': 'BRL',
-                                'max_dates_to_check': 3
-                            }
-                            search_results = amadeus_service.search_best_prices(search_params)
+                            # Busca de período flexível (melhores preços)
+                            search_results = flight_data_provider.search_best_prices(
+                                origin=current_travel_info.get('origin'),
+                                destination=current_travel_info.get('destination'),
+                                date_range_start=current_travel_info.get('date_range_start'),
+                                date_range_end=current_travel_info.get('date_range_end'),
+                                adults=current_travel_info.get('adults', 1),
+                                currency='BRL',
+                                max_dates=3,
+                                session_id=session_id
+                            )
                         else:
-                            # Busca de data específica
-                            search_params = {
-                                'originLocationCode': current_travel_info.get('origin'),
-                                'destinationLocationCode': current_travel_info.get('destination'),
-                                'departureDate': current_travel_info.get('departure_date'),
-                                'adults': current_travel_info.get('adults', 1),
-                                'currencyCode': 'BRL',
-                                'max': 5
-                            }
-                            
-                            # Adicionar data de retorno se disponível
-                            if current_travel_info.get('return_date'):
-                                search_params['returnDate'] = current_travel_info.get('return_date')
-                                
-                            search_results = amadeus_service.search_flights(search_params)
+                            # Busca de data específica (voos)
+                            search_results = flight_data_provider.search_flights(
+                                origin=current_travel_info.get('origin'),
+                                destination=current_travel_info.get('destination'),
+                                departure_date=current_travel_info.get('departure_date'),
+                                return_date=current_travel_info.get('return_date'),
+                                adults=current_travel_info.get('adults', 1),
+                                currency='BRL',
+                                session_id=session_id
+                            )
                         
                         # Armazenar resultados da busca
                         current_travel_info['search_results'] = search_results
                         
-                        # SOLUÇÃO DEFINITIVA:
-                        # NÃO usamos o GPT para formatar a resposta, usamos apenas dados reais 
-                        # controlados por nós através do ChatProcessor
+                        # INTEGRAÇÃO DIRETA:
+                        # Usar flight_data_provider para formatar os resultados para o chat
+                        formatted_response = flight_data_provider.format_flight_results_for_chat(search_results)
                         
-                        # Gerar introdução amigável para os resultados (sem dados simulados)
-                        friendly_intro = chat_processor.get_flight_search_intro(
-                            origin=current_travel_info.get('origin'),
-                            destination=current_travel_info.get('destination')
-                        )
+                        # Extrair a mensagem e a flag para mostrar o painel
+                        response_text = formatted_response.get('message', 'Não foi possível formatar os resultados.')
+                        show_flight_results = formatted_response.get('show_flight_results', False)
                         
-                        if 'error' in search_results:
-                            # Formatar mensagem de erro usando o ChatProcessor (sem GPT)
-                            error_message = chat_processor.format_error_message(search_results['error'])
-                            response_text = f"{friendly_intro}\n\n{error_message}"
-                        else:
-                            # Formatar resultados reais de voos usando o BuscaRapidaService
-                            flight_results = busca_rapida_service._format_search_results(search_results)
-                            
-                            # Montar resposta final com introdução + dados reais (sem GPT)
-                            response_text = f"{friendly_intro}\n\n{flight_results}"
+                        # Preparar dados para resposta
+                        current_travel_info['show_flight_results'] = show_flight_results
+                        if show_flight_results:
+                            current_travel_info['flight_session_id'] = session_id
                     except Exception as e:
                         logging.error(f"Erro na busca de voos: {str(e)}")
                         response_text = f"{gpt_response}\n\nDesculpe, tive um problema técnico ao buscar voos: {str(e)}"
@@ -441,12 +430,19 @@ def chat():
             # Construir a resposta
             response = {"response": response_text, "error": False}
             
-            # FORÇAR EXIBIÇÃO DO PAINEL SEMPRE QUE ESTIVERMOS NO PASSO 2
-            # Isso é um HOTFIX para garantir que o painel seja sempre mostrado
-            if step == 2:
+            # FORÇAR EXIBIÇÃO DO PAINEL SEMPRE QUE TIVERMOS RESULTADOS DE BUSCA
+            # Isso usa nosso novo provedor de dados de voo para garantir a exibição do painel
+            if current_travel_info.get('show_flight_results', False):
+                # Se temos resultados de busca, mostrar o painel
                 response['show_flight_results'] = True
-                print("FORÇANDO EXIBIÇÃO DO PAINEL DE VOOS - CONFIRMADO")
-                logging.info("FORÇANDO EXIBIÇÃO DO PAINEL DE VOOS - CONFIRMADO")
+                
+                # Passar o ID da sessão para o cliente
+                if current_travel_info.get('flight_session_id'):
+                    response['session_id'] = current_travel_info.get('flight_session_id')
+                else:
+                    response['session_id'] = session_id
+                
+                logging.info(f"Exibindo painel de voos para a sessão: {response.get('session_id')}")
             
             # Atualiza o armazenamento
             conversation_store[session_id]['history'] = history

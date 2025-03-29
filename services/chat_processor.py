@@ -1,766 +1,373 @@
-#!/usr/bin/env python3
 """
-Processador de mensagens de chat para o Flai
-Organiza informações do usuário para pesquisa de voos
+Processador de mensagens do chat para extração de informações de viagem e interação com APIs
 """
-import re
-import logging
-import json
-from datetime import datetime, timedelta
 
+import os
+import json
+import logging
+import uuid
+import re
+from datetime import datetime, timedelta
+import requests
+
+from services.flight_data_provider import flight_data_provider
+
+# Configurar logger
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ChatProcessor:
     """
-    Processa mensagens do chat para extrair informações de viagem
+    Processa mensagens do chat, extrai informações de viagem
+    e interage com APIs externas para obter dados reais
     """
     
     def __init__(self):
-        self.MONTHS = {
-            'janeiro': 1, 'jan': 1, 'fevereiro': 2, 'fev': 2, 'março': 3, 'mar': 3,
-            'abril': 4, 'abr': 4, 'maio': 5, 'mai': 5, 'junho': 6, 'jun': 6,
-            'julho': 7, 'jul': 7, 'agosto': 8, 'ago': 8, 'setembro': 9, 'set': 9,
-            'outubro': 10, 'out': 10, 'novembro': 11, 'nov': 11, 'dezembro': 12, 'dez': 12
+        """Inicializa o processador de chat"""
+        self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+        self.sessions = {}  # Armazena informações das sessões de chat
+    
+    def process_message(self, message, user_id=None, conversation_id=None):
+        """
+        Processa uma mensagem do usuário, extrai informações de viagem
+        e obtém dados reais quando necessário
+        
+        Args:
+            message: Texto da mensagem do usuário
+            user_id: ID do usuário (opcional)
+            conversation_id: ID da conversa (opcional)
+            
+        Returns:
+            dict: Resposta processada para o usuário
+        """
+        try:
+            # Gerar um ID de sessão se não for fornecido
+            session_id = conversation_id or str(uuid.uuid4())
+            
+            # Extrair informações de viagem da mensagem
+            travel_info = self.extract_travel_info(message)
+            logger.info(f"Informações de viagem extraídas: {travel_info}")
+            
+            # Verificar se temos informações suficientes para buscar voos
+            if self._can_search_flights(travel_info):
+                logger.info(f"Informações suficientes para buscar voos na sessão {session_id}")
+                
+                # Buscar voos reais
+                flight_data = self._search_real_flights(travel_info, session_id)
+                
+                # Se a busca por período flexível estiver habilitada, buscar também os melhores preços
+                best_prices_data = None
+                if travel_info.get("flexible_dates", False):
+                    best_prices_data = self._search_best_prices(travel_info, session_id)
+                
+                # Formatar os resultados para o chat
+                response = flight_data_provider.format_flight_results_for_chat(flight_data, best_prices_data)
+                
+                # Se conseguimos obter dados de voo com sucesso, enviar uma resposta estruturada
+                if flight_data and "error" not in flight_data:
+                    return response
+            
+            # Se não pudermos buscar voos ou ocorrer um erro, usar o GPT para gerar uma resposta
+            gpt_response = self._generate_gpt_response(message, travel_info, session_id)
+            return gpt_response
+            
+        except Exception as e:
+            logger.error(f"Erro ao processar mensagem: {str(e)}")
+            return {
+                "message": "Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente."
+            }
+    
+    def extract_travel_info(self, message):
+        """
+        Extrai informações de viagem de uma mensagem usando regras e expressões regulares
+        
+        Args:
+            message: Texto da mensagem do usuário
+            
+        Returns:
+            dict: Informações extraídas sobre a viagem
+        """
+        # Inicializar dicionário de informações
+        info = {
+            "origin": None,
+            "destination": None,
+            "departure_date": None,
+            "return_date": None,
+            "adults": 1,
+            "flexible_dates": False
         }
         
-        # Aeroportos comuns no Brasil (para validação)
-        self.COMMON_AIRPORTS = {
-            'GRU': {'code': 'GRU', 'name': 'Guarulhos', 'city': 'São Paulo'},
-            'CGH': {'code': 'CGH', 'name': 'Congonhas', 'city': 'São Paulo'},
-            'SDU': {'code': 'SDU', 'name': 'Santos Dumont', 'city': 'Rio de Janeiro'},
-            'GIG': {'code': 'GIG', 'name': 'Galeão', 'city': 'Rio de Janeiro'},
-            'BSB': {'code': 'BSB', 'name': 'Brasília', 'city': 'Brasília'},
-            'CNF': {'code': 'CNF', 'name': 'Confins', 'city': 'Belo Horizonte'},
-            'SSA': {'code': 'SSA', 'name': 'Salvador', 'city': 'Salvador'},
-            'REC': {'code': 'REC', 'name': 'Recife', 'city': 'Recife'},
-            'FOR': {'code': 'FOR', 'name': 'Fortaleza', 'city': 'Fortaleza'},
-            'CWB': {'code': 'CWB', 'name': 'Curitiba', 'city': 'Curitiba'},
-            'POA': {'code': 'POA', 'name': 'Porto Alegre', 'city': 'Porto Alegre'},
-            'VCP': {'code': 'VCP', 'name': 'Viracopos', 'city': 'Campinas'},
-            
-            # Destinos internacionais populares
-            'MIA': {'code': 'MIA', 'name': 'Miami', 'city': 'Miami'},
-            'JFK': {'code': 'JFK', 'name': 'JFK', 'city': 'Nova York'},
-            'EWR': {'code': 'EWR', 'name': 'Newark', 'city': 'Nova York'},
-            'LHR': {'code': 'LHR', 'name': 'Heathrow', 'city': 'Londres'},
-            'CDG': {'code': 'CDG', 'name': 'Charles de Gaulle', 'city': 'Paris'},
-            'FCO': {'code': 'FCO', 'name': 'Fiumicino', 'city': 'Roma'},
-            'BCN': {'code': 'BCN', 'name': 'El Prat', 'city': 'Barcelona'},
-            'MAD': {'code': 'MAD', 'name': 'Barajas', 'city': 'Madri'},
-            'LIS': {'code': 'LIS', 'name': 'Lisboa', 'city': 'Lisboa'},
-            'SCL': {'code': 'SCL', 'name': 'Santiago', 'city': 'Santiago'},
-            'EZE': {'code': 'EZE', 'name': 'Ezeiza', 'city': 'Buenos Aires'},
-            'MEX': {'code': 'MEX', 'name': 'Cidade do México', 'city': 'Cidade do México'},
+        # Lista de cidades brasileiras comuns e seus códigos IATA
+        cities = {
+            "são paulo": "GRU",
+            "sao paulo": "GRU",
+            "sampa": "GRU",
+            "rio de janeiro": "GIG", 
+            "rio": "GIG",
+            "brasília": "BSB",
+            "brasilia": "BSB",
+            "salvador": "SSA",
+            "recife": "REC",
+            "fortaleza": "FOR",
+            "belo horizonte": "CNF",
+            "belém": "BEL",
+            "belem": "BEL",
+            "porto alegre": "POA",
+            "manaus": "MAO",
+            "curitiba": "CWB",
+            "goiânia": "GYN",
+            "goiania": "GYN",
+            "natal": "NAT",
+            "florianópolis": "FLN",
+            "florianopolis": "FLN",
+            "miami": "MIA",
+            "nova york": "JFK",
+            "nova iorque": "JFK",
+            "new york": "JFK",
+            "paris": "CDG",
+            "londres": "LHR",
+            "london": "LHR",
+            "roma": "FCO",
+            "roma": "FCO",
+            "madrid": "MAD",
+            "tóquio": "HND",
+            "toquio": "HND",
+            "tokyo": "HND",
+            "buenos aires": "EZE",
+            "santiago": "SCL"
         }
         
-        # Cidade para código IATA
-        self.CITY_TO_AIRPORT = {
-            'são paulo': ['GRU', 'CGH'],
-            'rio de janeiro': ['GIG', 'SDU'],
-            'rio': ['GIG', 'SDU'],
-            'brasília': ['BSB'],
-            'brasilia': ['BSB'],
-            'belo horizonte': ['CNF'],
-            'salvador': ['SSA'],
-            'recife': ['REC'],
-            'fortaleza': ['FOR'],
-            'curitiba': ['CWB'],
-            'porto alegre': ['POA'],
-            'campinas': ['VCP'],
-            
-            'miami': ['MIA'],
-            'nova york': ['JFK', 'EWR'],
-            'new york': ['JFK', 'EWR'],
-            'londres': ['LHR'],
-            'london': ['LHR'],
-            'paris': ['CDG'],
-            'roma': ['FCO'],
-            'rome': ['FCO'],
-            'barcelona': ['BCN'],
-            'madri': ['MAD'],
-            'madrid': ['MAD'],
-            'lisboa': ['LIS'],
-            'lisbon': ['LIS'],
-            'santiago': ['SCL'],
-            'buenos aires': ['EZE'],
-            'cidade do méxico': ['MEX'],
-            'mexico city': ['MEX'],
-        }
-    
-    def parse_relative_date(self, text):
-        """
-        Analisa datas relativas na mensagem, como "próximo mês", "daqui a 1 semana", etc.
-        Retorna a data calculada no formato YYYY-MM-DD
-        """
-        text = text.lower()
-        today = datetime.now()
+        # Buscar cidades na mensagem
+        found_cities = []
+        for city, code in cities.items():
+            if city.lower() in message.lower():
+                found_cities.append((city, code))
         
-        # Padrões para datas relativas
-        if re.search(r'amanh[ãa]', text):
-            return (today + timedelta(days=1)).strftime('%Y-%m-%d')
+        # Se encontrou pelo menos duas cidades, assumir origem e destino
+        if len(found_cities) >= 2:
+            info["origin"] = found_cities[0][1]  # código IATA
+            info["destination"] = found_cities[1][1]  # código IATA
         
-        # Próxima semana
-        if 'próxima semana' in text or 'proxima semana' in text:
-            return (today + timedelta(days=7)).strftime('%Y-%m-%d')
-            
-        # Daqui a X dias/semanas/meses
-        days_match = re.search(r'daqui a (\d+) dia[s]?', text)
-        if days_match:
-            days = int(days_match.group(1))
-            return (today + timedelta(days=days)).strftime('%Y-%m-%d')
-            
-        weeks_match = re.search(r'daqui a (\d+) semana[s]?', text)
-        if weeks_match:
-            weeks = int(weeks_match.group(1))
-            return (today + timedelta(days=weeks*7)).strftime('%Y-%m-%d')
-            
-        months_match = re.search(r'daqui a (\d+) m[êe]s[es]?', text)
-        if months_match:
-            months = int(months_match.group(1))
-            # Aproximação simples - um mês = 30 dias
-            return (today + timedelta(days=months*30)).strftime('%Y-%m-%d')
-            
-        # Se não encontrar nenhum padrão relativo, retorna None
-        return None
-        
-    def extract_travel_info(self, message, current_context=None):
-        """
-        Extrai informações de viagem de uma mensagem de texto
-        Retorna um dicionário com as informações encontradas
-        """
-        if not current_context:
-            current_context = {}
-            
-        # Identificar padrões específicos para ajudar na extração
-        message_lower = message.lower()
-        
-        # Verificar se temos datas relativas na mensagem
-        relative_date = self.parse_relative_date(message_lower)
-        if relative_date:
-            logger.info(f"Detectada data relativa na mensagem: {relative_date}")
-            # Dependendo do contexto, decidir se é data de ida ou período
-            if current_context.get('return_date') or 'volta' in message_lower:
-                return {'return_date': relative_date}
-            elif current_context.get('departure_date') or not re.search(r'ida.*volta', message_lower, re.IGNORECASE):
-                return {'departure_date': relative_date}
-            else:
-                # Se não conseguir decidir, assume data de ida
-                return {'departure_date': relative_date}
-        
-        # Extração especial para "Miami"
-        # Se o usuário menciona Miami como destino, mas não especifica origem
-        if "miami" in message_lower and not current_context.get('destination'):
-            logger.info("Detectada menção a Miami na mensagem")
-            
-            # Verificar se tem uma origem identificável
-            has_origin_text = False
-            for pattern in [r'(?:de|da|do|saindo de|partindo de) ([a-zA-Z\s]+)',
-                           r'(?:origem|partida) (?:em|de|do|da)? ([a-zA-Z\s]+)']:
-                matches = re.search(pattern, message_lower)
-                if matches:
-                    has_origin_text = True
-                    break
-            
-            # Se não foi mencionada origem, assumimos São Paulo (GRU)
-            if not has_origin_text and not current_context.get('origin'):
-                logger.info("Origem não especificada para Miami, usando GRU (São Paulo) como padrão")
-                current_context['origin'] = 'GRU'
-            
-            # Definir Miami como destino
-            current_context['destination'] = 'MIA'
-        
-        # Extração de datas especiais como "15 de abril"
-        date_matches = re.findall(r'(\d+)\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)', message_lower)
-        for match in date_matches:
-            day = int(match[0])
-            month_name = match[1]
-            month = self.MONTHS.get(month_name, 0)
-            
-            if day > 0 and month > 0:
-                year = datetime.now().year
-                if month < datetime.now().month or (month == datetime.now().month and day < datetime.now().day):
-                    year += 1
-                    
-                try:
-                    date_obj = datetime(year, month, day)
-                    date_str = date_obj.strftime('%Y-%m-%d')
-                    logger.info(f"Encontrada data específica: {date_str}")
-                    
-                    if not current_context.get('departure_date'):
-                        current_context['departure_date'] = date_str
-                except Exception as e:
-                    logger.error(f"Erro ao processar data: {str(e)}")
-        
-        # Extração de período de estadia "X dias"
-        stay_matches = re.findall(r'(\d+)\s+dias', message_lower)
-        if stay_matches and len(stay_matches) > 0:
-            try:
-                days = int(stay_matches[0])
-                logger.info(f"Detectada menção a estadia de {days} dias")
-                
-                # Se temos uma data de partida, calculamos o retorno
-                if current_context.get('departure_date'):
-                    departure_date = datetime.strptime(current_context['departure_date'], '%Y-%m-%d')
-                    return_date = departure_date + timedelta(days=days)
-                    current_context['return_date'] = return_date.strftime('%Y-%m-%d')
-                    logger.info(f"Calculada data de retorno baseada em {days} dias: {current_context['return_date']}")
-            except Exception as e:
-                logger.error(f"Erro ao processar período de estadia: {str(e)}")
-        
-        # Agora extrair informações normalmente
-        travel_info = self._extract_locations(message, current_context)
-        travel_info.update(self._extract_dates(message, current_context))
-        travel_info.update(self._extract_passengers(message, current_context))
-        travel_info.update(self._extract_class(message, current_context))
-        
-        # Marcar como não confirmado
-        travel_info['confirmed'] = False
-        
-        return travel_info
-    
-    def validate_travel_info(self, travel_info):
-        """
-        Valida as informações de viagem extraídas
-        Retorna um dicionário com mensagens de erro, se houver
-        """
-        errors = {}
-        
-        # Verificar origem e destino
-        if not travel_info.get('origin'):
-            errors['origin'] = "Precisamos saber de onde você vai partir. Pode me informar a cidade ou aeroporto de origem?"
-        
-        if not travel_info.get('destination'):
-            errors['destination'] = "Qual é o seu destino? Por favor, me informe para onde você quer ir."
-        
-        # Verificar datas
-        if not travel_info.get('departure_date'):
-            errors['departure_date'] = "Quando você planeja viajar? Preciso da data de partida."
-        
-        # Verificar se as datas estão no futuro
-        if travel_info.get('departure_date'):
-            try:
-                departure_date = datetime.strptime(travel_info['departure_date'], '%Y-%m-%d')
-                today = datetime.now()
-                if departure_date < today:
-                    errors['departure_date'] = "A data de partida precisa ser no futuro."
-            except Exception:
-                errors['departure_date'] = "Não consegui entender a data de partida. Por favor, informe no formato DD/MM/YYYY."
-        
-        return errors
-    
-    def format_travel_info_summary(self, travel_info):
-        """
-        Formata um resumo das informações de viagem para confirmar com o usuário
-        """
-        # Processar origem
-        origin = travel_info.get('origin', 'não informado')
-        if origin in self.COMMON_AIRPORTS:
-            origin_display = f"{self.COMMON_AIRPORTS[origin]['city']} ({origin})"
-        else:
-            origin_display = origin
-        
-        # Processar destino
-        destination = travel_info.get('destination', 'não informado')
-        if destination in self.COMMON_AIRPORTS:
-            destination_display = f"{self.COMMON_AIRPORTS[destination]['city']} ({destination})"
-        else:
-            destination_display = destination
-        
-        # Processar datas
-        departure_date = "não informada"
-        return_date = "não informada"
-        
-        # Primeiro tentar usar datas formatadas pré-calculadas com dia da semana
-        if travel_info.get('departure_date_formatted'):
-            departure_date = travel_info['departure_date_formatted']
-        elif travel_info.get('departure_date'):
-            try:
-                date_obj = datetime.strptime(travel_info['departure_date'], '%Y-%m-%d')
-                departure_date = date_obj.strftime('%d/%m/%Y')
-            except Exception:
-                departure_date = travel_info['departure_date']
-        
-        # Primeiro tentar usar datas formatadas pré-calculadas com dia da semana
-        if travel_info.get('return_date_formatted'):
-            return_date = travel_info['return_date_formatted']
-        elif travel_info.get('return_date'):
-            try:
-                date_obj = datetime.strptime(travel_info['return_date'], '%Y-%m-%d')
-                return_date = date_obj.strftime('%d/%m/%Y')
-            except Exception:
-                return_date = travel_info['return_date']
-        elif travel_info.get('date_range_end'):
-            try:
-                date_obj = datetime.strptime(travel_info['date_range_end'], '%Y-%m-%d')
-                return_date = date_obj.strftime('%d/%m/%Y')
-            except Exception:
-                return_date = travel_info['date_range_end']
-        
-        # Processar passageiros
-        adults = travel_info.get('adults', 1)
-        children = travel_info.get('children', 0)
-        infants = travel_info.get('infants', 0)
-        
-        passengers = f"{adults} adulto(s)"
-        if children > 0:
-            passengers += f", {children} criança(s)"
-        if infants > 0:
-            passengers += f", {infants} bebê(s)"
-        
-        # Processar classe
-        travel_class = travel_info.get('class', 'ECONOMY')
-        class_map = {
-            'ECONOMY': 'Econômica',
-            'PREMIUM_ECONOMY': 'Econômica Premium',
-            'BUSINESS': 'Executiva',
-            'FIRST': 'Primeira Classe'
-        }
-        class_display = class_map.get(travel_class, travel_class)
-        
-        # Montar resumo
-        summary = [
-            "**Resumo da sua solicitação de viagem:**",
-            f"**Origem:** {origin_display}",
-            f"**Destino:** {destination_display}",
-            f"**Data de ida:** {departure_date}",
-            f"**Data de volta:** {return_date}",
-            f"**Passageiros:** {passengers}",
-            f"**Classe:** {class_display}"
+        # Buscar datas na mensagem
+        # Formato: DD/MM/YYYY ou DD-MM-YYYY ou DD de mes de YYYY
+        date_patterns = [
+            r'(\d{1,2})/(\d{1,2})/(\d{4})',  # DD/MM/YYYY
+            r'(\d{1,2})-(\d{1,2})-(\d{4})',  # DD-MM-YYYY
+            r'(\d{1,2}) de (janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro) de (\d{4})'  # DD de mes de YYYY
         ]
         
-        return "\n".join(summary)
-    
-    def _extract_locations(self, message, current_context):
-        """
-        Extrai informações de origem e destino da mensagem
-        """
-        info = {}
-        
-        # Manter informações existentes
-        if current_context.get('origin'):
-            info['origin'] = current_context['origin']
-        
-        if current_context.get('destination'):
-            info['destination'] = current_context['destination']
-        
-        # Padronizar mensagem
-        message = message.lower()
-        
-        # Verificar padrões comuns para origem e destino
-        origin_patterns = [
-            r'(?:de|da|do|saindo de|partindo de|origem(?:\s+em)?) ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\s+(?:para|a|e|até|-)|\s*$)',
-            r'(?:origem|partida|saída)(?:\s+em|\s+de|\s+do|\s+da|\s*:)?\s+([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\s+(?:para|a|e|até|-)|\s*$)',
-            r'viaj(?:ar|o|ando|arei)(?:\s+de|\s+do|\s+da)? ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\s+(?:para|a|até|e|-)|\s*$)',
-            r'sa(?:ir|io|irei)(?:\s+de|\s+do|\s+da)? ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\s+(?:para|a|até|e|-)|\s*$)'
-        ]
-        
-        dest_patterns = [
-            r'(?:para|a|até|destino(?:\s+em)?|chegada(?:\s+em)?) ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\.|\s+(?:em|no dia|na data|dia|data)|\s*$)',
-            r'(?:destino|chegada)(?:\s+em|\s+a|\s*:)?\s+([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\.|\s+(?:em|no dia|na data|dia|data)|\s*$)',
-            r'(?:ir|vou|irei|viajar)(?:\s+para|\s+a|\s+até)? ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\.|\s+(?:em|no dia|na data|dia|data)|\s*$)',
-            r'(?:cheg(?:ar|o|arei)|ir)(?:\s+em|\s+a)? ([a-zA-Z\sáàâãéèêíìóòôõúùçñ]+?)(?:\.|\s+(?:em|no dia|na data|dia|data)|\s*$)'
-        ]
-        
-        # Buscar códigos IATA na mensagem (3 letras maiúsculas)
-        iata_codes = re.findall(r'\b([A-Z]{3})\b', message.upper())
-        
-        # Verificar códigos IATA encontrados
-        for code in iata_codes:
-            if code in self.COMMON_AIRPORTS:
-                # Se for o primeiro código, assumir origem
-                if not info.get('origin'):
-                    info['origin'] = code
-                # Se for o segundo código, assumir destino
-                elif not info.get('destination') and code != info.get('origin'):
-                    info['destination'] = code
-        
-        # Extrair origem usando padrões
-        if not info.get('origin'):
-            for pattern in origin_patterns:
-                matches = re.search(pattern, message)
-                if matches:
-                    origin_text = matches.group(1).strip()
-                    # Remover palavras genéricas como "cidade"
-                    origin_text = re.sub(r'\b(?:cidade|aeroporto)\s+(?:de|do|da)?\s*', '', origin_text).strip()
-                    
-                    # Verificar se é um nome de cidade conhecido
-                    origin_code = self._get_airport_code(origin_text)
-                    if origin_code:
-                        info['origin'] = origin_code
-                        break
-        
-        # Extrair destino usando padrões
-        if not info.get('destination'):
-            for pattern in dest_patterns:
-                matches = re.search(pattern, message)
-                if matches:
-                    dest_text = matches.group(1).strip()
-                    # Remover palavras genéricas
-                    dest_text = re.sub(r'\b(?:cidade|aeroporto)\s+(?:de|do|da)?\s*', '', dest_text).strip()
-                    
-                    # Verificar se é um nome de cidade conhecido
-                    dest_code = self._get_airport_code(dest_text)
-                    if dest_code:
-                        info['destination'] = dest_code
-                        break
-        
-        return info
-    
-    def _extract_dates(self, message, current_context):
-        """
-        Extrai informações de datas da mensagem
-        """
-        info = {}
-        
-        # Manter informações existentes
-        if current_context.get('departure_date'):
-            info['departure_date'] = current_context['departure_date']
-        
-        if current_context.get('return_date'):
-            info['return_date'] = current_context['return_date']
-        
-        if current_context.get('date_range_start'):
-            info['date_range_start'] = current_context['date_range_start']
-        
-        if current_context.get('date_range_end'):
-            info['date_range_end'] = current_context['date_range_end']
-        
-        # Padronizar mensagem
-        message = message.lower()
-        
-        # Buscar datas no formato DD/MM/YYYY
-        date_matches = re.findall(r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?', message)
-        
-        # Processar datas encontradas
-        for match in date_matches:
-            day, month, year = match
-            
-            # Converter para inteiros
-            day = int(day)
-            month = int(month)
-            
-            # Processar ano (se fornecido)
-            if year:
-                year = int(year)
-                # Ajustar anos de 2 dígitos
-                if year < 100:
-                    current_year = datetime.now().year
-                    century = current_year // 100
-                    year = century * 100 + year
-            else:
-                # Se não fornecido, usar ano atual ou próximo
-                current_year = datetime.now().year
-                date_with_current_year = datetime(current_year, month, day)
-                
-                # Se a data já passou este ano, assumir próximo ano
-                if date_with_current_year < datetime.now():
-                    year = current_year + 1
-                else:
-                    year = current_year
-            
-            # Validar data
-            try:
-                date_obj = datetime(year, month, day)
-                date_str = date_obj.strftime('%Y-%m-%d')
-                
-                # Determinar se é data de ida ou volta
-                if not info.get('departure_date'):
-                    info['departure_date'] = date_str
-                elif not info.get('return_date') and date_obj > datetime.strptime(info['departure_date'], '%Y-%m-%d'):
-                    info['return_date'] = date_str
-            except ValueError:
-                # Data inválida
-                continue
-        
-        # Buscar datas no formato "DD de mês de YYYY"
-        date_text_pattern = r'(\d{1,2})\s+de\s+([a-záàâãéèêíìóòôõúùç]+)(?:\s+de\s+(\d{2,4}))?'
-        date_text_matches = re.findall(date_text_pattern, message)
-        
-        # Processar datas textuais
-        for match in date_text_matches:
-            day, month_text, year = match
-            
-            # Converter para inteiros
-            day = int(day)
-            
-            # Processar mês
-            month_text = month_text.lower()
-            if month_text in self.MONTHS:
-                month = self.MONTHS[month_text]
-            else:
-                continue
-            
-            # Processar ano
-            if year:
-                year = int(year)
-                # Ajustar anos de 2 dígitos
-                if year < 100:
-                    current_year = datetime.now().year
-                    century = current_year // 100
-                    year = century * 100 + year
-            else:
-                # Se não fornecido, usar ano atual ou próximo
-                current_year = datetime.now().year
-                date_with_current_year = datetime(current_year, month, day)
-                
-                # Se a data já passou este ano, assumir próximo ano
-                if date_with_current_year < datetime.now():
-                    year = current_year + 1
-                else:
-                    year = current_year
-            
-            # Validar data
-            try:
-                date_obj = datetime(year, month, day)
-                date_str = date_obj.strftime('%Y-%m-%d')
-                
-                # Determinar se é data de ida ou volta
-                if not info.get('departure_date'):
-                    info['departure_date'] = date_str
-                elif not info.get('return_date') and date_obj > datetime.strptime(info['departure_date'], '%Y-%m-%d'):
-                    info['return_date'] = date_str
-            except ValueError:
-                # Data inválida
-                continue
-        
-        # Buscar períodos (mês ou estação)
-        month_patterns = [
-            r'(?:em|no mês de|durante) ([a-záàâãéèêíìóòôõúùç]+)(?: de (\d{4}))?',
-            r'([a-záàâãéèêíìóòôõúùç]+) (?:de|do ano de) (\d{4})'
-        ]
-        
-        for pattern in month_patterns:
-            matches = re.findall(pattern, message)
+        found_dates = []
+        for pattern in date_patterns:
+            matches = re.findall(pattern, message.lower())
             for match in matches:
-                if isinstance(match, tuple):
-                    month_text = match[0].lower()
-                    year_text = match[1] if len(match) > 1 and match[1] else None
-                else:
-                    continue
-                
-                # Verificar se é um mês válido
-                if month_text in self.MONTHS:
-                    month = self.MONTHS[month_text]
-                    
-                    # Determinar o ano
-                    year = int(year_text) if year_text else datetime.now().year
-                    
-                    # Criar período de um mês
-                    start_date = datetime(year, month, 1)
-                    if month == 12:
-                        end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
+                if len(match) == 3:
+                    if match[1] in ["janeiro", "fevereiro", "março", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]:
+                        # Converter nome do mês para número
+                        month_names = {
+                            "janeiro": 1, "fevereiro": 2, "março": 3, "marco": 3, "abril": 4,
+                            "maio": 5, "junho": 6, "julho": 7, "agosto": 8, "setembro": 9,
+                            "outubro": 10, "novembro": 11, "dezembro": 12
+                        }
+                        month = month_names[match[1]]
+                        day = int(match[0])
+                        year = int(match[2])
                     else:
-                        end_date = datetime(year, month + 1, 1) - timedelta(days=1)
+                        day = int(match[0])
+                        month = int(match[1])
+                        year = int(match[2])
                     
-                    # Adicionar ao resultado
-                    info['date_range_start'] = start_date.strftime('%Y-%m-%d')
-                    info['date_range_end'] = end_date.strftime('%Y-%m-%d')
+                    # Verificar se a data é válida
+                    try:
+                        date = datetime(year, month, day)
+                        if date >= datetime.now():  # Somente datas futuras
+                            found_dates.append(date.strftime("%Y-%m-%d"))
+                    except ValueError:
+                        pass
         
-        # Extrair períodos como "próxima semana", "próximo mês", etc.
-        period_patterns = {
-            r'próxima semana': (7, 14),
-            r'próximo mês': (30, 60),
-            r'próximos (\d+) dias': lambda x: (int(x), int(x) + 7),
-            r'próximas (\d+) semanas': lambda x: (int(x) * 7, int(x) * 7 + 7),
-            r'próximos (\d+) meses': lambda x: (int(x) * 30, int(x) * 30 + 30)
-        }
-        
-        for pattern, days_func in period_patterns.items():
-            matches = re.search(pattern, message)
-            if matches:
-                if callable(days_func):
-                    value = matches.group(1)
-                    start_days, end_days = days_func(value)
-                else:
-                    start_days, end_days = days_func
+        # Se encontrou pelo menos uma data, assumir como data de ida
+        if found_dates:
+            info["departure_date"] = found_dates[0]
+            logger.info(f"Encontrada data específica: {info['departure_date']}")
+            
+            # Se encontrou duas datas, a segunda é a volta
+            if len(found_dates) >= 2:
+                info["return_date"] = found_dates[1]
+            else:
+                # Verificar menções a duração da viagem
+                duration_patterns = [
+                    r'(\d+)\s*dias',
+                    r'(\d+)\s*semanas'
+                ]
                 
+                for pattern in duration_patterns:
+                    match = re.search(pattern, message.lower())
+                    if match:
+                        value = int(match.group(1))
+                        if "semanas" in match.group(0):
+                            value *= 7
+                        
+                        logger.info(f"Detectada menção a estadia de {value} dias")
+                        
+                        # Calcular data de retorno
+                        departure = datetime.strptime(info["departure_date"], "%Y-%m-%d")
+                        return_date = departure + timedelta(days=value)
+                        info["return_date"] = return_date.strftime("%Y-%m-%d")
+                        logger.info(f"Calculada data de retorno baseada em {value} dias: {info['return_date']}")
+                        break
+        
+        # Verificar menções a período flexível
+        if re.search(r'flex[ií]vel|qualquer data|qualquer momento|melhor[es]? pre[çc]os?', message.lower()):
+            info["flexible_dates"] = True
+        
+        # Verificar menção a número de passageiros
+        passengers_match = re.search(r'(\d+)\s*(?:adultos?|pessoas?|passageiros?)', message.lower())
+        if passengers_match:
+            info["adults"] = min(9, int(passengers_match.group(1)))  # Máximo de 9 adultos
+        
+        return info
+    
+    def _can_search_flights(self, travel_info):
+        """
+        Verifica se temos informações suficientes para buscar voos reais
+        
+        Args:
+            travel_info: Dicionário com informações de viagem
+            
+        Returns:
+            bool: True se podemos buscar voos, False caso contrário
+        """
+        # Precisamos pelo menos de origem, destino e data de ida
+        return (
+            travel_info.get("origin") and 
+            travel_info.get("destination") and 
+            travel_info.get("departure_date")
+        )
+    
+    def _search_real_flights(self, travel_info, session_id):
+        """
+        Busca voos reais com base nas informações extraídas
+        
+        Args:
+            travel_info: Dicionário com informações de viagem
+            session_id: ID da sessão de chat
+            
+        Returns:
+            dict: Dados de voos reais
+        """
+        try:
+            # Extrair parâmetros para a busca
+            origin = travel_info["origin"]
+            destination = travel_info["destination"]
+            departure_date = travel_info["departure_date"]
+            return_date = travel_info.get("return_date")
+            adults = travel_info.get("adults", 1)
+            
+            # Buscar voos usando o provedor de dados
+            flight_data = flight_data_provider.search_flights(
+                origin=origin,
+                destination=destination,
+                departure_date=departure_date,
+                return_date=return_date,
+                adults=adults,
+                currency="BRL",
+                session_id=session_id
+            )
+            
+            return flight_data
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar voos reais: {str(e)}")
+            return {"error": f"Erro ao buscar voos: {str(e)}"}
+    
+    def _search_best_prices(self, travel_info, session_id):
+        """
+        Busca os melhores preços para um período flexível
+        
+        Args:
+            travel_info: Dicionário com informações de viagem
+            session_id: ID da sessão de chat
+            
+        Returns:
+            dict: Dados de melhores preços
+        """
+        try:
+            # Extrair parâmetros para a busca
+            origin = travel_info["origin"]
+            destination = travel_info["destination"]
+            
+            # Se temos datas específicas, usar como base para o período
+            if travel_info["departure_date"]:
+                departure_date = datetime.strptime(travel_info["departure_date"], "%Y-%m-%d")
+                
+                # Definir período de 15 dias em torno da data solicitada
+                date_range_start = (departure_date - timedelta(days=7)).strftime("%Y-%m-%d")
+                date_range_end = (departure_date + timedelta(days=7)).strftime("%Y-%m-%d")
+                
+                # Se temos data de retorno, ajustar o período final
+                if travel_info.get("return_date"):
+                    return_date = datetime.strptime(travel_info["return_date"], "%Y-%m-%d")
+                    date_range_end = (return_date + timedelta(days=7)).strftime("%Y-%m-%d")
+            else:
+                # Se não temos datas específicas, usar período padrão
                 today = datetime.now()
-                start_date = today + timedelta(days=start_days)
-                end_date = today + timedelta(days=end_days)
-                
-                info['date_range_start'] = start_date.strftime('%Y-%m-%d')
-                info['date_range_end'] = end_date.strftime('%Y-%m-%d')
-        
-        # Se definido apenas um intervalo de datas, usar o início como data de partida
-        if not info.get('departure_date') and info.get('date_range_start'):
-            info['departure_date'] = info['date_range_start']
-        
-        return info
+                date_range_start = today.strftime("%Y-%m-%d")
+                date_range_end = (today + timedelta(days=30)).strftime("%Y-%m-%d")
+            
+            # Buscar melhores preços usando o provedor de dados
+            best_prices_data = flight_data_provider.search_best_prices(
+                origin=origin,
+                destination=destination,
+                date_range_start=date_range_start,
+                date_range_end=date_range_end,
+                adults=travel_info.get("adults", 1),
+                currency="BRL",
+                max_dates=5,
+                session_id=session_id
+            )
+            
+            return best_prices_data
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar melhores preços: {str(e)}")
+            return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
     
-    def _extract_passengers(self, message, current_context):
+    def _generate_gpt_response(self, message, travel_info, session_id):
         """
-        Extrai informações de passageiros da mensagem
-        """
-        info = {}
-        
-        # Manter informações existentes
-        if current_context.get('adults'):
-            info['adults'] = current_context['adults']
-        else:
-            info['adults'] = 1  # Padrão
-        
-        if current_context.get('children'):
-            info['children'] = current_context['children']
-        else:
-            info['children'] = 0  # Padrão
-        
-        if current_context.get('infants'):
-            info['infants'] = current_context['infants']
-        else:
-            info['infants'] = 0  # Padrão
-        
-        # Padronizar mensagem
-        message = message.lower()
-        
-        # Buscar números de adultos
-        adult_patterns = [
-            r'(\d+)[\s]*(?:adulto|pessoa|passageiro)s?',
-            r'(?:adulto|pessoa|passageiro)s?[\s]*:[\s]*(\d+)',
-            r'(?:para|com|somos)[\s]+(\d+)[\s]+(?:adulto|pessoa|passageiro)s?'
-        ]
-        
-        for pattern in adult_patterns:
-            matches = re.search(pattern, message)
-            if matches:
-                adults = int(matches.group(1))
-                if adults > 0:
-                    info['adults'] = adults
-                    break
-        
-        # Buscar números de crianças
-        child_patterns = [
-            r'(\d+)[\s]*criança',
-            r'criança[s]?[\s]*:[\s]*(\d+)',
-            r'(?:com|e)[\s]+(\d+)[\s]+criança'
-        ]
-        
-        for pattern in child_patterns:
-            matches = re.search(pattern, message)
-            if matches:
-                children = int(matches.group(1))
-                if children >= 0:
-                    info['children'] = children
-                    break
-        
-        # Buscar números de bebês
-        infant_patterns = [
-            r'(\d+)[\s]*(?:bebê|bebe|bebé)',
-            r'(?:bebê|bebe|bebé)[s]?[\s]*:[\s]*(\d+)',
-            r'(?:com|e)[\s]+(\d+)[\s]+(?:bebê|bebe|bebé)'
-        ]
-        
-        for pattern in infant_patterns:
-            matches = re.search(pattern, message)
-            if matches:
-                infants = int(matches.group(1))
-                if infants >= 0:
-                    info['infants'] = infants
-                    break
-        
-        return info
-    
-    def _extract_class(self, message, current_context):
-        """
-        Extrai informações de classe da mensagem
-        """
-        info = {}
-        
-        # Manter informações existentes
-        if current_context.get('class'):
-            info['class'] = current_context['class']
-        else:
-            info['class'] = 'ECONOMY'  # Padrão
-        
-        # Padronizar mensagem
-        message = message.lower()
-        
-        # Mapear termos para classes
-        class_map = {
-            'ECONOMY': ['econômica', 'economica', 'economia', 'classe econômica', 'classe economica', 'standard'],
-            'PREMIUM_ECONOMY': ['premium economy', 'econômica premium', 'economica premium', 'premium', 'classe econômica premium'],
-            'BUSINESS': ['executiva', 'business', 'classe executiva', 'business class'],
-            'FIRST': ['primeira classe', 'primeira', 'first class', 'first']
-        }
-        
-        # Buscar menções de classes
-        for cls, terms in class_map.items():
-            for term in terms:
-                if term in message:
-                    info['class'] = cls
-                    return info
-        
-        return info
-    
-    def _get_airport_code(self, city_name):
-        """
-        Converte um nome de cidade para código IATA
-        Retorna None se não encontrar correspondência
-        """
-        # Limpar o nome da cidade
-        city_name = city_name.lower().strip()
-        
-        # Verificar se é um código IATA válido
-        city_name_upper = city_name.upper()
-        if len(city_name) == 3 and city_name_upper in self.COMMON_AIRPORTS:
-            return city_name_upper
-        
-        # Verificar se é um nome de cidade conhecido
-        if city_name in self.CITY_TO_AIRPORT:
-            # Retornar o primeiro código associado à cidade
-            return self.CITY_TO_AIRPORT[city_name][0]
-        
-        # Verificar correspondências parciais
-        for known_city, codes in self.CITY_TO_AIRPORT.items():
-            if city_name in known_city or known_city in city_name:
-                return codes[0]
-        
-        # Não encontrou
-        return None
-        
-    def get_flight_search_intro(self, origin, destination):
-        """
-        Gera uma introdução amigável para os resultados de busca de voos
-        Este texto substitui a resposta do ChatGPT antes de mostrar dados reais
+        Gera uma resposta usando a API do GPT quando não podemos 
+        ou não precisamos buscar dados reais
         
         Args:
-            origin: Código IATA do aeroporto de origem
-            destination: Código IATA do aeroporto de destino
+            message: Mensagem original do usuário
+            travel_info: Informações de viagem extraídas
+            session_id: ID da sessão
             
         Returns:
-            str: Texto introdutório humanizado sem dados específicos
+            dict: Resposta gerada para o chat
         """
-        # Obter nomes das cidades se disponíveis
-        origin_name = origin
-        destination_name = destination
-        
-        # Tenta encontrar nomes mais amigáveis para os aeroportos
-        for code, info in self.COMMON_AIRPORTS.items():
-            if code == origin:
-                origin_name = info.get('city', origin)
-            if code == destination:
-                destination_name = info.get('city', destination)
-        
-        # Garantir que nunca vamos usar placeholders no formato [texto]
-        # Isso evita que pareça que estamos simulando dados
-        intro_texts = [
-            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nEncontrei algumas opções de voos de {origin_name} para {destination_name} com dados reais da API Amadeus:",
-            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nAqui estão as opções de voos reais que encontrei para sua viagem de {origin_name} para {destination_name}:",
-            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nConsultei a API Amadeus e encontrei estas opções para sua viagem de {origin_name} para {destination_name}:",
-            f"✈️ **RESULTADOS REAIS DA AMADEUS**\n\nCom base nos dados reais da API Amadeus, encontrei estas opções para sua viagem entre {origin_name} e {destination_name}:"
-        ]
-        
-        # Escolher uma introdução aleatória
-        import random
-        return random.choice(intro_texts)
-    
-    def format_error_message(self, error_text):
-        """
-        Formata uma mensagem de erro amigável quando ocorre um problema na busca
-        
-        Args:
-            error_text: Texto do erro original
+        try:
+            # Verificar se temos a chave da API
+            if not self.openai_api_key:
+                return {
+                    "message": "Estou com um problema para processar seu pedido agora. "
+                               "Por favor, tente novamente mais tarde."
+                }
             
-        Returns:
-            str: Mensagem de erro formatada para o usuário
-        """
-        return f"Infelizmente, ocorreu um problema durante a busca na API Amadeus: {error_text}. Por favor, tente novamente com outras datas ou destinos."
+            # Para este exemplo, retornamos uma resposta estática
+            # Em um sistema real, você chamaria a API do GPT aqui
+            return {
+                "message": "Entendi seu pedido! Para eu poder ajudar com informações de voos, "
+                           "preciso de alguns detalhes específicos como a cidade de origem, "
+                           "destino e data da viagem. Por favor, me informe esses dados para "
+                           "que eu possa buscar as melhores opções para você."
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar resposta GPT: {str(e)}")
+            return {
+                "message": "Desculpe, tive um problema ao processar sua solicitação. "
+                           "Por favor, tente novamente."
+            }
+
+
+# Instância global para uso em toda a aplicação
+chat_processor = ChatProcessor()
