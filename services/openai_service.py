@@ -2,6 +2,8 @@ import os
 import logging
 import requests
 import json
+import inspect
+import traceback
 
 class OpenAIService:
     def __init__(self):
@@ -42,7 +44,7 @@ class OpenAIService:
         fallback_response = {'choices': [{'message': {'content': 'Estou tendo dificuldades para processar sua solicitação. Por favor, tente novamente em alguns instantes.'}}]}
         
         try:
-            logging.info(f"Enviando requisição para OpenAI API...")
+            logging.info(f"[OPENAI SERVICE DEBUG] Enviando requisição para OpenAI API - Função: {str(inspect.currentframe().f_back.f_code.co_name)}")
             response = requests.post(
                 self.api_url,
                 headers=headers,

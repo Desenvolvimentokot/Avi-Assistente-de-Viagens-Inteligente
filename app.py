@@ -319,24 +319,39 @@ def chat():
                     # Quando chegamos aqui, estamos na etapa de busca (step 2) sem dados ainda
                     # Vamos forçar uma mensagem padronizada e impedir que o GPT invente dados
                     
-                    # 1. Gerar mensagem padrão "Estou buscando na API Amadeus..."
-                    gpt_response = "Entendi! Vou consultar a API da Amadeus para encontrar opções reais para sua viagem. Por favor, aguarde um momento..."
+                    # ESTA PARTE ESTÁ OBSOLETA E FOI MOVIDA PARA A INTERCEPTAÇÃO CENTRAL
+                    # Não é mais necessário definir skip_gpt_call aqui, pois agora verificamos
+                    # diretamente antes da chamada do GPT no ponto crítico do código
+                    pass
+            
+            # INTERCEPÇÃO CRÍTICA: VERIFICAR ESTÁGIO DE BUSCA CONFIRMADA
+            # Aqui detectamos se estamos no estágio de busca após confirmação 
+            # para EVITAR COMPLETAMENTE a chamada ao GPT neste caso específico
+            if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
+                logger.info("⚠️ INTERCEPÇÃO DO FLUXO: Busca confirmada detectada, pulando ChatGPT completamente")
+                
+                # FORÇAR skip_gpt_call = True para este caso específico
+                skip_gpt_call = True
+                
+                # Definir resposta padrão sem chamar OpenAI
+                gpt_result = {
+                    "response": "Estou consultando a API da Amadeus para encontrar as melhores opções reais de voos para sua viagem. Aguarde um momento..."
+                }
+                
+                logger.info("✅ Fluxo desviado com sucesso para API Amadeus direta")
+            else:
+                # Para outros casos, verificar se já temos instrução para pular
+                skip_gpt_call = locals().get('skip_gpt_call', False)
+                
+                if not skip_gpt_call:
+                    # Obter resposta do GPT com o contexto específico do estágio
+                    # APENAS para etapas que não são de busca confirmada
+                    logger.info(f"Chamando OpenAI para etapa {step} (não é busca confirmada)")
+                    gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
                     
-                    # 2. Definir resultado que substitui completamente o que viria do ChatGPT
-                    gpt_result = {"response": gpt_response}
-                    
-                    # 3. Pular chamada do GPT completamente nesta etapa crítica
-                    skip_gpt_call = True
-            
-            # Verificar se devemos pular a chamada do GPT
-            skip_gpt_call = locals().get('skip_gpt_call', False)
-            
-            if not skip_gpt_call:
-                # Obter resposta do GPT com o contexto específico do estágio
-                gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
-            
             # Inicializar gpt_result se ainda não existir (caso skip_gpt_call seja True)
             if not 'gpt_result' in locals():
+                logger.warning("gpt_result não definido, usando mensagem padrão")
                 gpt_result = {"response": "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"}
             
             if 'error' in gpt_result:
