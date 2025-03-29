@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error("Painel de voos não está disponível, tentando inicializar");
                 // Tentar inicializar manualmente
                 window.flightResultsPanel = new FlightResultsPanel();
+            }
         });
     } else {
         console.error("Botão do Mural de Voos não encontrado");
