@@ -21,6 +21,65 @@ from models import db, User, Conversation, Message, TravelPlan, FlightBooking, A
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Funções auxiliares para lidar com erros de banco de dados
+def db_operation_with_retry(operation_func, max_retries=3, retry_delay=0.5):
+    """
+    Executa uma operação de banco de dados com tentativas de reconexão
+    em caso de erros de conexão SSL ou outros problemas de conexão.
+    
+    Args:
+        operation_func: Função que executa a operação de banco de dados
+        max_retries: Número máximo de tentativas
+        retry_delay: Tempo de espera entre tentativas (em segundos)
+        
+    Returns:
+        O resultado da operação ou None se falhar em todas as tentativas
+    """
+    import time
+    from sqlalchemy.exc import OperationalError, SQLAlchemyError
+    import psycopg2
+    
+    retries = 0
+    last_error = None
+    
+    while retries < max_retries:
+        try:
+            return operation_func()
+        except (OperationalError, psycopg2.OperationalError) as e:
+            # Identificar erros específicos de conexão SSL
+            error_msg = str(e)
+            if "SSL connection has been closed unexpectedly" in error_msg or "connection already closed" in error_msg:
+                retries += 1
+                last_error = e
+                logger.warning(f"Erro de conexão SSL ({retries}/{max_retries}): {error_msg}")
+                
+                # Pequena pausa antes de tentar novamente
+                time.sleep(retry_delay)
+                
+                # Tentar limpar a sessão atual
+                try:
+                    db.session.remove()
+                    logger.info("Sessão de banco de dados removida para reconexão")
+                except Exception as session_error:
+                    logger.error(f"Erro ao remover sessão: {str(session_error)}")
+            else:
+                # Outros erros operacionais
+                logger.error(f"Erro operacional do banco de dados: {error_msg}")
+                raise
+        except SQLAlchemyError as e:
+            # Outros erros do SQLAlchemy
+            logger.error(f"Erro do SQLAlchemy: {str(e)}")
+            raise
+        except Exception as e:
+            # Capturar erros genéricos
+            logger.error(f"Erro inesperado no banco de dados: {str(e)}")
+            raise
+    
+    # Se chegou aqui, todas as tentativas falharam
+    logger.error(f"Todas as {max_retries} tentativas de conexão falharam. Último erro: {str(last_error)}")
+    return None
 
 # Create Flask app
 app = Flask(__name__)
@@ -31,8 +90,28 @@ app.config["DEBUG"] = True
 app.register_blueprint(api_blueprint)
 
 # Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///flai.db")
+# Ajustar a URI do banco de dados para incluir parâmetros SSL e reconexão
+database_url = os.environ.get("DATABASE_URL", "sqlite:///flai.db")
+
+# Adicionar parâmetros específicos para PostgreSQL para melhorar a estabilidade da conexão
+if database_url.startswith('postgresql'):
+    # Se já tiver parâmetros, adicionar mais, senão, iniciar com o caractere '?'
+    separator = '&' if '?' in database_url else '?'
+    database_url = f"{database_url}{separator}sslmode=require&connect_timeout=10&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Configurações de pool de conexões para evitar problemas de SSL
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,  # Verifica se a conexão está ativa antes de usá-la
+    "pool_recycle": 300,    # Recicla conexões após 5 minutos
+    "pool_timeout": 30,     # Timeout para obter uma conexão do pool
+    "pool_size": 10,        # Tamanho máximo do pool
+    "max_overflow": 15      # Conexões adicionais permitidas além do pool_size
+}
+
+# Inicializar o banco de dados com as novas configurações
 db.init_app(app)
 
 # Configure login manager
@@ -556,37 +635,98 @@ def logout():
 @app.route('/api/conversations')
 @login_required
 def get_conversations_login_required():
-    user_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
-
-    result = []
-    for conv in user_conversations:
-        result.append({
-            "id": conv.id,
-            "title": conv.title,
-            "last_updated": conv.last_updated.strftime("%d/%m/%Y")
-        })
-
-    return jsonify(result)
+    def fetch_conversations():
+        """Função interna para buscar conversas (para uso com retry)"""
+        conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
+        return conversations
+    
+    try:
+        # Usar o mecanismo de retry para buscar conversas
+        user_conversations = db_operation_with_retry(fetch_conversations, max_retries=5, retry_delay=0.8)
+        
+        # Se todas as tentativas falharam, retornar uma lista vazia com uma mensagem amigável
+        if user_conversations is None:
+            logger.error("Falha ao recuperar conversas após múltiplas tentativas")
+            return jsonify({
+                "error": True,
+                "message": "Não foi possível recuperar suas conversas no momento. Por favor, tente novamente.",
+                "conversations": []
+            })
+        
+        # Processar as conversas recuperadas com sucesso
+        result = []
+        for conv in user_conversations:
+            result.append({
+                "id": conv.id,
+                "title": conv.title,
+                "last_updated": conv.last_updated.strftime("%d/%m/%Y")
+            })
+        
+        logger.info(f"Conversas recuperadas com sucesso: {len(result)}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar conversas: {str(e)}")
+        # Retornar uma resposta amigável ao usuário
+        return jsonify({
+            "error": True,
+            "message": "Ocorreu um erro ao carregar suas conversas. Por favor, atualize a página e tente novamente."
+        }), 500
 
 @app.route('/api/conversation/<int:conversation_id>/messages')
 @login_required
 def get_conversation_messages(conversation_id):
-    conv = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
-    if not conv:
-        return jsonify({"error": "Conversa não encontrada"}), 404
-
-    messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
-
-    result = []
-    for msg in messages:
-        result.append({
-            "id": msg.id,
-            "is_user": msg.is_user,
-            "content": msg.content,
-            "timestamp": msg.timestamp.isoformat()
-        })
-
-    return jsonify(result)
+    def fetch_conversation():
+        """Função interna para buscar a conversa (para uso com retry)"""
+        return Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
+    
+    def fetch_messages():
+        """Função interna para buscar as mensagens (para uso com retry)"""
+        return Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
+    
+    try:
+        # Buscar a conversa com retry
+        conv = db_operation_with_retry(fetch_conversation, max_retries=5, retry_delay=0.5)
+        
+        if conv is None:
+            logger.error(f"Não foi possível recuperar a conversa {conversation_id} após várias tentativas")
+            return jsonify({
+                "error": True, 
+                "message": "Não foi possível recuperar esta conversa no momento. Por favor, tente novamente."
+            }), 500
+        
+        if not conv:
+            return jsonify({"error": "Conversa não encontrada"}), 404
+            
+        # Buscar as mensagens com retry
+        messages = db_operation_with_retry(fetch_messages, max_retries=5, retry_delay=0.5)
+        
+        if messages is None:
+            logger.error(f"Não foi possível recuperar as mensagens da conversa {conversation_id} após várias tentativas")
+            return jsonify({
+                "error": True,
+                "message": "Não foi possível recuperar as mensagens desta conversa no momento. Por favor, tente novamente."
+            }), 500
+        
+        # Processar os resultados com sucesso
+        result = []
+        for msg in messages:
+            result.append({
+                "id": msg.id,
+                "is_user": msg.is_user,
+                "content": msg.content,
+                "timestamp": msg.timestamp.isoformat()
+            })
+        
+        logger.info(f"Recuperadas {len(result)} mensagens da conversa {conversation_id}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Erro ao recuperar mensagens da conversa {conversation_id}: {str(e)}")
+        return jsonify({
+            "error": True,
+            "message": "Ocorreu um erro ao carregar as mensagens. Por favor, tente novamente."
+        }), 500
 
 
 @app.route('/api/plans')
