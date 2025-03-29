@@ -317,7 +317,8 @@ def chat():
             
             # Verificar se devemos mostrar o painel lateral de resultados
             # Isso acontece quando o usuário acabou de confirmar e temos resultados de busca
-            if step == 2 and current_travel_info.get('search_results'):
+            # OU quando estamos no passo 2 (mostrar resultados)
+            if step == 2:
                 response['show_flight_results'] = True
             
             # Atualiza o armazenamento

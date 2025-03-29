@@ -141,20 +141,38 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.show_flight_results) {
                 console.log("Recebido show_flight_results=true, mostrando painel lateral");
                 
-                // Verificar se temos a instância global do painel
-                if (window.flightResultsPanel) {
-                    // Disparar evento customizado para mostrar o painel de resultados
-                    document.dispatchEvent(new CustomEvent('showFlightResults', {
-                        detail: {
-                            sessionId: sessionId
-                        }
-                    }));
+                // FORÇAR EXIBIÇÃO DO PAINEL LATERAL COM RESULTADOS
+                // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
+                setTimeout(() => {
+                    console.log("Executando disparo do evento de exibição do painel (timeout)");
                     
-                    // Adicionar uma pequena mensagem de direcionamento na conversa
-                    addMessage("👉 Os resultados reais da API Amadeus estão disponíveis no painel lateral.", false);
-                } else {
-                    console.error("Panel not initialized: flightResultsPanel not found");
-                }
+                    // Verificar se temos a instância global do painel
+                    if (window.flightResultsPanel) {
+                        // Disparar evento customizado para mostrar o painel de resultados
+                        document.dispatchEvent(new CustomEvent('showFlightResults', {
+                            detail: {
+                                sessionId: data.session_id || sessionId
+                            }
+                        }));
+                        
+                        // Adicionar uma pequena mensagem de direcionamento na conversa
+                        addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);
+                    } else {
+                        console.error("ERRO CRÍTICO: Panel not initialized: flightResultsPanel not found");
+                        
+                        // Tentar inicializar manualmente como fallback
+                        window.flightResultsPanel = new FlightResultsPanel();
+                        
+                        // Tentar novamente após inicialização
+                        setTimeout(() => {
+                            document.dispatchEvent(new CustomEvent('showFlightResults', {
+                                detail: {
+                                    sessionId: data.session_id || sessionId || 'test'
+                                }
+                            }));
+                        }, 500);
+                    }
+                }, 1000);
             }
 
             // MANTÉM o código legado para compatibilidade com o sistema atual
