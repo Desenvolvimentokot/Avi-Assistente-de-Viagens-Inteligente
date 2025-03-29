@@ -250,50 +250,54 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.warn("ALERTA: Não recebemos session_id do servidor!");
                 }
                 
-                // FORÇAR EXIBIÇÃO DO PAINEL LATERAL COM RESULTADOS
-                // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
-                setTimeout(() => {
-                    console.log("Executando disparo do evento de exibição do painel (timeout)");
-                    console.log("Session ID que será enviado ao painel:", data.session_id || sessionId);
+                // VERIFICAR SE DEVEMOS MOSTRAR O PAINEL LATERAL COM RESULTADOS
+                // Só mostrar quando o backend especificamente solicitar (trigger_flight_panel)
+                if (data.trigger_flight_panel) {
+                    console.log("Backend solicitou abertura do painel de voos!");
                     
-                    // Verificar se temos a instância global do painel
-                    if (window.flightResultsPanel) {
-                        // Disparar evento customizado para mostrar o painel de resultados
-                        document.dispatchEvent(new CustomEvent('showFlightResults', {
-                            detail: {
-                                sessionId: data.session_id || sessionId
-                            }
-                        }));
-                        
-                        // Atualizar também diretamente o objeto do painel
-                        window.flightResultsPanel.currentSessionId = data.session_id || sessionId;
-                        
-                        // Adicionar uma pequena mensagem de direcionamento na conversa
-                        addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);
-                    } else {
-                        console.error("ERRO CRÍTICO: Panel not initialized: flightResultsPanel not found");
-                        
-                        // Tentar inicializar manualmente como fallback
-                        window.flightResultsPanel = new FlightResultsPanel();
-                        
-                        // Tentar novamente após inicialização
-                        setTimeout(() => {
-                            // Verificar se temos um ID de sessão válido
-                            if (data.session_id || sessionId) {
-                                document.dispatchEvent(new CustomEvent('showFlightResults', {
-                                    detail: {
-                                        sessionId: data.session_id || sessionId
-                                    }
-                                }));
-                            } else {
-                                console.error("Tentativa de mostrar painel sem sessionId válido");
-                                if (window.flightResultsPanel) {
-                                    window.flightResultsPanel.showError("Para ver resultados de voos, complete uma busca através da conversa com a Avi.");
-                                }
-                            }
-                        }, 500);
+                    // Verificar se temos um ID de sessão válido
+                    const validSessionId = data.session_id || sessionId;
+                    
+                    if (!validSessionId) {
+                        console.warn("Sem ID de sessão válido para o painel de resultados");
+                        return;
                     }
-                }, 1000);
+                    
+                    console.log("Session ID para o painel:", validSessionId);
+                    
+                    // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
+                    setTimeout(() => {
+                        // Verificar se temos a instância global do painel
+                        if (window.flightResultsPanel) {
+                            // Atualizar o ID de sessão no painel
+                            window.flightResultsPanel.currentSessionId = validSessionId;
+                            
+                            // Disparar evento customizado para mostrar o painel de resultados
+                            document.dispatchEvent(new CustomEvent('showFlightResults', {
+                                detail: {
+                                    sessionId: validSessionId
+                                }
+                            }));
+                            
+                            // Carregar e mostrar resultados diretamente
+                            window.flightResultsPanel.loadAndShowResults(validSessionId);
+                            
+                            // Adicionar uma pequena mensagem de direcionamento na conversa
+                            addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);
+                        } else {
+                            console.error("ERRO CRÍTICO: Panel not initialized: flightResultsPanel not found");
+                            
+                            // Tentar inicializar manualmente como fallback
+                            window.flightResultsPanel = new FlightResultsPanel();
+                            
+                            // Tentar novamente após inicialização
+                            setTimeout(() => {
+                                window.flightResultsPanel.currentSessionId = validSessionId;
+                                window.flightResultsPanel.loadAndShowResults(validSessionId);
+                            }, 500);
+                        }
+                    }, 500);
+                }
             }
 
             // MANTÉM o código legado para compatibilidade com o sistema atual

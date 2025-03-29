@@ -152,8 +152,17 @@ class ChatProcessor:
                 # Formatar os resultados para o chat
                 response = flight_data_provider.format_flight_results_for_chat(flight_data, best_prices_data)
                 
-                # Se conseguimos obter dados de voo com sucesso, enviar uma resposta estruturada
-                if flight_data and "error" not in flight_data:
+                # Adicionar o ID da sessão à resposta para garantir que o mural funcione
+                response['session_id'] = session_id
+                
+                # Verificar se podemos mostrar resultados
+                if flight_data and "error" not in flight_data and "data" in flight_data and flight_data["data"]:
+                    # Definir flag para mostrar o mural de resultados
+                    response['show_flight_results'] = True
+                    
+                    # Disparar evento para mostrar o mural de resultados
+                    logger.info(f"Preparando para mostrar resultados de voo para sessão {session_id}")
+                    
                     return response
             
             # Se não pudermos buscar voos ou ocorrer um erro, usar o GPT para gerar uma resposta

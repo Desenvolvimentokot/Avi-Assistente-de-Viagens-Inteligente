@@ -420,7 +420,7 @@ class FlightResultsPanel {
         
         // Verificar se temos um sessionId válido
         if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
-            console.warn("SessionId inválido, não podemos usar dados de teste");
+            console.warn("SessionId inválido, não podemos buscar resultados");
             
             // Tentar recuperar do localStorage como último recurso
             const savedSessionId = localStorage.getItem('currentSessionId');
@@ -433,9 +433,13 @@ class FlightResultsPanel {
                 // Se realmente não temos nenhum ID válido, mostrar erro
                 this.showPanel();
                 this.showError("Não é possível exibir resultados sem uma sessão válida. Por favor, refaça sua pesquisa com a Avi.");
-                // NÃO CARREGAR DADOS DE TESTE
                 return;
             }
+        }
+        
+        // Forçar remoção de overlay de transição se estiver visível
+        if (this.transitionOverlay) {
+            this.transitionOverlay.classList.remove('active');
         }
         
         // Salvar o ID da sessão atual

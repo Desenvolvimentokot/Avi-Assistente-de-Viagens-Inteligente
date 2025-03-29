@@ -442,6 +442,9 @@ def chat():
                 else:
                     response['session_id'] = session_id
                 
+                # Adicionar evento para que o JavaScript ative o mural
+                response['trigger_flight_panel'] = True
+                
                 logging.info(f"Exibindo painel de voos para a sessão: {response.get('session_id')}")
             
             # Atualiza o armazenamento
