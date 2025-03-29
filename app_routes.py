@@ -23,18 +23,11 @@ def get_flight_results(session_id):
         session_id: ID da sessão do chat
     """
     try:
+        import json
+        import time
+        
         # Log detalhado para diagnóstico
         logging.info(f"==== INICIANDO BUSCA DE VOOS PARA SESSÃO: {session_id} ====")
-        
-        # Verificar token Amadeus no início para diagnóstico
-        from services.amadeus_service import AmadeusService
-        amadeus_service = AmadeusService()
-        token = amadeus_service.get_token()
-        
-        if token:
-            logging.info(f"✅ Token Amadeus válido obtido: {token[:5]}...{token[-5:]} (mascarado)")
-        else:
-            logging.error("❌ Falha ao obter token Amadeus - Verificar credenciais!")
         
         # Verificar se o session_id é nulo ou vazio e usar um padrão se necessário
         if not session_id or session_id == 'null':
@@ -47,6 +40,28 @@ def get_flight_results(session_id):
             logging.info(f"🔄 Retornando resultados em cache para sessão {session_id}")
             return jsonify(flight_search_sessions[session_id])
         
+        # Verificar token Amadeus no início para diagnóstico (usando AmadeusSDKService em vez de AmadeusService)
+        try:
+            from services.amadeus_sdk_service import AmadeusSDKService
+            amadeus_service = AmadeusSDKService()
+            token_info = amadeus_service.get_access_token_info()
+            
+            if token_info and 'access_token' in token_info:
+                logging.info(f"✅ Token Amadeus SDK válido obtido: {token_info['access_token'][:5]}...{token_info['access_token'][-5:]} (mascarado)")
+            else:
+                logging.error("❌ Falha ao obter token Amadeus SDK - Verificar credenciais!")
+                # Tentar o método alternativo
+                from services.amadeus_service import AmadeusService
+                amadeus_service_alt = AmadeusService()
+                token = amadeus_service_alt.get_token()
+                
+                if token:
+                    logging.info(f"✅ Token Amadeus alternativo válido obtido: {token[:5]}...{token[-5:]} (mascarado)")
+                else:
+                    logging.error("❌ Falha ao obter token Amadeus alternativo - Verificar credenciais!")
+        except Exception as e:
+            logging.error(f"❌ Erro ao verificar token Amadeus: {str(e)}")
+        
         # Caso contrário, verificar se temos parâmetros de busca salvos
         from app import conversation_store
         
@@ -56,7 +71,10 @@ def get_flight_results(session_id):
             travel_info = conversation_store[session_id].get('travel_info', {})
             
             # Log detalhado das informações de viagem
-            logging.info(f"📋 Dados de viagem encontrados: {json.dumps(travel_info, indent=2)}")
+            if travel_info:
+                logging.info(f"📋 Dados de viagem encontrados: {json.dumps(travel_info, indent=2)}")
+            else:
+                logging.warning(f"⚠️ Nenhum dado de viagem encontrado para a sessão {session_id}")
             
             # Verificar se temos resultados já salvos
             if travel_info.get('search_results'):
@@ -70,21 +88,42 @@ def get_flight_results(session_id):
                 
                 logging.info(f"🚀 Parâmetros completos, iniciando busca na API Amadeus")
                 
-                # Definir explicitamente para NÃO usar dados simulados
-                amadeus_service.use_mock_data = False
-                logging.info("🔄 Configurado para usar DADOS REAIS da API Amadeus")
-                
-                # Verificar se o serviço está funcionando
-                conn_test = amadeus_service.test_connection()
-                if conn_test.get("success"):
-                    logging.info(f"✅ Conexão com API Amadeus bem-sucedida: {conn_test}")
-                else:
-                    logging.error(f"❌ FALHA na conexão com API Amadeus: {conn_test}")
-                    logging.error("⚠️ Tentando usar dados simulados como fallback")
-                
-                # Detectar o tipo de busca necessária (data específica ou período)
-                search_results = None
+                # Usar o AmadeusSDKService
                 try:
+                    from services.amadeus_sdk_service import AmadeusSDKService
+                    logging.info(f"🔄 Usando AmadeusSDKService para a busca")
+                    amadeus_service = AmadeusSDKService()
+                    
+                    # Verificar se o serviço está funcionando
+                    try:
+                        token_info = amadeus_service.get_access_token_info()
+                        if token_info and 'access_token' in token_info:
+                            logging.info(f"✅ Conexão com API Amadeus SDK bem-sucedida")
+                        else:
+                            logging.error(f"❌ FALHA na conexão com API Amadeus SDK")
+                            # Falhar explicitamente para usar o fallback
+                            raise Exception("Falha na obtenção do token Amadeus SDK")
+                    except Exception as e:
+                        logging.error(f"❌ Erro na verificação da conexão Amadeus SDK: {str(e)}")
+                        # Usar o serviço alternativo
+                        logging.info(f"🔄 Alternando para AmadeusService tradicional")
+                        from services.amadeus_service import AmadeusService
+                        amadeus_service = AmadeusService()
+                        amadeus_service.use_mock_data = False
+                        
+                        # Verificar se o serviço alternativo está funcionando
+                        conn_test = amadeus_service.test_connection()
+                        if conn_test.get("success"):
+                            logging.info(f"✅ Conexão com API Amadeus tradicional bem-sucedida: {conn_test}")
+                        else:
+                            logging.error(f"❌ FALHA na conexão com API Amadeus tradicional: {conn_test}")
+                            logging.error("⚠️ Usando dados simulados como último recurso")
+                            amadeus_service.use_mock_data = True
+                    
+                    # Detectar o tipo de busca necessária (data específica ou período)
+                    search_results = None
+                    start_time = time.time()
+                    
                     if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
                         # Busca de período flexível
                         search_params = {
@@ -94,21 +133,12 @@ def get_flight_results(session_id):
                             'returnDate': travel_info.get('date_range_end'),
                             'adults': travel_info.get('adults', 1),
                             'currencyCode': 'BRL',
-                            'max_dates_to_check': 3
+                            'max_dates_to_check': 2  # Reduzir para melhorar desempenho
                         }
-                        logging.info(f"Realizando busca por período flexível com dados REAIS: {search_params}")
+                        logging.info(f"Realizando busca por período flexível: {search_params}")
                         
                         # Tentativa de obter dados reais
                         search_results = amadeus_service.search_best_prices(search_params)
-                        
-                        # Verificar se houve erro
-                        if 'error' in search_results:
-                            logging.error(f"Erro na busca de dados reais: {search_results['error']} - Tentando dados simulados")
-                            search_results = amadeus_service._get_mock_best_prices(search_params)
-                            search_results['is_simulated'] = True
-                        else:
-                            logging.info(f"SUCESSO! Dados REAIS obtidos da API Amadeus: {len(search_results.get('best_prices', []))} resultados")
-                            search_results['is_simulated'] = False
                     else:
                         # Busca de data específica
                         search_params = {
@@ -124,62 +154,103 @@ def get_flight_results(session_id):
                         if travel_info.get('return_date'):
                             search_params['returnDate'] = travel_info.get('return_date')
                         
-                        logging.info(f"Realizando busca por data específica com dados REAIS: {search_params}")
+                        logging.info(f"Realizando busca por data específica: {search_params}")
                         
                         # Tentativa de obter dados reais
                         search_results = amadeus_service.search_flights(search_params)
-                        
-                        # Verificar se houve erro
-                        if 'error' in search_results and not search_results.get('data'):
-                            logging.error(f"Erro na busca de dados reais: {search_results['error']} - Tentando dados simulados")
-                            search_results = amadeus_service._get_mock_flights(search_params)
-                            search_results['is_simulated'] = True
-                        else:
-                            logging.info(f"SUCESSO! Dados REAIS obtidos da API Amadeus: {len(search_results.get('data', []))} resultados")
-                            search_results['is_simulated'] = False
-                except Exception as e:
-                    logging.exception(f"Exceção ao buscar dados reais: {str(e)}")
-                    # Em caso de exceção, usar dados simulados como fallback
-                    if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
-                        search_params = {
-                            'originLocationCode': travel_info.get('origin'),
-                            'destinationLocationCode': travel_info.get('destination'),
-                            'departureDate': travel_info.get('date_range_start'),
-                            'returnDate': travel_info.get('date_range_end'),
-                            'adults': travel_info.get('adults', 1),
-                            'currencyCode': 'BRL',
-                            'max_dates_to_check': 3
-                        }
-                        search_results = amadeus_service._get_mock_best_prices(search_params)
+                    
+                    elapsed_time = time.time() - start_time
+                    logging.info(f"Tempo de busca na API Amadeus: {elapsed_time:.2f} segundos")
+                    
+                    # Verificar se houve erro ou se não há dados
+                    is_simulated = False
+                    
+                    if 'error' in search_results:
+                        logging.error(f"Erro na busca: {search_results['error']}")
+                        is_simulated = True
+                    elif not search_results.get('data') and not search_results.get('best_prices'):
+                        logging.warning("Nenhum resultado encontrado na API")
+                        is_simulated = True
                     else:
-                        search_params = {
-                            'originLocationCode': travel_info.get('origin'),
-                            'destinationLocationCode': travel_info.get('destination'),
-                            'departureDate': travel_info.get('departure_date'),
-                            'adults': travel_info.get('adults', 1),
-                            'currencyCode': 'BRL',
-                            'max': 5
-                        }
-                        if travel_info.get('return_date'):
-                            search_params['returnDate'] = travel_info.get('return_date')
-                        search_results = amadeus_service._get_mock_flights(search_params)
-                    search_results['is_simulated'] = True
-                
-                # Salvar os resultados na sessão para futuras consultas
-                if search_results:
-                    logging.info(f"Sessão {session_id} - Resultados encontrados e salvos")
-                    flight_search_sessions[session_id] = search_results
-                    travel_info['search_results'] = search_results
-                    return jsonify(search_results)
-                else:
-                    logging.warning(f"Sessão {session_id} - Nenhum resultado encontrado")
+                        # Contagem de resultados para log
+                        if 'data' in search_results:
+                            result_count = len(search_results['data'])
+                        elif 'best_prices' in search_results:
+                            result_count = len(search_results['best_prices'])
+                        else:
+                            result_count = 0
+                            
+                        if result_count > 0:
+                            logging.info(f"SUCESSO! {result_count} resultados encontrados na API Amadeus")
+                        else:
+                            logging.warning("API respondeu sem erros, mas sem resultados")
+                            is_simulated = True
+                    
+                    # Se necessário, usar dados simulados como fallback
+                    if is_simulated:
+                        logging.warning("Usando dados simulados como fallback")
+                        
+                        if isinstance(amadeus_service, AmadeusSDKService):
+                            # Alternar para o serviço tradicional que tem métodos de simulação
+                            from services.amadeus_service import AmadeusService
+                            fallback_service = AmadeusService()
+                            fallback_service.use_mock_data = True
+                        else:
+                            # Já estamos usando o serviço tradicional
+                            fallback_service = amadeus_service
+                            fallback_service.use_mock_data = True
+                        
+                        if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
+                            search_results = fallback_service._get_mock_best_prices(search_params)
+                        else:
+                            search_results = fallback_service._get_mock_flights(search_params)
+                    
+                    # Marcar explicitamente se são dados simulados
+                    search_results['is_simulated'] = is_simulated
+                    
+                    # Salvar os resultados na sessão para futuras consultas
+                    if search_results:
+                        logging.info(f"Sessão {session_id} - Resultados encontrados e salvos (simulados: {is_simulated})")
+                        flight_search_sessions[session_id] = search_results
+                        travel_info['search_results'] = search_results
+                        return jsonify(search_results)
+                    else:
+                        logging.warning(f"Sessão {session_id} - Nenhum resultado encontrado")
+                        return jsonify({
+                            "error": "Não foram encontrados voos para estes critérios de busca.",
+                            "details": "Tente com outras datas ou destinos.",
+                            "is_simulated": True
+                        })
+                        
+                except Exception as e:
+                    import traceback
+                    logging.error(f"Exceção durante a busca de voos: {str(e)}")
+                    logging.error(traceback.format_exc())
+                    # Retornar mensagem de erro específica
                     return jsonify({
-                        "error": "Não foram encontrados voos para estes critérios de busca.",
-                        "details": "Tente com outras datas ou destinos."
+                        "error": f"Erro durante a busca de voos: {str(e)}",
+                        "details": "Tente novamente mais tarde ou com outros parâmetros.",
+                        "is_simulated": True
                     })
-            
-        # Se chegamos aqui, não temos informações suficientes
-        logging.warning(f"Sessão {session_id} - Sem informações suficientes para busca. Retornando dados de teste.")
+            else:
+                # Não temos parâmetros suficientes
+                missing_params = []
+                if not travel_info.get('origin'):
+                    missing_params.append("origem")
+                if not travel_info.get('destination'):
+                    missing_params.append("destino")
+                if not (travel_info.get('departure_date') or travel_info.get('date_range_start')):
+                    missing_params.append("data")
+                
+                logging.warning(f"Sessão {session_id} - Parâmetros insuficientes. Faltando: {', '.join(missing_params)}")
+                return jsonify({
+                    "error": f"Informações insuficientes para busca. Faltando: {', '.join(missing_params)}.",
+                    "details": "Por favor, forneça todas as informações necessárias para a busca.",
+                    "is_simulated": True
+                })
+        
+        # Se chegamos aqui, não temos a sessão no conversation_store
+        logging.warning(f"Sessão {session_id} - Sessão não encontrada. Retornando dados de teste.")
         return get_test_results()
         
     except Exception as e:
@@ -188,7 +259,11 @@ def get_flight_results(session_id):
         logging.error(traceback.format_exc())
         # Em caso de erro, retornar dados de teste para garantir que o painel funcione
         logging.info("Redirecionando para dados de teste após erro")
-        return get_test_results()
+        return jsonify({
+            "error": f"Erro interno: {str(e)}",
+            "details": "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.",
+            "is_simulated": True
+        })
 
 
 def get_test_results():

@@ -957,41 +957,47 @@ document.addEventListener('DOMContentLoaded', function() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // Função para mostrar o painel de resultados de voos
+    // Controle para evitar múltiplas requisições
+    let flightSearchInProgress = false;
+
+    // Exibir resultados de voos quando solicitado
     function showFlightResults(sessionId) {
-        console.log("Chamando showFlightResults com sessionId:", sessionId);
-
-        // Mostrar o painel imediatamente, mesmo sem ID de sessão
-        if (window.flightResultsPanel) {
-            // Se temos ID de sessão, carregamos os resultados
-            if (sessionId) {
-                window.flightResultsPanel.loadAndShowResults(sessionId);
-            } else {
-                // Caso contrário, apenas mostramos o painel com carregamento
-                window.flightResultsPanel.showPanel();
-                window.flightResultsPanel.showLoadingAnimation("Consultando API Amadeus...");
-
-                // Salvar o estado atual da conversa para que o painel possa recuperá-lo depois
-                localStorage.setItem('currentChatState', JSON.stringify({
-                    messages: chatMessages,
-                    currentSessionId: getCurrentSessionId()
-                }));
-            }
-        } else {
-            // Se o painel não estiver inicializado, tentar novamente após um breve atraso
-            setTimeout(() => {
-                if (window.flightResultsPanel) {
-                    if (sessionId) {
-                        window.flightResultsPanel.loadAndShowResults(sessionId);
-                    } else {
-                        window.flightResultsPanel.showPanel();
-                        window.flightResultsPanel.showLoadingAnimation("Consultando API Amadeus...");
-                    }
-                } else {
-                    console.error("Não foi possível mostrar o painel de resultados de voos");
-                }
-            }, 500);
+        // Evitar múltiplas chamadas simultâneas
+        if (flightSearchInProgress) {
+            console.log("Busca de voos já em andamento. Ignorando solicitação duplicada.");
+            return;
         }
+
+        console.log("Recebido show_flight_results=true, mostrando painel lateral");
+        flightSearchInProgress = true;
+
+        // Mostrar o painel lateral
+        document.getElementById('flight-results-panel').classList.add('show');
+
+        // Mostrar mensagem de busca em andamento
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'chat-message system';
+        loadingMessage.innerHTML = `
+            <div class="message-content">
+                <p><em>🔍 Consultando API Amadeus. Por favor, aguarde enquanto buscamos as melhores opções de voos para você...</em></p>
+            </div>
+        `;
+        document.getElementById('chat-messages').appendChild(loadingMessage);
+
+        // Dar um pequeno delay para garantir que o painel seja exibido antes de carregar os resultados
+        setTimeout(() => {
+            console.log("Executando disparo do evento de exibição do painel (timeout)");
+            // Disparar evento personalizado para notificar o painel que deve carregar os resultados
+            const event = new CustomEvent('showFlightResults', { 
+                detail: { sessionId: sessionId }
+            });
+            document.dispatchEvent(event);
+
+            // Após 5 segundos, permitir novas buscas (tempo suficiente para que a primeira requisição seja processada)
+            setTimeout(() => {
+                flightSearchInProgress = false;
+            }, 5000);
+        }, 300);
     }
 
     // Função para detectar busca de voos na mensagem do usuário

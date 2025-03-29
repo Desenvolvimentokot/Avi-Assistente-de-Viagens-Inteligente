@@ -181,7 +181,9 @@ class FlightResultsPanel {
                 <span>Resultados de Voos Reais</span>
                 <button class="close-btn">&times;</button>
             </div>
-            <div class="flight-results-content"></div> <div class="flight-results-loading" style="display:none;">Carregando...</div> <div class="flight-results-error" style="display:none;"></div>
+            <div id="flight-results-content" class="flight-results-content"></div>
+            <div id="flight-results-loading" class="flight-results-loading" style="display:none;">Carregando...</div>
+            <div id="flight-results-error" class="flight-results-error" style="display:none;"></div>
             <div class="flight-results-footer">
                 <div>Dados fornecidos pela API oficial Amadeus</div>
                 <div class="amadeus-badge">AMADEUS TRAVEL API</div>
@@ -234,7 +236,7 @@ class FlightResultsPanel {
 
 
     showError(message, details) {
-        const errorContainer = this.panel.querySelector('.flight-results-error');
+        const errorContainer = this.panel.querySelector('#flight-results-error');
         errorContainer.style.display = 'block';
         errorContainer.innerHTML = `
             <div class="error-message">
@@ -245,20 +247,20 @@ class FlightResultsPanel {
                 </button>
             </div>
         `;
-        this.panel.querySelector('.flight-results-loading').style.display = 'none';
-        this.panel.querySelector('.flight-results-content').style.display = 'none';
+        this.panel.querySelector('#flight-results-loading').style.display = 'none';
+        this.panel.querySelector('#flight-results-content').style.display = 'none';
 
     }
 
     showNoResults() {
-        const resultsContainer = this.panel.querySelector('.flight-results-content');
+        const resultsContainer = this.panel.querySelector('#flight-results-content');
         resultsContainer.innerHTML = `
             <div class="no-results">
                 <p>Não encontramos voos disponíveis para esta busca.</p>
                 <p>Tente alterar os filtros ou datas de viagem.</p>
             </div>
         `;
-        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+        this.panel.querySelector('#flight-results-loading').style.display = 'none';
 
     }
 
@@ -299,6 +301,29 @@ class FlightResultsPanel {
             });
     }
 
+    // Função para verificar o status da busca
+    checkSearchStatus(sessionId) {
+        if (!sessionId) {
+            return Promise.resolve({ search_in_progress: false, has_results: false });
+        }
+
+        return fetch(`/api/flight_search/status/${sessionId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(status => {
+                return {search_in_progress: status.status === "in_progress" || status.status === "pending", has_results: status.has_results};
+            })
+            .catch(error => {
+                console.error("Erro ao verificar status da busca:", error);
+                return { search_in_progress: false, has_results: false };
+            });
+    }
+
+
     loadAndShowResults(sessionId) {
         console.log("Carregando resultados para sessão:", sessionId);
 
@@ -312,49 +337,21 @@ class FlightResultsPanel {
         this.showLoadingAnimation("Consultando API Amadeus em tempo real...");
 
         // Primeiro verificar o status da busca
-        this.checkSearchStatus(sessionId);
+        this.loadFlightResults(sessionId);
     }
-    
-    // Método para verificar o status da busca e atualizar a interface
-    checkSearchStatus(sessionId) {
-        if (!sessionId) return;
-        
-        fetch(`/api/flight_search/status/${sessionId}`)
-            .then(response => response.json())
-            .then(status => {
-                console.log("Status da busca:", status);
-                
-                if (status.status === "completed" && status.has_results) {
-                    // Busca concluída, carregar resultados
-                    this.fetchResults(sessionId);
-                } else if (status.status === "in_progress" || status.status === "pending") {
-                    // Busca em andamento, atualizar mensagem e verificar novamente
-                    const message = status.status === "in_progress" 
-                        ? `Buscando voos de ${status.search_params?.origin || '?'} para ${status.search_params?.destination || '?'}...`
-                        : "Aguardando parâmetros de busca...";
-                    
-                    this.showLoadingAnimation(message);
-                    
-                    // Verificar novamente após um intervalo
-                    setTimeout(() => this.checkSearchStatus(sessionId), 1500);
-                } else {
-                    // Status desconhecido ou erro, tentar carregar diretamente
-                    this.fetchResults(sessionId);
-                }
-            })
-            .catch(error => {
-                console.error("Erro ao verificar status da busca:", error);
-                // Em caso de erro, tentar carregar resultados diretamente
-                this.fetchResults(sessionId);
-            });
-    }
-    
-    // Método para buscar resultados da API
-    fetchResults(sessionId) {
-        const url = `/api/flight_results/${sessionId}`;
-        console.log("Buscando resultados de:", url);
 
-        fetch(url)
+    loadFlightResults(sessionId) {
+        console.log("Carregando resultados de voos para sessão:", sessionId);
+
+        // Mostrar indicador de carregamento
+        this.showLoadingAnimation();
+
+        // URL da API - usar o endpoint de teste se não houver sessionId
+        let apiUrl = sessionId ? `/api/flight_results/${sessionId}` : '/api/flight_results/test';
+
+
+        // Fazer a requisição para a API
+        fetch(apiUrl)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status}`);
@@ -362,34 +359,44 @@ class FlightResultsPanel {
                 return response.json();
             })
             .then(data => {
+                // Ocultar carregamento
+                this.panel.querySelector('#flight-results-loading').style.display = 'none';
+
+                // Verificar se há erro na resposta
                 if (data.error) {
-                    this.showError(data.error, data.details);
+                    this.showError(data.error);
                     return;
                 }
 
-                // Verificar o tipo de dados retornado
-                if (data.best_prices && data.best_prices.length > 0) {
-                    console.log("Renderizando resultados de melhores preços");
-                    this.renderBestPricesResults(data);
-                } else if (data.data && data.data.length > 0) {
-                    console.log("Renderizando resultados de voos");
-                    this.renderResults(data);
-                } else {
-                    console.log("Nenhum resultado encontrado");
-                    this.showNoResults();
+                // Verificar se os dados são simulados
+                if (data.is_simulated === true) {
+                    // Adicionar aviso de dados simulados
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'flight-results-warning';
+                    warningDiv.textContent = 'Atenção: Exibindo dados simulados. Os dados reais da API Amadeus não estão disponíveis no momento.';
+                    this.panel.querySelector('.flight-results-header').appendChild(warningDiv);
                 }
+
+                // Processar e exibir os resultados
+                this.renderFlightResults(data);
+                this.panel.querySelector('#flight-results-content').style.display = 'block';
+
+                // Registrar resposta no console para depuração
+                console.log("Resposta da API de voos:", data);
             })
             .catch(error => {
-                console.error('Erro ao carregar resultados:', error);
-                // Attempt to load test data as fallback
-                this.loadTestResults();
+                console.error("Erro ao carregar resultados de voos:", error);
+                this.showError(`Não foi possível carregar os resultados de voos: ${error.message}`);
             });
     }
+
+    // Método para buscar resultados da API (substituído pela nova lógica)
+    // fetchResults(sessionId) { ... }
 
     // Método adicional para renderizar resultados de best_prices
     renderBestPricesResults(data) {
         console.log("Renderizando best_prices:", data.best_prices.length);
-        const resultsContainer = this.panel.querySelector('.flight-results-content');
+        const resultsContainer = this.panel.querySelector('#flight-results-content');
         resultsContainer.innerHTML = '';
 
         // Container principal
@@ -444,7 +451,7 @@ class FlightResultsPanel {
         });
 
         resultsContainer.appendChild(resultsListContainer);
-        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+        this.panel.querySelector('#flight-results-loading').style.display = 'none';
     }
 
     // Método centralizado para renderização de resultados (usado tanto pelos testes quanto pelos dados reais)
@@ -479,7 +486,7 @@ class FlightResultsPanel {
             alert.style.borderRadius = '4px';
             alert.style.fontSize = '14px';
             alert.innerHTML = `<strong>Atenção:</strong> Exibindo dados simulados devido a problemas na conexão com a API Amadeus. Os preços e disponibilidade podem não refletir ofertas reais.`;
-            this.panel.querySelector('.flight-results-content').insertBefore(alert, this.panel.querySelector('.flight-results-content').firstChild);
+            this.panel.querySelector('#flight-results-content').insertBefore(alert, this.panel.querySelector('#flight-results-content').firstChild);
         } else {
             const alert = document.createElement('div');
             alert.className = 'data-source-alert';
@@ -490,7 +497,7 @@ class FlightResultsPanel {
             alert.style.borderRadius = '4px';
             alert.style.fontSize = '14px';
             alert.innerHTML = `<strong>Dados reais:</strong> Exibindo resultados em tempo real da API Amadeus.`;
-            this.panel.querySelector('.flight-results-content').insertBefore(alert, this.panel.querySelector('.flight-results-content').firstChild);
+            this.panel.querySelector('#flight-results-content').insertBefore(alert, this.panel.querySelector('#flight-results-content').firstChild);
         }
 
         // Usar o método principal de renderização
@@ -538,8 +545,8 @@ class FlightResultsPanel {
 
                 // Contar o número de conexões
                 const stops = itinerary.segments.length - 1;
-                const stopsText = stops === 0 ? 'Voo Direto' : 
-                                  stops === 1 ? '1 Conexão' : 
+                const stopsText = stops === 0 ? 'Voo Direto' :
+                                  stops === 1 ? '1 Conexão' :
                                   `${stops} Conexões`;
 
                 // Construir o card do voo
@@ -578,10 +585,10 @@ class FlightResultsPanel {
         resultsHtml += `</div>`;
 
         // Atualizar o conteúdo do painel
-        const resultsContainer = this.panel.querySelector('.flight-results-content');
+        const resultsContainer = this.panel.querySelector('#flight-results-content');
         resultsContainer.innerHTML = resultsHtml;
         resultsContainer.style.display = 'block';
-        this.panel.querySelector('.flight-results-loading').style.display = 'none';
+        this.panel.querySelector('#flight-results-loading').style.display = 'none';
 
 
         // Adicionar eventos aos botões
@@ -823,11 +830,11 @@ class FlightResultsPanel {
     }
 
     showLoading() {
-        const loadingContainer = this.panel.querySelector('.flight-results-loading');
+        const loadingContainer = this.panel.querySelector('#flight-results-loading');
         loadingContainer.style.display = 'block';
-        this.panel.querySelector('.flight-results-content').style.display = 'none';
-        this.panel.querySelector('.flight-results-error').style.display = 'none';
-        
+        this.panel.querySelector('#flight-results-content').style.display = 'none';
+        this.panel.querySelector('#flight-results-error').style.display = 'none';
+
         // Adicionar barra de progresso animada
         if (!loadingContainer.querySelector('.progress-bar')) {
             const progressBar = document.createElement('div');
@@ -835,32 +842,32 @@ class FlightResultsPanel {
             progressBar.innerHTML = '<div class="progress-bar-fill"></div>';
             loadingContainer.appendChild(progressBar);
         }
-        
+
         // Mostrar mensagem de carregamento padrão
         this.showLoadingAnimation("Carregando resultados...");
     }
-    
+
     showLoadingAnimation(message) {
         // Mostrar o painel se não estiver visível
         this.showPanel();
-        
-        const loadingContainer = this.panel.querySelector('.flight-results-loading');
-        
+
+        const loadingContainer = this.panel.querySelector('#flight-results-loading');
+
         // Atualizar mensagem de carregamento
         if (!loadingContainer.querySelector('.loading-message')) {
             const loadingMessage = document.createElement('div');
             loadingMessage.className = 'loading-message';
             loadingContainer.appendChild(loadingMessage);
         }
-        
+
         // Atualizar a mensagem
         loadingContainer.querySelector('.loading-message').textContent = message || "Carregando...";
-        
+
         // Mostrar contêiner de carregamento
         loadingContainer.style.display = 'block';
-        this.panel.querySelector('.flight-results-content').style.display = 'none';
-        this.panel.querySelector('.flight-results-error').style.display = 'none';
-        
+        this.panel.querySelector('#flight-results-content').style.display = 'none';
+        this.panel.querySelector('#flight-results-error').style.display = 'none';
+
         // Reiniciar animação da barra de progresso
         const progressFill = loadingContainer.querySelector('.progress-bar-fill');
         if (progressFill) {
