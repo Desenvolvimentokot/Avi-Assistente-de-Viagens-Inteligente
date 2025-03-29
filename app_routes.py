@@ -63,46 +63,99 @@ def get_flight_results(session_id):
                 from services.amadeus_service import AmadeusService
                 amadeus_service = AmadeusService()
                 
-                # Verificar se devemos usar dados simulados para garantir que o painel funcione
-                amadeus_service.use_mock_data = True
-                logging.info("Usando dados simulados para garantir exibição no painel")
+                # Definir explicitamente para NÃO usar dados simulados
+                amadeus_service.use_mock_data = False
+                logging.info("Tentando obter dados REAIS da API Amadeus")
+                
+                # Verificar se o serviço está funcionando
+                conn_test = amadeus_service.test_connection()
+                if conn_test.get("success"):
+                    logging.info(f"Conexão com a API Amadeus bem-sucedida: {conn_test}")
+                else:
+                    logging.error(f"Falha na conexão com a API Amadeus: {conn_test}")
                 
                 # Detectar o tipo de busca necessária (data específica ou período)
                 search_results = None
-                if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
-                    # Busca de período flexível
-                    search_params = {
-                        'originLocationCode': travel_info.get('origin'),
-                        'destinationLocationCode': travel_info.get('destination'),
-                        'departureDate': travel_info.get('date_range_start'),
-                        'returnDate': travel_info.get('date_range_end'),
-                        'adults': travel_info.get('adults', 1),
-                        'currencyCode': 'BRL',
-                        'max_dates_to_check': 3
-                    }
-                    logging.info(f"Realizando busca por período flexível: {search_params}")
-                    
-                    # Usar dados simulados para garantir resultados
-                    search_results = amadeus_service._get_mock_best_prices(search_params)
-                else:
-                    # Busca de data específica
-                    search_params = {
-                        'originLocationCode': travel_info.get('origin'),
-                        'destinationLocationCode': travel_info.get('destination'),
-                        'departureDate': travel_info.get('departure_date'),
-                        'adults': travel_info.get('adults', 1),
-                        'currencyCode': 'BRL',
-                        'max': 5
-                    }
-                    
-                    # Adicionar data de retorno se disponível
-                    if travel_info.get('return_date'):
-                        search_params['returnDate'] = travel_info.get('return_date')
-                    
-                    logging.info(f"Realizando busca por data específica: {search_params}")
-                    
-                    # Usar dados simulados para garantir resultados
-                    search_results = amadeus_service._get_mock_flights(search_params)
+                try:
+                    if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
+                        # Busca de período flexível
+                        search_params = {
+                            'originLocationCode': travel_info.get('origin'),
+                            'destinationLocationCode': travel_info.get('destination'),
+                            'departureDate': travel_info.get('date_range_start'),
+                            'returnDate': travel_info.get('date_range_end'),
+                            'adults': travel_info.get('adults', 1),
+                            'currencyCode': 'BRL',
+                            'max_dates_to_check': 3
+                        }
+                        logging.info(f"Realizando busca por período flexível com dados REAIS: {search_params}")
+                        
+                        # Tentativa de obter dados reais
+                        search_results = amadeus_service.search_best_prices(search_params)
+                        
+                        # Verificar se houve erro
+                        if 'error' in search_results:
+                            logging.error(f"Erro na busca de dados reais: {search_results['error']} - Tentando dados simulados")
+                            search_results = amadeus_service._get_mock_best_prices(search_params)
+                            search_results['is_simulated'] = True
+                        else:
+                            logging.info(f"SUCESSO! Dados REAIS obtidos da API Amadeus: {len(search_results.get('best_prices', []))} resultados")
+                            search_results['is_simulated'] = False
+                    else:
+                        # Busca de data específica
+                        search_params = {
+                            'originLocationCode': travel_info.get('origin'),
+                            'destinationLocationCode': travel_info.get('destination'),
+                            'departureDate': travel_info.get('departure_date'),
+                            'adults': travel_info.get('adults', 1),
+                            'currencyCode': 'BRL',
+                            'max': 5
+                        }
+                        
+                        # Adicionar data de retorno se disponível
+                        if travel_info.get('return_date'):
+                            search_params['returnDate'] = travel_info.get('return_date')
+                        
+                        logging.info(f"Realizando busca por data específica com dados REAIS: {search_params}")
+                        
+                        # Tentativa de obter dados reais
+                        search_results = amadeus_service.search_flights(search_params)
+                        
+                        # Verificar se houve erro
+                        if 'error' in search_results and not search_results.get('data'):
+                            logging.error(f"Erro na busca de dados reais: {search_results['error']} - Tentando dados simulados")
+                            search_results = amadeus_service._get_mock_flights(search_params)
+                            search_results['is_simulated'] = True
+                        else:
+                            logging.info(f"SUCESSO! Dados REAIS obtidos da API Amadeus: {len(search_results.get('data', []))} resultados")
+                            search_results['is_simulated'] = False
+                except Exception as e:
+                    logging.exception(f"Exceção ao buscar dados reais: {str(e)}")
+                    # Em caso de exceção, usar dados simulados como fallback
+                    if travel_info.get('date_range_start') and travel_info.get('date_range_end'):
+                        search_params = {
+                            'originLocationCode': travel_info.get('origin'),
+                            'destinationLocationCode': travel_info.get('destination'),
+                            'departureDate': travel_info.get('date_range_start'),
+                            'returnDate': travel_info.get('date_range_end'),
+                            'adults': travel_info.get('adults', 1),
+                            'currencyCode': 'BRL',
+                            'max_dates_to_check': 3
+                        }
+                        search_results = amadeus_service._get_mock_best_prices(search_params)
+                    else:
+                        search_params = {
+                            'originLocationCode': travel_info.get('origin'),
+                            'destinationLocationCode': travel_info.get('destination'),
+                            'departureDate': travel_info.get('departure_date'),
+                            'adults': travel_info.get('adults', 1),
+                            'currencyCode': 'BRL',
+                            'max': 5
+                        }
+                        if travel_info.get('return_date'):
+                            search_params['returnDate'] = travel_info.get('return_date')
+                        search_results = amadeus_service._get_mock_flights(search_params)
+                    search_results['is_simulated'] = True
                 
                 # Salvar os resultados na sessão para futuras consultas
                 if search_results:

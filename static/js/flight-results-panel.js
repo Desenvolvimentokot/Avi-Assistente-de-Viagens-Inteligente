@@ -424,6 +424,31 @@ class FlightResultsPanel {
             return;
         }
 
+        // Adicionar aviso se os dados são simulados
+        if (data.is_simulated) {
+            const alert = document.createElement('div');
+            alert.className = 'data-source-alert';
+            alert.style.backgroundColor = '#ffe1e1';
+            alert.style.color = '#d32f2f';
+            alert.style.padding = '8px';
+            alert.style.marginBottom = '12px';
+            alert.style.borderRadius = '4px';
+            alert.style.fontSize = '14px';
+            alert.innerHTML = `<strong>Atenção:</strong> Exibindo dados simulados devido a problemas na conexão com a API Amadeus. Os preços e disponibilidade podem não refletir ofertas reais.`;
+            this.panel.querySelector('.flight-results-content').insertBefore(alert, this.panel.querySelector('.flight-results-content').firstChild);
+        } else {
+            const alert = document.createElement('div');
+            alert.className = 'data-source-alert';
+            alert.style.backgroundColor = '#e8f5e9';
+            alert.style.color = '#2e7d32';
+            alert.style.padding = '8px';
+            alert.style.marginBottom = '12px';
+            alert.style.borderRadius = '4px';
+            alert.style.fontSize = '14px';
+            alert.innerHTML = `<strong>Dados reais:</strong> Exibindo resultados em tempo real da API Amadeus.`;
+            this.panel.querySelector('.flight-results-content').insertBefore(alert, this.panel.querySelector('.flight-results-content').firstChild);
+        }
+
         // Usar o método principal de renderização
         this.renderResults(data);
     }
@@ -451,7 +476,6 @@ class FlightResultsPanel {
         // Preparar o conteúdo HTML
         let resultsHtml = `
             <h3>Voos Encontrados (${offers.length})</h3>
-            <p>Resultados reais da API Amadeus:</p>
             <div class="flight-cards-container">
         `;
 

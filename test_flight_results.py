@@ -4,81 +4,63 @@ import json
 import logging
 import uuid
 import os
+from flask import Flask, jsonify
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+app = Flask(__name__)
+
+# Example route (replace with your actual routes)
+@app.route('/api/test/flight_results')
 def test_flight_results_api():
-    """Testa a API de resultados de voo com dados simulados"""
-    # Gerar uma sessão de teste
-    session_id = str(uuid.uuid4())
-    logger.info(f"Usando session_id de teste: {session_id}")
+    """
+    Endpoint de teste para verificar a funcionalidade do painel lateral
+    Tenta buscar dados reais da API Amadeus, com fallback para dados simulados
+    """
+    try:
+        # Tentar buscar dados reais da API Amadeus
+        from services.amadeus_service import AmadeusService
 
-    # URL da API
-    base_url = "http://localhost:5000"  # Altere para a URL adequada se necessário
-    api_url = f"{base_url}/api/flight_results/{session_id}"
+        amadeus_service = AmadeusService()
+        # Definir para não usar dados simulados
+        amadeus_service.use_mock_data = False
 
-    # Dados de teste para a sessão
-    test_data = {
-        "travel_info": {
-            "origin": "GRU",
-            "destination": "MIA",
-            "departure_date": "2025-05-01",
-            "return_date": "2025-05-10",
-            "adults": 1
+        test_params = {
+            'originLocationCode': 'GRU',
+            'destinationLocationCode': 'MIA',
+            'departureDate': '2025-05-01',
+            'returnDate': '2025-05-10',
+            'adults': 1,
+            'currencyCode': 'BRL',
+            'max': 5
         }
-    }
 
-    # Primeiro, armazenar os dados na sessão
-    logger.info("Criando sessão de teste no servidor...")
-    session_url = f"{base_url}/api/test/create_session"
-    try:
-        response = requests.post(
-            session_url, 
-            json={"session_id": session_id, "data": test_data}
-        )
-        response.raise_for_status()
-        logger.info(f"Sessão criada: {response.json()}")
-    except Exception as e:
-        logger.error(f"Erro ao criar sessão: {str(e)}")
-        return
+        # Verificar conexão com Amadeus
+        conn_test = amadeus_service.test_connection()
+        logging.info(f"Teste de conexão Amadeus: {conn_test}")
 
-    # Agora, testar a API de resultados
-    logger.info(f"Testando API em: {api_url}")
-    try:
-        response = requests.get(api_url)
-        logger.info(f"Status code: {response.status_code}")
+        # Tentar obter dados reais
+        results = amadeus_service.search_flights(test_params)
 
-        # Verificar se a resposta é válida
-        if response.status_code == 200:
-            data = response.json()
-            logger.info("Resposta recebida com sucesso!")
-
-            # Verificar se há erro na resposta
-            if "error" in data:
-                logger.error(f"Erro na resposta: {data['error']}")
-                if "details" in data:
-                    logger.error(f"Detalhes: {data['details']}")
-            else:
-                # Verificar o formato dos dados
-                if "data" in data and isinstance(data["data"], list):
-                    logger.info(f"Resultados de voos recebidos: {len(data['data'])} itens")
-                    if data["data"]:
-                        logger.info(f"Primeiro resultado: {json.dumps(data['data'][0], indent=2)}")
-                elif "best_prices" in data and isinstance(data["best_prices"], list):
-                    logger.info(f"Melhores preços recebidos: {len(data['best_prices'])} itens")
-                    if data["best_prices"]:
-                        logger.info(f"Melhor preço: {json.dumps(data['best_prices'][0], indent=2)}")
-                else:
-                    logger.warning("Formato de resposta inesperado")
-                    logger.info(f"Resposta completa: {json.dumps(data, indent=2)}")
+        # Verificar se houve erro ou se não há dados
+        if 'error' in results or not results.get('data'):
+            logging.warning(f"Usando dados simulados após falha na API: {results.get('error', 'Sem dados')}")
+            # Obter dados simulados como fallback
+            results = amadeus_service._get_mock_flights(test_params)
+            results['is_simulated'] = True
         else:
-            logger.error(f"Erro na requisição: {response.text}")
+            logging.info(f"Sucesso! Dados REAIS obtidos da API Amadeus: {len(results.get('data', []))} resultados")
+            results['is_simulated'] = False
 
+        # Retornar para testes do painel
+        return jsonify(results)
     except Exception as e:
-        logger.error(f"Erro ao testar API: {str(e)}")
+        logging.error(f"Erro ao processar requisição: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
 
 if __name__ == "__main__":
-    test_flight_results_api()
+    app.run(debug=True)
