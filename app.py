@@ -344,9 +344,9 @@ def chat():
                 skip_gpt_call = locals().get('skip_gpt_call', False)
                 
                 if not skip_gpt_call:
-                    # Obter resposta do GPT com o contexto específico do estágio
-                    # APENAS para etapas que não são de busca confirmada
-                    logger.info(f"Chamando OpenAI para etapa {step} (não é busca confirmada)")
+                    # SOLUÇÃO FINAL: Não há mais verificação de palavras-chave no serviço OpenAI
+                    # Chamamos a API OpenAI normalmente para todas as mensagens não confirmadas
+                    logger.info(f"Chamando OpenAI normalmente para etapa {step}")
                     gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
                     
             # Inicializar gpt_result se ainda não existir (caso skip_gpt_call seja True)

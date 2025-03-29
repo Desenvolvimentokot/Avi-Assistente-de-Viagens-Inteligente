@@ -73,62 +73,17 @@ class OpenAIService:
     
     def travel_assistant(self, user_message, conversation_history=None, system_context=""):
         """
-        FUNÇÃO DESATIVADA PARA A PARTE DE BUSCA DE VOOS
-
-        Este serviço foi substituído por um sistema de busca direta na API Amadeus
-        para garantir que apenas dados reais sejam apresentados ao usuário.
+        Especialização do assistente para planejamento de viagens
         
-        AVISO: Esta função faz a verificação de conteúdo e BLOQUEIA chamadas relacionadas 
-        a voos ou ofertas de viagem, que devem passar exclusivamente pelo conector da Amadeus.
+        Parâmetros:
+        - user_message: mensagem do usuário
+        - conversation_history: histórico da conversa
+        - system_context: contexto adicional para o sistema
         """
         if conversation_history is None:
             conversation_history = []
-        
-        # VERIFICAÇÃO CRÍTICA: Detectar se é uma solicitação de busca de voos/passagens
-        is_flight_search = False
-        
-        # CORREÇÃO: Somente bloqueamos pesquisas específicas de voo, não todas as conversas
-        # Lista de combinações de palavras-chave precisas que indicam busca de voo
-        flight_keyword_combinations = [
-            ["quero", "passagem", "para"],
-            ["quero", "voo", "para"],
-            ["buscar", "voo"],
-            ["pesquisar", "passagem"],
-            ["confirmo", "esta", "viagem"],
-            ["confirmo", "esses", "dados"],
-            ["confirmando", "os", "dados"],
-            ["reservar", "passagem"],
-            ["comprar", "passagem"]
-        ]
-        
-        # Procurar combinações de palavras específicas, não apenas palavras isoladas
-        user_message_lower = user_message.lower()
-        
-        # Verificar apenas combinações específicas de palavras que indicam busca de voo
-        for combo in flight_keyword_combinations:
-            if all(word in user_message_lower for word in combo):
-                is_flight_search = True
-                break
             
-        # Verificar se o contexto indica busca de voos
-        flight_context_keywords = [
-            "busca de voos", "busca de passagens", "pesquisa de voos", "voos disponíveis",
-            "passagens disponíveis", "confirmar detalhes", "busca confirmada"
-        ]
-        
-        if system_context and any(keyword in system_context.lower() for keyword in flight_context_keywords):
-            is_flight_search = True
-        
-        # SE FOR BUSCA DE VOOS, RETORNAR RESPOSTA PADRONIZADA SEM CHAMAR API
-        if is_flight_search:
-            # IMPORTANTE: Isso evita COMPLETAMENTE a chamada à API OpenAI para buscas de voos
-            logging.warning(f"🚫 BLOQUEIO TOTAL: Solicitação de voos detectada. Usando fluxo da Amadeus em vez de OpenAI.")
-            return {
-                'response': "Estou buscando as melhores opções de voos usando a API da Amadeus..."
-            }
-        
-        # PARA OUTROS TIPOS DE SOLICITAÇÕES, PODE CHAMAR A API NORMALMENTE
-        logging.info(f"Processando mensagem de usuário não relacionada a voos (conversa geral)")
+        logging.info(f"Processando mensagem normal de usuário via OpenAI")
         
         # Importar os prompts do Avi
         from services.prompts.avi_system_prompt import AVI_SYSTEM_PROMPT
