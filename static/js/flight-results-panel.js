@@ -5,883 +5,339 @@
  */
 class FlightResultsPanel {
     constructor() {
-        this.panel = null;
-        this.toggleButton = null;
-        this.transitionOverlay = null;
-        this.isActive = false;
-        this.currentSessionId = null;
-        this.selectedFlightData = null; // Para armazenar a escolha do usuário
+        this.panel = document.getElementById('flight-results-panel');
+        this.resultsContainer = document.getElementById('flight-results-container');
+        this.loadingIndicator = document.getElementById('flight-results-loading');
+        this.errorContainer = document.getElementById('flight-results-error');
+        this.closeButton = document.getElementById('close-flight-results');
+        this.initialized = false;
+        this.sessionId = null;
 
-        // Expor a instância globalmente para debug e acesso direto
+        // Inicializar evento de fechamento
+        if (this.closeButton) {
+            this.closeButton.addEventListener('click', () => this.hidePanel());
+        }
+
+        console.log("Painel de resultados de voos inicializado");
+
+        // Tornar a instância globalmente acessível
         window.flightResultsPanel = this;
-
         console.log("Painel de resultados de voos inicializado - Instância global disponível");
 
-        this.init();
-
-        // Configurar armazenamento compartilhado
-        this.setupSharedStorage();
+        // Adicionar botão de teste para desenvolvimento
+        this.addTestButton();
     }
 
-    init() {
-        // Criar o painel no DOM se ainda não existir
-        if (!document.querySelector('.flight-results-panel')) {
-            this.createPanel();
-        } else {
-            this.panel = document.querySelector('.flight-results-panel');
-        }
-
-        // Criar o botão de toggle se ainda não existir
-        if (!document.querySelector('.toggle-flight-panel-btn')) {
-            this.createToggleButton();
-        } else {
-            this.toggleButton = document.querySelector('.toggle-flight-panel-btn');
-        }
-
-        // Criar overlay de transição
-        if (!document.querySelector('.flight-transition-overlay')) {
-            this.createTransitionOverlay();
-        } else {
-            this.transitionOverlay = document.querySelector('.flight-transition-overlay');
-        }
-
-        // Adicionar listener para eventos de mensagens que mostram o painel
-        document.addEventListener('showFlightResults', (event) => {
-            console.log('Evento showFlightResults recebido:', event.detail);
-            if (event.detail && event.detail.sessionId) {
-                // Mostrar overlay de transição antes de mostrar os resultados
-                this.showTransitionMessage(() => {
-                    this.loadAndShowResults(event.detail.sessionId);
-                });
-            }
+    // Adiciona um botão de teste para abrir o painel (somente para desenvolvimento)
+    addTestButton() {
+        const testButton = document.createElement('button');
+        testButton.textContent = 'Teste Painel Voos';
+        testButton.style.position = 'fixed';
+        testButton.style.bottom = '10px';
+        testButton.style.right = '10px';
+        testButton.style.zIndex = '9999';
+        testButton.addEventListener('click', () => {
+            this.showPanel(null);
         });
-
-        // Adicionar listener para verificar mudanças no localStorage
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'flightPanelState') {
-                const state = JSON.parse(event.newValue || '{}');
-                if (state.isActive !== undefined && state.isActive !== this.isActive) {
-                    if (state.isActive) {
-                        this.showPanel();
-                    } else {
-                        this.hidePanel();
-                    }
-                }
-            }
-        });
-
-        // Restaurar estado anterior (se existir)
-        this.restoreState();
+        document.body.appendChild(testButton);
+        console.log("Botão de teste do painel de voos adicionado");
     }
 
-    setupSharedStorage() {
-        // Criar objeto global para compartilhar dados entre componentes
-        if (!window.flightSharedData) {
-            window.flightSharedData = {
-                selectedFlight: null,
-                searchResults: null,
-                lastSessionId: null
-            };
-        }
-    }
-
-    // Salvar estado no localStorage para persistência
-    saveState() {
-        const state = {
-            isActive: this.isActive,
-            sessionId: this.currentSessionId,
-            selectedFlight: this.selectedFlightData
-        };
-        localStorage.setItem('flightPanelState', JSON.stringify(state));
-
-        // Atualizar também o objeto compartilhado
-        if (window.flightSharedData) {
-            window.flightSharedData.selectedFlight = this.selectedFlightData;
-            window.flightSharedData.lastSessionId = this.currentSessionId;
-        }
-    }
-
-    // Restaurar estado do localStorage
-    restoreState() {
-        try {
-            const savedState = JSON.parse(localStorage.getItem('flightPanelState') || '{}');
-            if (savedState.isActive) {
-                // Se estava ativo, mostrar novamente
-                this.currentSessionId = savedState.sessionId;
-                this.selectedFlightData = savedState.selectedFlight;
-
-                // Se tivermos um ID de sessão, tentar carregar os dados novamente
-                if (this.currentSessionId) {
-                    this.loadAndShowResults(this.currentSessionId);
-                } else {
-                    this.showPanel();
-                }
-            }
-
-            // Atualizar objeto compartilhado
-            if (window.flightSharedData) {
-                window.flightSharedData.selectedFlight = this.selectedFlightData;
-                window.flightSharedData.lastSessionId = this.currentSessionId;
-            }
-        } catch (error) {
-            console.error('Erro ao restaurar estado do painel:', error);
-        }
-    }
-
-    // Criar botão flutuante para toggle do painel
-    createToggleButton() {
-        this.toggleButton = document.createElement('button');
-        this.toggleButton.className = 'toggle-flight-panel-btn';
-        this.toggleButton.innerHTML = '<i class="fas fa-plane"></i><span>Ver Voos</span>';
-
-        // Adicionar ao body
-        document.body.appendChild(this.toggleButton);
-
-        // Adicionar evento de clique
-        this.toggleButton.addEventListener('click', () => {
-            this.togglePanel();
-        });
-    }
-
-    // Criar overlay de transição
-    createTransitionOverlay() {
-        this.transitionOverlay = document.createElement('div');
-        this.transitionOverlay.className = 'flight-transition-overlay';
-        this.transitionOverlay.innerHTML = `
-            <div class="flight-transition-message">
-                <div class="flight-transition-icon">
-                    <i class="fas fa-plane-departure"></i>
-                </div>
-                <h3>Buscando voos reais para você</h3>
-                <p>A Avi está consultando a API Amadeus para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
-            </div>
-        `;
-
-        // Adicionar ao body
-        document.body.appendChild(this.transitionOverlay);
-    }
-
-    // Mostrar mensagem de transição por alguns segundos antes de mostrar os resultados
-    showTransitionMessage(callback) {
-        this.transitionOverlay.classList.add('active');
-
-        // Esconder após 2.5 segundos
-        setTimeout(() => {
-            this.transitionOverlay.classList.remove('active');
-            if (callback) callback();
-        }, 2500);
-    }
-
-    createPanel() {
-        // Criar elemento do painel
-        this.panel = document.createElement('div');
-        this.panel.className = 'flight-results-panel';
-        this.panel.innerHTML = `
-            <div class="flight-results-header">
-                <span>Resultados de Voos Reais</span>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div id="flight-results-content" class="flight-results-content"></div>
-            <div id="flight-results-loading" class="flight-results-loading" style="display:none;">Carregando...</div>
-            <div id="flight-results-error" class="flight-results-error" style="display:none;"></div>
-            <div class="flight-results-footer">
-                <div>Dados fornecidos pela API oficial Amadeus</div>
-                <div class="amadeus-badge">AMADEUS TRAVEL API</div>
-            </div>
-        `;
-
-        // Adicionar ao body
-        document.body.appendChild(this.panel);
-
-        // Adicionar evento para fechar o painel
-        this.panel.querySelector('.close-btn').addEventListener('click', () => {
-            this.hidePanel();
-        });
-    }
-
-    showPanel() {
-        this.panel.classList.add('active');
-        this.isActive = true;
-
-        // Mostrar o botão de toggle
-        if (this.toggleButton) {
-            this.toggleButton.style.display = 'block';
-            this.toggleButton.classList.add('panel-visible');
-        }
-
-        // Salvar o estado
-        this.saveState();
-    }
-
-    hidePanel() {
-        this.panel.classList.remove('active');
-        this.isActive = false;
-
-        // Reposicionar o botão de toggle
-        if (this.toggleButton) {
-            this.toggleButton.classList.remove('panel-visible');
-        }
-
-        // Salvar o estado
-        this.saveState();
-    }
-
-    togglePanel() {
-        if (this.isActive) {
-            this.hidePanel();
-        } else {
-            this.showPanel();
-        }
-    }
-
-
-    showError(message, details) {
-        const errorContainer = this.panel.querySelector('#flight-results-error');
-        errorContainer.style.display = 'block';
-        errorContainer.innerHTML = `
-            <div class="error-message">
-                <p>${message || 'Ocorreu um erro ao buscar os resultados de voos.'}</p>
-                ${details ? `<p>Detalhes: ${details}</p>` : ''}
-                <button class="flight-book-btn" onclick="flightResultsPanel.loadAndShowResults('${this.currentSessionId}')">
-                    Tentar Novamente
-                </button>
-            </div>
-        `;
-        this.panel.querySelector('#flight-results-loading').style.display = 'none';
-        this.panel.querySelector('#flight-results-content').style.display = 'none';
-
-    }
-
-    showNoResults() {
-        const resultsContainer = this.panel.querySelector('#flight-results-content');
-        resultsContainer.innerHTML = `
-            <div class="no-results">
-                <p>Não encontramos voos disponíveis para esta busca.</p>
-                <p>Tente alterar os filtros ou datas de viagem.</p>
-            </div>
-        `;
-        this.panel.querySelector('#flight-results-loading').style.display = 'none';
-
-    }
-
-    // Método para carregar dados de teste (garantir que sempre haja algo para mostrar)
-    loadTestResults() {
-        // Mostrar o painel e indicar carregamento
-        this.showPanel();
-        this.showLoading();
-
-        console.log("Carregando dados de teste...");
-
-        // Usar o endpoint de teste
-        fetch('/api/flight_results/test')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erro de rede: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Dados de teste carregados com sucesso:", data);
-                // Limpar o loader
-                clearInterval(this.loadingInterval);
-
-                // Mostrar os resultados
-                this.renderFlightResults(data);
-
-                // Destacar que são dados de teste
-                const headerEl = this.panel.querySelector('.flight-results-header span');
-                if (headerEl) {
-                    headerEl.textContent = "Resultados de Teste - API Amadeus";
-                    headerEl.style.color = "white";
-                }
-            })
-            .catch(error => {
-                console.error("Erro ao carregar dados de teste:", error);
-                this.showError("Erro ao carregar dados de teste. Por favor, tente novamente.");
-            });
-    }
-
-    // Função para verificar o status da busca
-    checkSearchStatus(sessionId) {
-        if (!sessionId) {
-            return Promise.resolve({ search_in_progress: false, has_results: false });
-        }
-
-        return fetch(`/api/flight_search/status/${sessionId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(status => {
-                return {search_in_progress: status.status === "in_progress" || status.status === "pending", has_results: status.has_results};
-            })
-            .catch(error => {
-                console.error("Erro ao verificar status da busca:", error);
-                return { search_in_progress: false, has_results: false };
-            });
-    }
-
-
-    loadAndShowResults(sessionId) {
-        console.log("Carregando resultados para sessão:", sessionId);
-
-        if (!sessionId) {
-            console.error("Tentativa de carregar resultados sem ID de sessão");
-            this.showError('Não é possível exibir resultados sem uma sessão válida. Por favor, refaça sua pesquisa com a Avi.');
+    // Mostrar o painel lateral
+    showPanel(sessionId) {
+        if (!this.panel) {
+            console.error("Elemento do painel não encontrado");
             return;
         }
 
-        this.currentSessionId = sessionId;
-        this.showLoadingAnimation("Consultando API Amadeus em tempo real...");
+        console.log("Recebido show_flight_results=true, mostrando painel lateral");
 
-        // Primeiro verificar o status da busca
-        this.loadFlightResults(sessionId);
-    }
+        this.sessionId = sessionId;
+        this.panel.classList.add('visible');
 
-    loadFlightResults(sessionId) {
-        console.log("Carregando resultados de voos para sessão:", sessionId);
+        // Limpar conteúdo anterior
+        this.resultsContainer.innerHTML = '';
 
         // Mostrar indicador de carregamento
-        this.showLoadingAnimation();
+        this.showLoading(true);
+        this.showError(false);
 
-        // URL da API - usar o endpoint de teste se não houver sessionId
-        let apiUrl = sessionId ? `/api/flight_results/${sessionId}` : '/api/flight_results/test';
+        // Buscar dados de voos
+        this.fetchFlightResults();
+    }
 
+    // Esconder o painel lateral
+    hidePanel() {
+        if (this.panel) {
+            this.panel.classList.remove('visible');
+        }
+    }
 
-        // Fazer a requisição para a API
-        fetch(apiUrl)
+    // Mostrar/esconder indicador de carregamento
+    showLoading(show) {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = show ? 'flex' : 'none';
+        }
+    }
+
+    // Mostrar/esconder mensagem de erro
+    showError(show, message = '') {
+        if (this.errorContainer) {
+            this.errorContainer.style.display = show ? 'block' : 'none';
+            if (show && message) {
+                this.errorContainer.innerHTML = `<p>${message}</p>`;
+            }
+        }
+    }
+
+    // Buscar resultados de voos
+    fetchFlightResults() {
+        // Construir URL com o ID da sessão
+        const url = `/api/flight_results/${this.sessionId || 'test'}`;
+
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
+                    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
-                // Ocultar carregamento
-                this.panel.querySelector('#flight-results-loading').style.display = 'none';
+                this.showLoading(false);
 
                 // Verificar se há erro na resposta
                 if (data.error) {
-                    this.showError(data.error);
+                    this.showError(true, `${data.error}. ${data.details || ''}`);
+                    console.error("Erro na API:", data.error);
                     return;
                 }
 
-                // Verificar se os dados são simulados
-                if (data.is_simulated === true) {
-                    // Adicionar aviso de dados simulados
-                    const warningDiv = document.createElement('div');
-                    warningDiv.className = 'flight-results-warning';
-                    warningDiv.textContent = 'Atenção: Exibindo dados simulados. Os dados reais da API Amadeus não estão disponíveis no momento.';
-                    this.panel.querySelector('.flight-results-header').appendChild(warningDiv);
-                }
-
-                // Processar e exibir os resultados
+                // Renderizar resultados
                 this.renderFlightResults(data);
-                this.panel.querySelector('#flight-results-content').style.display = 'block';
-
-                // Registrar resposta no console para depuração
-                console.log("Resposta da API de voos:", data);
             })
             .catch(error => {
-                console.error("Erro ao carregar resultados de voos:", error);
-                this.showError(`Não foi possível carregar os resultados de voos: ${error.message}`);
+                this.showLoading(false);
+                this.showError(true, `Falha ao carregar resultados: ${error.message}`);
+                console.error("Erro ao buscar resultados de voos:", error);
             });
     }
 
-    // Método para buscar resultados da API (substituído pela nova lógica)
-    // fetchResults(sessionId) { ... }
-
-    // Método adicional para renderizar resultados de best_prices
-    renderBestPricesResults(data) {
-        console.log("Renderizando best_prices:", data.best_prices.length);
-        const resultsContainer = this.panel.querySelector('#flight-results-content');
-        resultsContainer.innerHTML = '';
-
-        // Container principal
-        const resultsListContainer = document.createElement('div');
-        resultsListContainer.className = 'flight-results-list';
-
-        // Adicionar cabeçalho
-        const header = document.createElement('div');
-        header.className = 'flight-results-header';
-        header.innerHTML = `
-            <h3>Melhores Preços Encontrados</h3>
-            <p>Origem: ${data.origin || '-'} → Destino: ${data.destination || '-'}</p>
-        `;
-        resultsContainer.appendChild(header);
-
-        // Adicionar cada resultado
-        data.best_prices.forEach(price => {
-            const priceCard = document.createElement('div');
-            priceCard.className = 'flight-card';
-
-            // Formatação de preço
-            const formattedPrice = new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: price.currency || 'BRL'
-            }).format(price.price);
-
-            // Construir o HTML do card
-            priceCard.innerHTML = `
-                <div class="flight-card-header">
-                    <div class="flight-price">${formattedPrice}</div>
-                    <div class="flight-date">${price.date}</div>
-                </div>
-                <div class="flight-card-details">
-                    <div class="flight-route">
-                        <div class="flight-origin">${price.origin_info?.name || data.origin}</div>
-                        <div class="flight-arrow">→</div>
-                        <div class="flight-destination">${price.destination_info?.name || data.destination}</div>
-                    </div>
-                    <div class="flight-info">
-                        <div class="flight-airline">${price.airline || 'Várias companhias'}</div>
-                        <div class="flight-duration">${price.duration || '-'}</div>
-                    </div>
-                </div>
-                <div class="flight-card-footer">
-                    <a href="${price.affiliate_link}" target="_blank" class="flight-book-btn">
-                        Reservar em ${price.provider || 'Site Parceiro'}
-                    </a>
-                </div>
-            `;
-
-            resultsListContainer.appendChild(priceCard);
-        });
-
-        resultsContainer.appendChild(resultsListContainer);
-        this.panel.querySelector('#flight-results-loading').style.display = 'none';
-    }
-
-    // Método centralizado para renderização de resultados (usado tanto pelos testes quanto pelos dados reais)
+    // Renderizar resultados de voos
     renderFlightResults(data) {
-        // Limpar o loader
-        if (this.loadingInterval) {
-            clearInterval(this.loadingInterval);
-            this.loadingInterval = null;
-        }
+        // Limpar container
+        this.resultsContainer.innerHTML = '';
 
-        // Verificar se temos dados para mostrar
-        if (data.error) {
-            this.showError(data.error);
+        // Se não houver dados, mostrar mensagem
+        if (!data || (!data.data && !data.best_prices)) {
+            this.showError(true, "Nenhum resultado de voo encontrado.");
             return;
         }
 
-        // Verificar se temos ofertas para mostrar
-        const offers = data.data || [];
-        if (offers.length === 0) {
-            this.showNoResults();
-            return;
-        }
+        // Criar elemento para indicar se são dados reais ou simulados
+        const statusBadge = document.createElement('div');
+        statusBadge.className = 'data-status-badge';
+        statusBadge.textContent = data.is_simulated ? 'Dados Simulados' : 'Dados Reais';
+        statusBadge.style.backgroundColor = data.is_simulated ? '#ff9800' : '#4CAF50';
+        statusBadge.style.color = 'white';
+        statusBadge.style.padding = '4px 8px';
+        statusBadge.style.borderRadius = '4px';
+        statusBadge.style.fontWeight = 'bold';
+        statusBadge.style.marginBottom = '10px';
+        statusBadge.style.display = 'inline-block';
+        this.resultsContainer.appendChild(statusBadge);
 
-        // Adicionar aviso se os dados são simulados
-        if (data.is_simulated) {
-            const alert = document.createElement('div');
-            alert.className = 'data-source-alert';
-            alert.style.backgroundColor = '#ffe1e1';
-            alert.style.color = '#d32f2f';
-            alert.style.padding = '8px';
-            alert.style.marginBottom = '12px';
-            alert.style.borderRadius = '4px';
-            alert.style.fontSize = '14px';
-            alert.innerHTML = `<strong>Atenção:</strong> Exibindo dados simulados devido a problemas na conexão com a API Amadeus. Os preços e disponibilidade podem não refletir ofertas reais.`;
-            this.panel.querySelector('#flight-results-content').insertBefore(alert, this.panel.querySelector('#flight-results-content').firstChild);
-        } else {
-            const alert = document.createElement('div');
-            alert.className = 'data-source-alert';
-            alert.style.backgroundColor = '#e8f5e9';
-            alert.style.color = '#2e7d32';
-            alert.style.padding = '8px';
-            alert.style.marginBottom = '12px';
-            alert.style.borderRadius = '4px';
-            alert.style.fontSize = '14px';
-            alert.innerHTML = `<strong>Dados reais:</strong> Exibindo resultados em tempo real da API Amadeus.`;
-            this.panel.querySelector('#flight-results-content').insertBefore(alert, this.panel.querySelector('#flight-results-content').firstChild);
+        // Determinar qual tipo de dados estamos exibindo
+        if (data.data) {
+            // Renderizar resultados de voos regulares
+            this.renderRegularFlights(data.data);
+        } else if (data.best_prices) {
+            // Renderizar resultados de melhores preços
+            this.renderBestPrices(data.best_prices, data.origin, data.destination, data.currency);
         }
-
-        // Usar o método principal de renderização
-        this.renderResults(data);
     }
 
-    renderResults(data) {
-        // Limpar o intervalo de animação da barra de progresso
-        if (this.loadingInterval) {
-            clearInterval(this.loadingInterval);
-            this.loadingInterval = null;
-        }
+    // Renderizar voos regulares
+    renderRegularFlights(flights) {
+        // Título
+        const title = document.createElement('h3');
+        title.textContent = `${flights.length} opções de voo encontradas`;
+        this.resultsContainer.appendChild(title);
 
-        // Verificar se temos dados para mostrar
-        if (data.error) {
-            this.showError(data.error);
-            return;
-        }
+        // Renderizar cada voo
+        flights.forEach((flight, index) => {
+            const flightCard = document.createElement('div');
+            flightCard.className = 'flight-card';
 
-        // Verificar se temos ofertas para mostrar
-        const offers = data.data || [];
-        if (offers.length === 0) {
-            this.showNoResults();
-            return;
-        }
-
-        // Preparar o conteúdo HTML
-        let resultsHtml = `
-            <h3>Voos Encontrados (${offers.length})</h3>
-            <div class="flight-cards-container">
-        `;
-
-        // Adicionar cada oferta de voo
-        offers.forEach(offer => {
-            try {
-                // Extrair informações de cada oferta
-                const itinerary = offer.itineraries[0];
-                const firstSegment = itinerary.segments[0];
-                const lastSegment = itinerary.segments[itinerary.segments.length - 1];
-                const price = offer.price.total;
-                const currency = offer.price.currency;
-
-                // Formatar a duração total
-                const duration = this.formatDuration(itinerary.duration);
-
-                // Contar o número de conexões
-                const stops = itinerary.segments.length - 1;
-                const stopsText = stops === 0 ? 'Voo Direto' :
-                                  stops === 1 ? '1 Conexão' :
-                                  `${stops} Conexões`;
-
-                // Construir o card do voo
-                resultsHtml += `
-                    <div class="flight-card">
-                        <div class="flight-card-header">
-                            <div class="flight-airline">${firstSegment.carrierCode}</div>
-                            <div class="flight-price">${currency} ${parseFloat(price).toFixed(2)}</div>
-                        </div>
-                        <div class="flight-card-body">
-                            <div class="flight-route">
-                                <div class="flight-segment">
-                                    <div class="flight-city">${firstSegment.departure.iataCode}</div>
-                                    <div class="flight-time">${this.formatDateTime(firstSegment.departure.at)}</div>
-                                </div>
-                                <div class="flight-segment">
-                                    <div class="flight-city">${lastSegment.arrival.iataCode}</div>
-                                    <div class="flight-time">${this.formatDateTime(lastSegment.arrival.at)}</div>
-                                </div>
-                            </div>
-                            <div class="flight-duration">${duration}</div>
-                            <div class="flight-stops">${stopsText}</div>
-                        </div>
-                        <div class="flight-card-footer">
-                            <button class="flight-details-btn" data-offer-id="${offer.id}">Ver Detalhes</button>
-                            <button class="flight-book-btn" data-offer-id="${offer.id}">Reservar</button>
-                        </div>
-                    </div>
-                `;
-            } catch (error) {
-                console.error('Erro ao processar oferta de voo:', error);
+            // Informações básicas
+            let price = 'Preço não disponível';
+            if (flight.price && flight.price.total) {
+                price = `R$ ${parseFloat(flight.price.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
             }
-        });
 
-        // Fechar o container
-        resultsHtml += `</div>`;
+            // Primeiro segmento para informações de partida/chegada
+            let departureInfo = 'Informações não disponíveis';
+            let arrivalInfo = '';
 
-        // Atualizar o conteúdo do painel
-        const resultsContainer = this.panel.querySelector('#flight-results-content');
-        resultsContainer.innerHTML = resultsHtml;
-        resultsContainer.style.display = 'block';
-        this.panel.querySelector('#flight-results-loading').style.display = 'none';
+            if (flight.itineraries && flight.itineraries.length > 0 &&
+                flight.itineraries[0].segments && flight.itineraries[0].segments.length > 0) {
 
+                const firstSegment = flight.itineraries[0].segments[0];
+                const lastSegment = flight.itineraries[0].segments[flight.itineraries[0].segments.length - 1];
 
-        // Adicionar eventos aos botões
-        this.addButtonEvents();
-    }
+                if (firstSegment.departure && lastSegment.arrival) {
+                    // Extrair origem
+                    const originCode = firstSegment.departure.iataCode || '';
+                    const departureDate = firstSegment.departure.at ? new Date(firstSegment.departure.at) : null;
+                    const departureTimeStr = departureDate ?
+                        `${departureDate.getHours().toString().padStart(2, '0')}:${departureDate.getMinutes().toString().padStart(2, '0')}` : '';
 
-    addButtonEvents() {
-        // Adicionar eventos aos botões de detalhes
-        this.panel.querySelectorAll('.flight-details-btn').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const offerId = event.target.getAttribute('data-offer-id');
-                this.showFlightDetails(offerId);
-            });
-        });
+                    // Extrair destino
+                    const destinationCode = lastSegment.arrival.iataCode || '';
+                    const arrivalDate = lastSegment.arrival.at ? new Date(lastSegment.arrival.at) : null;
+                    const arrivalTimeStr = arrivalDate ?
+                        `${arrivalDate.getHours().toString().padStart(2, '0')}:${arrivalDate.getMinutes().toString().padStart(2, '0')}` : '';
 
-        // Adicionar eventos aos botões de reserva
-        this.panel.querySelectorAll('.flight-book-btn').forEach(button => {
-            button.addEventListener('click', (event) => {
-                const offerId = event.target.getAttribute('data-offer-id');
-                this.bookFlight(offerId);
-            });
-        });
-    }
+                    // Duração total
+                    const duration = flight.itineraries[0].duration || '';
+                    const formattedDuration = duration.replace('PT', '').replace('H', 'h ').replace('M', 'm');
 
-    showFlightDetails(offerId) {
-        // Encontrar a oferta correspondente
-        fetch(`/api/flight_results/${this.currentSessionId}`)
-            .then(response => response.json())
-            .then(data => {
-                const offers = data.data || [];
-                const selectedOffer = offers.find(offer => offer.id === offerId);
-
-                if (selectedOffer) {
-                    // Salvar a oferta selecionada
-                    this.selectedFlightData = selectedOffer;
-                    this.saveState();
-
-                    // Atualizar objeto compartilhado
-                    if (window.flightSharedData) {
-                        window.flightSharedData.selectedFlight = selectedOffer;
-                    }
-
-                    // Criar modal com detalhes do voo
-                    this.showFlightDetailsModal(selectedOffer);
-
-                    // Disparar evento para informar o chat que um voo foi selecionado
-                    document.dispatchEvent(new CustomEvent('flightSelected', {
-                        detail: {
-                            flightData: selectedOffer
-                        }
-                    }));
+                    // Informação formatada
+                    departureInfo = `${originCode} ${departureTimeStr} → ${destinationCode} ${arrivalTimeStr}`;
+                    arrivalInfo = `Duração: ${formattedDuration} · ${flight.itineraries[0].segments.length > 1 ?
+                        flight.itineraries[0].segments.length - 1 + ' conexão(ões)' : 'Voo direto'}`;
                 }
-            })
-            .catch(error => {
-                console.error('Erro ao buscar detalhes do voo:', error);
-                alert('Não foi possível obter os detalhes deste voo. Tente novamente.');
-            });
+            }
+
+            // Companhia aérea
+            let airlineInfo = 'Companhia não informada';
+            if (flight.itineraries && flight.itineraries[0] && flight.itineraries[0].segments && flight.itineraries[0].segments[0]) {
+                const carrierCode = flight.itineraries[0].segments[0].carrierCode || '';
+                airlineInfo = carrierCode;
+            }
+
+            // Links de compra
+            let purchaseLinks = '';
+            if (flight.purchaseLinks && flight.purchaseLinks.length > 0) {
+                purchaseLinks = '<div class="purchase-links"><h4>Comprar em:</h4><ul>';
+                flight.purchaseLinks.forEach(link => {
+                    purchaseLinks += `<li><a href="${link.url}" target="_blank" rel="noopener">${link.provider}</a></li>`;
+                });
+                purchaseLinks += '</ul></div>';
+            }
+
+            // Montar o HTML
+            flightCard.innerHTML = `
+                <div class="flight-header">
+                    <div class="flight-airline">${airlineInfo}</div>
+                    <div class="flight-price">${price}</div>
+                </div>
+                <div class="flight-route">
+                    <div class="flight-route-main">${departureInfo}</div>
+                    <div class="flight-route-info">${arrivalInfo}</div>
+                </div>
+                ${purchaseLinks}
+            `;
+
+            this.resultsContainer.appendChild(flightCard);
+        });
     }
 
-    showFlightDetailsModal(flightData) {
-        // Extrair informações do voo
-        const itinerary = flightData.itineraries[0];
-        const price = flightData.price.total;
-        const currency = flightData.price.currency;
+    // Renderizar melhores preços
+    renderBestPrices(bestPrices, origin, destination, currency) {
+        // Título
+        const title = document.createElement('h3');
+        title.textContent = `Melhores preços: ${origin || ''} → ${destination || ''}`;
+        this.resultsContainer.appendChild(title);
 
-        // Criar modal com animação
-        const modal = document.createElement('div');
-        modal.className = 'flight-details-modal';
-        modal.innerHTML = `
-            <div class="flight-details-modal-content">
-                <div class="flight-details-modal-header">
-                    <h3>Detalhes do Voo</h3>
-                    <button class="close-modal-btn">&times;</button>
+        // Subtítulo
+        const subtitle = document.createElement('p');
+        subtitle.textContent = `${bestPrices.length} opções encontradas`;
+        subtitle.style.marginBottom = '20px';
+        this.resultsContainer.appendChild(subtitle);
+
+        // Renderizar cada preço
+        bestPrices.forEach((priceInfo, index) => {
+            const priceCard = document.createElement('div');
+            priceCard.className = 'price-card';
+
+            // Formatar preço
+            const formattedPrice = `R$ ${parseFloat(priceInfo.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+            // Formatar data
+            let dateStr = priceInfo.date || 'Data não disponível';
+            try {
+                if (priceInfo.date) {
+                    const date = new Date(priceInfo.date);
+                    dateStr = date.toLocaleDateString('pt-BR');
+                }
+            } catch (e) {
+                console.error("Erro ao formatar data:", e);
+            }
+
+            // Informações da companhia aérea
+            const airline = priceInfo.airline || 'Companhia não informada';
+
+            // Detalhes de duração, conexão, etc.
+            let detailsInfo = '';
+            if (priceInfo.duration) {
+                detailsInfo += `<div>Duração: ${priceInfo.duration}</div>`;
+            }
+            if (priceInfo.has_connection) {
+                detailsInfo += `<div>Conexão: ${priceInfo.connection_airport || 'Sim'}</div>`;
+                if (priceInfo.connection_time) {
+                    detailsInfo += `<div>Tempo de conexão: ${priceInfo.connection_time}</div>`;
+                }
+            } else {
+                detailsInfo += '<div>Voo direto</div>';
+            }
+
+            // Link de compra
+            let purchaseLink = '';
+            if (priceInfo.affiliate_link) {
+                purchaseLink = `<a href="${priceInfo.affiliate_link}" target="_blank" rel="noopener" class="purchase-button">
+                    Comprar em ${priceInfo.provider || 'site parceiro'}
+                </a>`;
+            }
+
+            // Montar o HTML
+            priceCard.innerHTML = `
+                <div class="price-header">
+                    <div class="price-date">${dateStr}</div>
+                    <div class="price-value">${formattedPrice}</div>
                 </div>
-                <div class="flight-details-modal-body">
-                    <div class="flight-details-price">
-                        <span class="price-label">Preço Total:</span>
-                        <span class="price-value">${currency} ${parseFloat(price).toFixed(2)}</span>
-                    </div>
-                    <div class="flight-itinerary">
-                        <h4>Itinerário</h4>
-                        <div class="flight-segments">
-                            ${this.renderSegments(itinerary.segments)}
-                        </div>
+                <div class="price-details">
+                    <div class="price-airline">${airline}</div>
+                    <div class="price-info">
+                        ${detailsInfo}
                     </div>
                 </div>
-                <div class="flight-details-modal-footer">
-                    <button class="select-flight-btn" data-offer-id="${flightData.id}">Selecionar Este Voo</button>
-                </div>
-            </div>
-        `;
-
-        // Adicionar modal ao DOM
-        document.body.appendChild(modal);
-
-        // Adicionar evento de fechar
-        modal.querySelector('.close-modal-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-
-        // Adicionar evento de seleção
-        modal.querySelector('.select-flight-btn').addEventListener('click', () => {
-            this.bookFlight(flightData.id);
-            modal.remove();
-        });
-
-        // Exibir modal com animação
-        setTimeout(() => {
-            modal.style.opacity = '1';
-        }, 50);
-    }
-
-    // Renderizar segmentos do voo
-    renderSegments(segments) {
-        let html = '';
-
-        segments.forEach((segment, index) => {
-            const departure = segment.departure;
-            const arrival = segment.arrival;
-            const duration = this.formatDuration(segment.duration);
-
-            html += `
-                <div class="flight-segment-details">
-                    <div class="segment-header">
-                        <span class="segment-airline">${segment.carrierCode} ${segment.number}</span>
-                        <span class="segment-duration">${duration}</span>
-                    </div>
-                    <div class="segment-route">
-                        <div class="segment-departure">
-                            <div class="segment-airport">${departure.iataCode}</div>
-                            <div class="segment-time">${this.formatDateTime(departure.at)}</div>
-                        </div>
-                        <div class="segment-arrow">→</div>
-                        <div class="segment-arrival">
-                            <div class="segment-airport">${arrival.iataCode}</div>
-                            <div class="segment-time">${this.formatDateTime(arrival.at)}</div>
-                        </div>
-                    </div>
+                <div class="price-actions">
+                    ${purchaseLink}
                 </div>
             `;
 
-            // Adicionar indicador de conexão entre segmentos
-            if (index < segments.length - 1) {
-                const connectionTime = this.calculateConnectionTime(segment.arrival.at, segments[index + 1].departure.at);
-                html += `
-                    <div class="segment-connection">
-                        <div class="connection-indicator">
-                            <div class="connection-line"></div>
-                            <div class="connection-dot"></div>
-                        </div>
-                        <div class="connection-info">
-                            <span class="connection-airport">${arrival.iataCode}</span>
-                            <span class="connection-time">${connectionTime} de conexão</span>
-                        </div>
-                    </div>
-                `;
-            }
+            this.resultsContainer.appendChild(priceCard);
         });
-
-        return html;
-    }
-
-    // Calcular tempo de conexão entre segmentos
-    calculateConnectionTime(arrivalTime, departureTime) {
-        const arrival = new Date(arrivalTime);
-        const departure = new Date(departureTime);
-
-        const diffMs = departure - arrival;
-        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        return diffHrs > 0 ? `${diffHrs}h ${diffMins}m` : `${diffMins}m`;
-    }
-
-    bookFlight(offerId) {
-        // Encontrar a oferta correspondente
-        fetch(`/api/flight_results/${this.currentSessionId}`)
-            .then(response => response.json())
-            .then(data => {
-                const offers = data.data || [];
-                const selectedOffer = offers.find(offer => offer.id === offerId);
-
-                if (selectedOffer) {
-                    // Salvar a oferta selecionada
-                    this.selectedFlightData = selectedOffer;
-                    this.saveState();
-
-                    // Atualizar objeto compartilhado
-                    if (window.flightSharedData) {
-                        window.flightSharedData.selectedFlight = selectedOffer;
-                    }
-
-                    // Fechar o painel
-                    this.hidePanel();
-
-                    // Disparar evento para informar o chat que um voo foi selecionado
-                    document.dispatchEvent(new CustomEvent('flightSelected', {
-                        detail: {
-                            flightData: selectedOffer,
-                            message: "Voo selecionado com sucesso"
-                        }
-                    }));
-
-                    // Mostrar mensagem de confirmação
-                    alert('Voo selecionado com sucesso! Agora você pode continuar a conversa com a Avi.');
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao selecionar voo:', error);
-                alert('Não foi possível selecionar este voo. Tente novamente.');
-            });
-    }
-
-    // Utilitários para formatação
-    formatDateTime(dateString) {
-        const date = new Date(dateString);
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-
-        return `${hours}:${minutes} · ${day}/${month}`;
-    }
-
-    formatDuration(durationString) {
-        // Formato PT2H30M => 2h 30m
-        const hours = durationString.match(/(\d+)H/);
-        const minutes = durationString.match(/(\d+)M/);
-
-        let formatted = '';
-        if (hours && hours[1]) {
-            formatted += `${hours[1]}h `;
-        }
-        if (minutes && minutes[1]) {
-            formatted += `${minutes[1]}m`;
-        }
-
-        return formatted.trim();
-    }
-
-    showLoading() {
-        const loadingContainer = this.panel.querySelector('#flight-results-loading');
-        loadingContainer.style.display = 'block';
-        this.panel.querySelector('#flight-results-content').style.display = 'none';
-        this.panel.querySelector('#flight-results-error').style.display = 'none';
-
-        // Adicionar barra de progresso animada
-        if (!loadingContainer.querySelector('.progress-bar')) {
-            const progressBar = document.createElement('div');
-            progressBar.className = 'progress-bar';
-            progressBar.innerHTML = '<div class="progress-bar-fill"></div>';
-            loadingContainer.appendChild(progressBar);
-        }
-
-        // Mostrar mensagem de carregamento padrão
-        this.showLoadingAnimation("Carregando resultados...");
-    }
-
-    showLoadingAnimation(message) {
-        // Mostrar o painel se não estiver visível
-        this.showPanel();
-
-        const loadingContainer = this.panel.querySelector('#flight-results-loading');
-
-        // Atualizar mensagem de carregamento
-        if (!loadingContainer.querySelector('.loading-message')) {
-            const loadingMessage = document.createElement('div');
-            loadingMessage.className = 'loading-message';
-            loadingContainer.appendChild(loadingMessage);
-        }
-
-        // Atualizar a mensagem
-        loadingContainer.querySelector('.loading-message').textContent = message || "Carregando...";
-
-        // Mostrar contêiner de carregamento
-        loadingContainer.style.display = 'block';
-        this.panel.querySelector('#flight-results-content').style.display = 'none';
-        this.panel.querySelector('#flight-results-error').style.display = 'none';
-
-        // Reiniciar animação da barra de progresso
-        const progressFill = loadingContainer.querySelector('.progress-bar-fill');
-        if (progressFill) {
-            progressFill.style.animationName = 'none';
-            setTimeout(() => {
-                progressFill.style.animationName = 'progress';
-            }, 10);
-        }
     }
 }
 
-// Inicializar o painel quando o DOM estiver pronto
+// Inicializar assim que o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
-    // Criar instância global
-    window.flightResultsPanel = new FlightResultsPanel();
-    console.log('Painel de resultados de voos inicializado');
+    const panel = new FlightResultsPanel();
+
+    // Escutar evento personalizado para mostrar o painel
+    document.addEventListener('showFlightResults', (event) => {
+        console.log("Evento showFlightResults recebido:", event.detail);
+        if (panel) {
+            panel.showPanel(event.detail?.sessionId);
+        }
+    });
 });
+
+// Função auxiliar para disparar evento de abertura do painel
+function triggerFlightResultsPanel(sessionId) {
+    const event = new CustomEvent('showFlightResults', {
+        detail: { sessionId: sessionId }
+    });
+    document.dispatchEvent(event);
+}
