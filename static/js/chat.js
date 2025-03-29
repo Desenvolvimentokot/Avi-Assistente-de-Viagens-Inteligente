@@ -5,42 +5,36 @@ document.addEventListener('DOMContentLoaded', function() {
         flightsMuralButton.addEventListener('click', function() {
             console.log("Botão do Mural de Voos clicado");
             
-            // Verificar se temos o objeto global do painel
-            if (window.flightResultsPanel) {
-                // Mostrar o painel com o ID da sessão atual
-                window.flightResultsPanel.showPanel();
+            // Verificar se o NOVO painel está disponível
+            if (window.flightPanel) {
+                console.log("Usando o novo painel de voos");
                 
-                // Não permitimos mais dados de teste - mostrar mensagem adequada em vez de forçar testes
-                if (!sessionId) {
-                    console.log("Sem sessionId válido - mostrando mensagem de orientação");
-                    window.flightResultsPanel.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
-                    return;
-                }
+                // Mostrar o painel
+                window.flightPanel.show();
                 
                 // Se tivermos um ID de sessão, carregar resultados
                 if (sessionId) {
-                    console.log("Mostrando painel com sessionId:", sessionId);
+                    console.log("Buscando resultados com sessionId:", sessionId);
                     // Salvar sessionId no localStorage para persistência
                     localStorage.setItem('currentSessionId', sessionId);
-                    // Salvar no objeto do painel também
-                    window.flightResultsPanel.currentSessionId = sessionId;
-                    window.flightResultsPanel.loadAndShowResults(sessionId);
+                    // Carregar resultados
+                    window.flightPanel.loadFlightResults(sessionId);
                 } else {
-                    console.log("Painel mostrado sem sessionId");
-                    // Tentar restaurar do localStorage
+                    console.log("Sem sessionId válido");
+                    // Tentar recuperar do localStorage
                     const savedSessionId = localStorage.getItem('currentSessionId');
                     if (savedSessionId) {
                         console.log("Usando sessionId do localStorage:", savedSessionId);
-                        window.flightResultsPanel.loadAndShowResults(savedSessionId);
+                        window.flightPanel.loadFlightResults(savedSessionId);
                     } else {
-                        // Não usamos mais dados de teste - mostrar mensagem orientando o usuário
-                        window.flightResultsPanel.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
+                        // Mostrar mensagem informativa
+                        window.flightPanel.showMessage("Para ver resultados reais de voos, inicie uma conversa com a Avi e forneça os detalhes da sua viagem.");
                     }
                 }
             } else {
-                console.error("Painel de voos não está disponível, tentando inicializar");
-                // Tentar inicializar manualmente
-                window.flightResultsPanel = new FlightResultsPanel();
+                console.error("Novo painel de voos não disponível!");
+                // Mensagem de alerta no chat
+                addMessage("⚠️ O sistema de exibição de voos está sendo carregado. Por favor, recarregue a página ou inicie uma nova conversa com a Avi.", false);
             }
         });
     } else {
@@ -250,53 +244,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.warn("ALERTA: Não recebemos session_id do servidor!");
                 }
                 
-                // VERIFICAR SE DEVEMOS MOSTRAR O PAINEL LATERAL COM RESULTADOS
-                // Só mostrar quando o backend especificamente solicitar (trigger_flight_panel)
+                // NOVO SISTEMA DE EXIBIÇÃO DO PAINEL DE VOOS
+                // Utiliza o novo componente FlightPanel para garantir exibição correta
                 if (data.trigger_flight_panel) {
                     console.log("Backend solicitou abertura do painel de voos!");
                     
                     // Verificar se temos um ID de sessão válido
                     const validSessionId = data.session_id || sessionId;
                     
-                    if (!validSessionId) {
-                        console.warn("Sem ID de sessão válido para o painel de resultados");
-                        return;
+                    // Adicionar uma pequena mensagem de direcionamento na conversa
+                    addMessage("👉 Buscando resultados reais de voos na API Amadeus. Confira o painel lateral!", false);
+                    
+                    // Verificar se o novo painel está disponível
+                    if (window.flightPanel) {
+                        console.log("Usando novo painel de voos com ID de sessão:", validSessionId);
+                        
+                        // Disparar evento para abrir imediatamente, mesmo sem resultados
+                        document.dispatchEvent(new CustomEvent('forceOpenFlightPanel', {
+                            detail: {
+                                sessionId: validSessionId
+                            }
+                        }));
+                    } else {
+                        console.warn("Novo painel de voos não encontrado, esperando inicialização...");
+                        
+                        // Esperar um pouco e tentar novamente
+                        setTimeout(() => {
+                            if (window.flightPanel) {
+                                document.dispatchEvent(new CustomEvent('forceOpenFlightPanel', {
+                                    detail: {
+                                        sessionId: validSessionId
+                                    }
+                                }));
+                            } else {
+                                console.error("Erro crítico: Painel de voos não disponível!");
+                                addMessage("⚠️ Não foi possível abrir o painel de resultados de voos. Por favor, recarregue a página e tente novamente.", false);
+                            }
+                        }, 1000);
                     }
-                    
-                    console.log("Session ID para o painel:", validSessionId);
-                    
-                    // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
-                    setTimeout(() => {
-                        // Verificar se temos a instância global do painel
-                        if (window.flightResultsPanel) {
-                            // Atualizar o ID de sessão no painel
-                            window.flightResultsPanel.currentSessionId = validSessionId;
-                            
-                            // Disparar evento customizado para mostrar o painel de resultados
-                            document.dispatchEvent(new CustomEvent('showFlightResults', {
-                                detail: {
-                                    sessionId: validSessionId
-                                }
-                            }));
-                            
-                            // Carregar e mostrar resultados diretamente
-                            window.flightResultsPanel.loadAndShowResults(validSessionId);
-                            
-                            // Adicionar uma pequena mensagem de direcionamento na conversa
-                            addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);
-                        } else {
-                            console.error("ERRO CRÍTICO: Panel not initialized: flightResultsPanel not found");
-                            
-                            // Tentar inicializar manualmente como fallback
-                            window.flightResultsPanel = new FlightResultsPanel();
-                            
-                            // Tentar novamente após inicialização
-                            setTimeout(() => {
-                                window.flightResultsPanel.currentSessionId = validSessionId;
-                                window.flightResultsPanel.loadAndShowResults(validSessionId);
-                            }, 500);
-                        }
-                    }, 500);
                 }
             }
 
