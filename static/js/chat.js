@@ -111,6 +111,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Resetar chat para o novo modo
                 chatMessages.innerHTML = '';
                 addWelcomeMessage();
+                
+                // Ocultar a explicação após primeiro clique
+                const welcomeInfo = document.getElementById('welcome-options-info');
+                if (welcomeInfo) welcomeInfo.style.display = 'none';
+                
+                // Alterar a cor de fundo se for planejamento completo
+                if (mode === 'full-planning') {
+                    document.querySelector('.chat-container').classList.add('planning-mode');
+                } else {
+                    document.querySelector('.chat-container').classList.remove('planning-mode');
+                }
 
                 // Atualizar contexto
                 chatContext = {
@@ -130,12 +141,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     <img src="/static/img/avi rosto chat.png" alt="Avi" style="width: 30px; height: 30px; border-radius: 50%;">
                 </div>
                 <div class="message-content">
-                    <p>Olá! Eu sou Flai, seu assistente de viagens virtual. Como posso ajudar você hoje?</p>
-                    <p>Escolha uma das modalidades acima:</p>
-                    <ul>
-                        <li><strong>Busca Rápida</strong>: Para encontrar os melhores voos rapidamente.</li>
-                        <li><strong>Planejamento Completo</strong>: Para criar um itinerário detalhado com voos, hotéis e atrações.</li>
-                    </ul>
+                    <p>Olá! Eu sou Avi, sua assistente de viagens. Como posso ajudar você hoje?</p>
+                    <div id="welcome-options-info">
+                        <p>Escolha uma das opções acima:</p>
+                        <ul>
+                            <li><strong>Busca Rápida</strong>: Encontre passagens aéreas de forma simples e rápida.</li>
+                            <li><strong>Planejamento Completo</strong>: Crie seu roteiro de viagem com voos, hotéis e atrações.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         `;

@@ -1,0 +1,18 @@
+/* Estilo para o modo de planejamento completo */
+.chat-container.planning-mode {
+    background-color: rgba(255, 159, 67, 0.05); /* Cor laranja com baixa opacidade */
+}
+
+/* Transição suave para mudança de modo */
+.chat-container {
+    transition: background-color 0.3s ease;
+}
+
+/* Estilo para welcome-options-info */
+#welcome-options-info {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--secondary-color);
+    background-color: rgba(46, 134, 222, 0.05);
+    border-radius: 0 4px 4px 0;
+}
