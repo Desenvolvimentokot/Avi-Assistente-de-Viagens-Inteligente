@@ -38,6 +38,11 @@ class FlightResultsPanel {
             this.toggleButton = document.querySelector('.toggle-flight-panel-btn');
         }
         
+        // Esconder o painel inicialmente - não mostrar no carregamento da página
+        this.hidePanel();
+        
+        // Animação de busca será criada quando necessário
+        
         // Criar overlay de transição
         if (!document.querySelector('.flight-transition-overlay')) {
             this.createTransitionOverlay();
@@ -70,8 +75,8 @@ class FlightResultsPanel {
             }
         });
         
-        // Restaurar estado anterior (se existir)
-        this.restoreState();
+        // NÃO restaurar estado - não queremos que o painel abra automaticamente
+        // this.restoreState();
     }
     
     setupSharedStorage() {
@@ -150,12 +155,71 @@ class FlightResultsPanel {
         this.transitionOverlay.innerHTML = `
             <div class="flight-transition-message">
                 <div class="flight-transition-icon">
-                    <i class="fas fa-plane-departure"></i>
+                    <i class="fas fa-plane-departure fa-bounce"></i>
                 </div>
                 <h3>Buscando voos reais para você</h3>
                 <p>A Avi está consultando a API Amadeus para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
             </div>
         `;
+        
+        // Adicionar CSS para o overlay
+        if (!document.getElementById('flight-overlay-style')) {
+            const style = document.createElement('style');
+            style.id = 'flight-overlay-style';
+            style.textContent = `
+                .flight-transition-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: opacity 0.3s ease, visibility 0.3s ease;
+                }
+                
+                .flight-transition-overlay.active {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .flight-transition-message {
+                    background: white;
+                    border-radius: 8px;
+                    padding: 30px;
+                    max-width: 500px;
+                    text-align: center;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                    animation: messageAppear 0.5s ease;
+                }
+                
+                .flight-transition-icon {
+                    font-size: 48px;
+                    color: #4a90e2;
+                    margin-bottom: 20px;
+                }
+                
+                @keyframes messageAppear {
+                    from { transform: translateY(-30px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                
+                .fa-bounce {
+                    animation: bounce 1s infinite;
+                }
+                
+                @keyframes bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-20px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
         
         // Adicionar ao body
         document.body.appendChild(this.transitionOverlay);
@@ -239,7 +303,14 @@ class FlightResultsPanel {
     showLoading() {
         this.panel.querySelector('.flight-results-content').innerHTML = `
             <div class="loader-container">
-                <div class="loader"></div>
+                <div class="search-animation">
+                    <div class="plane-container">
+                        <div class="plane">
+                            <i class="fas fa-plane"></i>
+                        </div>
+                        <div class="route-line"></div>
+                    </div>
+                </div>
                 <div class="loading-message">Buscando melhores ofertas de voos</div>
                 <div class="loading-steps">Consultando API Amadeus em tempo real...</div>
                 <div class="loading-progress">
@@ -247,6 +318,53 @@ class FlightResultsPanel {
                 </div>
             </div>
         `;
+        
+        // Adicionar CSS de animação para o avião
+        if (!document.getElementById('plane-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'plane-animation-style';
+            style.textContent = `
+                .search-animation {
+                    height: 120px;
+                    position: relative;
+                    margin: 30px 0;
+                }
+                .plane-container {
+                    position: relative;
+                    height: 60px;
+                    width: 100%;
+                }
+                .route-line {
+                    position: absolute;
+                    top: 50%;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(to right, #e0e0e0, #4a90e2, #e0e0e0);
+                    z-index: 1;
+                }
+                .plane {
+                    position: absolute;
+                    top: calc(50% - 15px);
+                    left: 0;
+                    font-size: 24px;
+                    color: #4a90e2;
+                    animation: fly-plane 3s infinite ease-in-out;
+                    z-index: 2;
+                }
+                .plane i {
+                    transform: rotate(45deg);
+                }
+                @keyframes fly-plane {
+                    0% { left: 0; transform: translateY(0); }
+                    25% { transform: translateY(-10px); }
+                    50% { left: calc(100% - 25px); transform: translateY(0); }
+                    75% { transform: translateY(10px); }
+                    100% { left: 0; transform: translateY(0); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
         
         // Animar a barra de progresso
         let progress = 0;

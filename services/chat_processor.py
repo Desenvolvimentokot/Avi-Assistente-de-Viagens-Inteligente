@@ -26,6 +26,95 @@ class ChatProcessor:
         """Inicializa o processador de chat"""
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
         self.sessions = {}  # Armazena informações das sessões de chat
+        
+    def validate_travel_info(self, travel_info):
+        """
+        Verifica se as informações de viagem são suficientes para busca
+        
+        Args:
+            travel_info: Dicionário com informações de viagem
+            
+        Returns:
+            dict: Dicionário de erros (vazio se não houver erros)
+        """
+        errors = {}
+        
+        # Verificar origem
+        if not travel_info.get('origin'):
+            errors['origin'] = 'Origem da viagem não informada'
+            
+        # Verificar destino
+        if not travel_info.get('destination'):
+            errors['destination'] = 'Destino da viagem não informado'
+            
+        # Verificar datas
+        if not travel_info.get('departure_date') and not travel_info.get('date_range_start'):
+            errors['date'] = 'Data da viagem não informada'
+            
+        return errors
+    
+    def format_travel_info_summary(self, travel_info):
+        """
+        Formata um resumo das informações de viagem para apresentação
+        
+        Args:
+            travel_info: Dicionário com informações de viagem
+            
+        Returns:
+            str: Resumo formatado das informações
+        """
+        summary = []
+        
+        # Adicionar origem
+        if travel_info.get('origin'):
+            summary.append(f"Origem: {travel_info.get('origin')}")
+            
+        # Adicionar destino
+        if travel_info.get('destination'):
+            summary.append(f"Destino: {travel_info.get('destination')}")
+            
+        # Adicionar data de ida
+        if travel_info.get('departure_date_formatted'):
+            summary.append(f"Data de ida: {travel_info.get('departure_date_formatted')}")
+        elif travel_info.get('departure_date'):
+            summary.append(f"Data de ida: {travel_info.get('departure_date')}")
+            
+        # Adicionar data de volta
+        if travel_info.get('return_date_formatted'):
+            summary.append(f"Data de volta: {travel_info.get('return_date_formatted')}")
+        elif travel_info.get('return_date'):
+            summary.append(f"Data de volta: {travel_info.get('return_date')}")
+            
+        # Adicionar número de passageiros
+        if travel_info.get('adults'):
+            summary.append(f"Passageiros: {travel_info.get('adults')} adulto(s)")
+            
+        return "\n".join(summary)
+    
+    def get_flight_search_intro(self, origin, destination):
+        """
+        Gera uma introdução amigável para os resultados de voo
+        
+        Args:
+            origin: Código do aeroporto de origem
+            destination: Código do aeroporto de destino
+            
+        Returns:
+            str: Introdução para os resultados de voo
+        """
+        return f"Estou buscando as melhores opções de voo de {origin} para {destination}..."
+    
+    def format_error_message(self, error_message):
+        """
+        Formata uma mensagem de erro para apresentação ao usuário
+        
+        Args:
+            error_message: Mensagem de erro original
+            
+        Returns:
+            str: Mensagem de erro formatada
+        """
+        return f"Desculpe, tive um problema na busca: {error_message}"
     
     def process_message(self, message, user_id=None, conversation_id=None):
         """
