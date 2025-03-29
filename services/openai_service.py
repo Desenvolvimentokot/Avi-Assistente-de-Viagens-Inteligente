@@ -73,15 +73,52 @@ class OpenAIService:
     
     def travel_assistant(self, user_message, conversation_history=None, system_context=""):
         """
-        Especialização do assistente para planejamento de viagens
+        FUNÇÃO DESATIVADA PARA A PARTE DE BUSCA DE VOOS
+
+        Este serviço foi substituído por um sistema de busca direta na API Amadeus
+        para garantir que apenas dados reais sejam apresentados ao usuário.
         
-        Parâmetros:
-        - user_message: mensagem do usuário
-        - conversation_history: histórico da conversa
-        - system_context: contexto adicional para o sistema
+        AVISO: Esta função faz a verificação de conteúdo e BLOQUEIA chamadas relacionadas 
+        a voos ou ofertas de viagem, que devem passar exclusivamente pelo conector da Amadeus.
         """
         if conversation_history is None:
             conversation_history = []
+        
+        # VERIFICAÇÃO CRÍTICA: Detectar se é uma solicitação de busca de voos/passagens
+        is_flight_search = False
+        
+        # Lista de palavras-chave para identificar buscas de voos
+        flight_keywords = [
+            "voo", "passagem", "voar", "aéreo", "aérea", "avião", "aereo", "aerea",
+            "aeroporto", "partida", "chegada", "origem", "destino", "decolagem", "pouso",
+            "companhia aérea", "companhia aerea", "GOL", "LATAM", "Azul", "ida e volta", "só ida",
+            "confirmo", "quero essas", "confirmar", "reservar", "comprar passagem", "comprar voo"
+        ]
+        
+        # Verificar se a mensagem contém alguma palavra-chave de busca de voos
+        user_message_lower = user_message.lower()
+        if any(keyword in user_message_lower for keyword in flight_keywords):
+            is_flight_search = True
+            
+        # Verificar se o contexto indica busca de voos
+        flight_context_keywords = [
+            "busca de voos", "busca de passagens", "pesquisa de voos", "voos disponíveis",
+            "passagens disponíveis", "confirmar detalhes", "busca confirmada"
+        ]
+        
+        if system_context and any(keyword in system_context.lower() for keyword in flight_context_keywords):
+            is_flight_search = True
+        
+        # SE FOR BUSCA DE VOOS, RETORNAR RESPOSTA PADRONIZADA SEM CHAMAR API
+        if is_flight_search:
+            # IMPORTANTE: Isso evita COMPLETAMENTE a chamada à API OpenAI para buscas de voos
+            logging.warning(f"🚫 BLOQUEIO TOTAL: Solicitação de voos detectada. Usando fluxo da Amadeus em vez de OpenAI.")
+            return {
+                'response': "Estou buscando as melhores opções de voos usando a API da Amadeus..."
+            }
+        
+        # PARA OUTROS TIPOS DE SOLICITAÇÕES, PODE CHAMAR A API NORMALMENTE
+        logging.info(f"Processando mensagem de usuário não relacionada a voos (conversa geral)")
         
         # Importar os prompts do Avi
         from services.prompts.avi_system_prompt import AVI_SYSTEM_PROMPT
@@ -89,50 +126,29 @@ class OpenAIService:
         from services.prompts.planejamento_completo_prompt import PLANEJAMENTO_COMPLETO_PROMPT
         
         # Identificar o contexto atual com base na mensagem e histórico
-        # Por padrão, usamos o prompt base
         current_prompt = AVI_SYSTEM_PROMPT
         
         # Verificar se há um contexto específico de modo de busca
-        if "busca rápida" in user_message.lower() or any("busca rápida" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):
-            current_prompt += "\n\n" + BUSCA_RAPIDA_PROMPT
-        elif "planejamento completo" in user_message.lower() or any("planejamento completo" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):
+        if "planejamento completo" in user_message.lower() or any("planejamento completo" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):
             current_prompt += "\n\n" + PLANEJAMENTO_COMPLETO_PROMPT
             
         # Criação do sistema de mensagens com o contexto da Avi
         base_system_content = current_prompt
         
-        # Adicionar funcionalidades específicas
-        base_system_content += """
-            Funcionalidades da Avi:
-            
-            1. Ajudar os usuários a planejar viagens completas
-            2. Recomendar destinos com base nos interesses e preferências do usuário
-            3. Sugerir acomodações, restaurantes, atrações e atividades
-            4. Fornecer informações sobre voos, transporte local e requisitos de viagem
-            5. Responder dúvidas sobre destinos, clima, cultura local, e dicas de viagem
-            6. Montar itinerários personalizados com base nas necessidades do usuário
-            
-            Instruções de processamento:
-            
-            - Analise cuidadosamente as menções de datas como períodos aproximados (ex: "primeira semana de novembro", "no mês de janeiro")
-            - Quando um período aproximado for mencionado, identifique o intervalo de datas exato correspondente
-            - Extraia dados específicos como origem, destino, datas, número de pessoas e preferências
-            - Identifique e armazene informações importantes mesmo que o usuário as mencione em diferentes mensagens
-            
-            Instruções específicas:
-            
-            - Responda sempre em português brasileiro
-            - Seja amigável, prestativo e entusiasmado sobre viagens
-            - Personalize suas respostas de acordo com as preferências do usuário
-            - Quando falar de preços, utilize o Real (R$) como moeda
-            - Sugira destinos específicos e com detalhes quando o usuário pedir recomendações
-            - Não seja excessivamente prolixo, seja conciso e direto quando necessário
-            - Quando apresentar opções de voos ou hotéis, indique claramente como o usuário pode realizar a compra
-        """
-            
         # Adicionar contexto específico do sistema, se fornecido
         if system_context:
             base_system_content += f"\n\n{system_context}"
+            
+        # IMPORTANTE: Avisar explicitamente para NÃO simular voos
+        base_system_content += """
+        ATENÇÃO CRÍTICA: NÃO TENTE BUSCAR OU SIMULAR INFORMAÇÕES DE VOOS!
+        
+        - NUNCA forneça informações de preços, horários ou disponibilidade de voos
+        - NUNCA simule ou invente informações de passagens aéreas
+        - Se o usuário perguntar sobre voos específicos, explique que você está verificando
+          a API da Amadeus para obter dados reais e confiáveis
+        - Apenas responda perguntas gerais sobre viagens, sem fornecer informações de voos específicos
+        """
             
         system_message = {
             "role": "system",

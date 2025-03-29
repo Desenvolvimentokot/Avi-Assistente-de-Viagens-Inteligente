@@ -8,12 +8,16 @@ class FlightPanel {
         this.panel = null;
         this.overlay = null;
         this.toggleButton = null;
+        this.contentArea = null;
+        this.resultsContainer = null;
         
         // Estado
         this.isVisible = false;
         this.isLoading = false;
         this.sessionId = null;
         this.searchData = null;
+        this.pollCount = 0;
+        this.maxPolls = 10;
         
         // Inicialização
         this.init();
@@ -21,6 +25,17 @@ class FlightPanel {
         // Disponibilizar globalmente
         window.flightPanel = this;
         console.log("Novo painel de voos inicializado com sucesso");
+        
+        // Timer para auto-mostrar o painel se houver flag no localStorage
+        setTimeout(() => {
+            const savedSession = localStorage.getItem('currentSessionId');
+            const autoShow = localStorage.getItem('autoShowFlightPanel') === 'true';
+            
+            if (autoShow && savedSession) {
+                console.log("🔄 Auto-show do painel ativado! Usando sessão salva:", savedSession);
+                this.loadFlightData(savedSession);
+            }
+        }, 1000);
     }
     
     // Inicializar o painel

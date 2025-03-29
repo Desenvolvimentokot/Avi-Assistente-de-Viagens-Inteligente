@@ -253,44 +253,81 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.warn("ALERTA: Não recebemos session_id do servidor!");
                 }
                 
-                // NOVO SISTEMA DE EXIBIÇÃO DO PAINEL DE VOOS
-                // Utiliza o novo componente FlightPanel para garantir exibição correta
+                // ACIONAMENTO DIRETO DO PAINEL DE VOOS - SEM DEPENDER DE EVENTOS
                 if (data.trigger_flight_panel) {
-                    console.log("Backend solicitou abertura do painel de voos!");
+                    console.log("🎯 ATIVAÇÃO DIRETA: Backend solicitou abertura do painel de voos!");
                     
                     // Verificar se temos um ID de sessão válido
                     const validSessionId = data.session_id || sessionId;
                     
                     // Adicionar uma pequena mensagem de direcionamento na conversa
-                    addMessage("👉 Buscando resultados reais de voos na API Amadeus. Confira o painel lateral!", false);
+                    addMessage("✈️ Resultados reais da API Amadeus carregados! Confira o painel lateral →", false);
                     
-                    // Verificar se o novo painel está disponível
-                    if (window.flightPanel) {
-                        console.log("Usando novo painel de voos com ID de sessão:", validSessionId);
-                        
-                        // Disparar evento para abrir imediatamente, mesmo sem resultados
+                    // SOLUÇÃO DEFINITIVA: Acionar diretamente a biblioteca de interface
+                    console.log("Salvando flags para garantir exibição do painel");
+                    
+                    // Salvar no localStorage para persistência
+                    localStorage.setItem('currentSessionId', validSessionId);
+                    localStorage.setItem('autoShowFlightPanel', 'true');
+                    
+                    // GARANTIR QUE O PAINEL SEJA CRIADO
+                    if (!window.flightPanel) {
+                        console.log("🔥 Criando novo FlightPanel sob demanda");
+                        // Criar o painel sob demanda se não existir
+                        const script = document.createElement('script');
+                        script.textContent = 'new FlightPanel();';
+                        document.head.appendChild(script);
+                    }
+                    
+                    // MÚLTIPLAS TENTATIVAS DE ABRIR O PAINEL
+                    // Tentar imediatamente
+                    try {
+                        if (window.flightPanel) {
+                            console.log("⚡ CHAMADA DIRETA: Abrindo painel");
+                            window.flightPanel.show();
+                            window.flightPanel.loadFlightData(validSessionId);
+                        }
+                    } catch (e) {
+                        console.error("Erro ao acionar painel diretamente:", e);
+                    }
+                    
+                    // Tentar via evento personalizado
+                    try {
+                        console.log("📢 Disparando evento de abertura de painel");
                         document.dispatchEvent(new CustomEvent('forceOpenFlightPanel', {
                             detail: {
                                 sessionId: validSessionId
                             }
                         }));
-                    } else {
-                        console.warn("Novo painel de voos não encontrado, esperando inicialização...");
-                        
-                        // Esperar um pouco e tentar novamente
-                        setTimeout(() => {
-                            if (window.flightPanel) {
-                                document.dispatchEvent(new CustomEvent('forceOpenFlightPanel', {
-                                    detail: {
-                                        sessionId: validSessionId
-                                    }
-                                }));
-                            } else {
-                                console.error("Erro crítico: Painel de voos não disponível!");
-                                addMessage("⚠️ Não foi possível abrir o painel de resultados de voos. Por favor, recarregue a página e tente novamente.", false);
-                            }
-                        }, 1000);
+                    } catch (e) {
+                        console.error("Erro ao disparar evento:", e);
                     }
+                    
+                    // Tentar após um delay 
+                    setTimeout(() => {
+                        try {
+                            console.log("⏱️ Tentativa após delay");
+                            
+                            if (window.flightPanel) {
+                                window.flightPanel.show();
+                                window.flightPanel.loadFlightData(validSessionId);
+                            } else {
+                                // Última tentativa: recriar o painel
+                                console.log("🔄 Recriando painel como último recurso");
+                                new FlightPanel();
+                                
+                                setTimeout(() => {
+                                    if (window.flightPanel) {
+                                        window.flightPanel.show();
+                                        window.flightPanel.loadFlightData(validSessionId);
+                                    }
+                                }, 500);
+                            }
+                        } catch (e) {
+                            console.error("Erro na tentativa com delay:", e);
+                            addMessage("⚠️ Problema ao exibir o painel de voos. Tente recarregar a página.", false);
+                        }
+                    }, 1000);
                 }
             }
 
