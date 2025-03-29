@@ -1,3 +1,40 @@
+
+/* Estilos para o painel de resultados de voos */
+.error-message {
+    padding: 20px;
+    text-align: center;
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 5px;
+    margin: 20px 0;
+}
+
+.error-details {
+    font-size: 14px;
+    margin-top: 10px;
+    color: #6c757d;
+    font-family: monospace;
+    text-align: left;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 3px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.no-results {
+    padding: 20px;
+    text-align: center;
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 5px;
+    margin: 20px 0;
+}
+
+/* Restante dos estilos será mantido se já existirem */
+
 /* Estilos para o painel lateral de resultados de voos */
 .flight-results-panel {
   position: fixed;
