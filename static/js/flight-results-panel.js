@@ -79,8 +79,25 @@ class FlightResultsPanel {
         this.panel.querySelector('.flight-results-content').innerHTML = `
             <div class="loader-container">
                 <div class="loader"></div>
+                <div class="loading-message">Buscando melhores ofertas de voos</div>
+                <div class="loading-steps">Consultando API Amadeus em tempo real...</div>
+                <div class="loading-progress">
+                    <div class="loading-progress-bar" id="loadingProgressBar"></div>
+                </div>
             </div>
         `;
+        
+        // Animar a barra de progresso
+        let progress = 0;
+        this.loadingInterval = setInterval(() => {
+            if (progress < 90) { // Só vai até 90% para mostrar que ainda está carregando
+                progress += 5;
+                const progressBar = document.getElementById('loadingProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                }
+            }
+        }, 300);
     }
 
     showError(message) {
@@ -132,6 +149,12 @@ class FlightResultsPanel {
     }
 
     renderResults(data) {
+        // Limpar o intervalo de animação da barra de progresso
+        if (this.loadingInterval) {
+            clearInterval(this.loadingInterval);
+            this.loadingInterval = null;
+        }
+        
         // Verificar se temos dados para mostrar
         if (data.error) {
             this.showError(data.error);
