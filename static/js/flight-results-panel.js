@@ -309,7 +309,7 @@ class FlightResultsPanel {
                 const headerEl = this.panel.querySelector('.flight-results-header span');
                 if (headerEl) {
                     headerEl.textContent = "Resultados de Teste - API Amadeus";
-                    headerEl.style.color = "#ff9f43";
+                    headerEl.style.color = "white";
                 }
             })
             .catch(error => {

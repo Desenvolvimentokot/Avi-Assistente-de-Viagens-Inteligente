@@ -87,6 +87,42 @@ class ChatProcessor:
             'mexico city': ['MEX'],
         }
     
+    def parse_relative_date(self, text):
+        """
+        Analisa datas relativas na mensagem, como "próximo mês", "daqui a 1 semana", etc.
+        Retorna a data calculada no formato YYYY-MM-DD
+        """
+        text = text.lower()
+        today = datetime.now()
+        
+        # Padrões para datas relativas
+        if re.search(r'amanh[ãa]', text):
+            return (today + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # Próxima semana
+        if 'próxima semana' in text or 'proxima semana' in text:
+            return (today + timedelta(days=7)).strftime('%Y-%m-%d')
+            
+        # Daqui a X dias/semanas/meses
+        days_match = re.search(r'daqui a (\d+) dia[s]?', text)
+        if days_match:
+            days = int(days_match.group(1))
+            return (today + timedelta(days=days)).strftime('%Y-%m-%d')
+            
+        weeks_match = re.search(r'daqui a (\d+) semana[s]?', text)
+        if weeks_match:
+            weeks = int(weeks_match.group(1))
+            return (today + timedelta(days=weeks*7)).strftime('%Y-%m-%d')
+            
+        months_match = re.search(r'daqui a (\d+) m[êe]s[es]?', text)
+        if months_match:
+            months = int(months_match.group(1))
+            # Aproximação simples - um mês = 30 dias
+            return (today + timedelta(days=months*30)).strftime('%Y-%m-%d')
+            
+        # Se não encontrar nenhum padrão relativo, retorna None
+        return None
+        
     def extract_travel_info(self, message, current_context=None):
         """
         Extrai informações de viagem de uma mensagem de texto
@@ -97,6 +133,19 @@ class ChatProcessor:
             
         # Identificar padrões específicos para ajudar na extração
         message_lower = message.lower()
+        
+        # Verificar se temos datas relativas na mensagem
+        relative_date = self.parse_relative_date(message_lower)
+        if relative_date:
+            logger.info(f"Detectada data relativa na mensagem: {relative_date}")
+            # Dependendo do contexto, decidir se é data de ida ou período
+            if current_context.get('return_date') or 'volta' in message_lower:
+                return {'return_date': relative_date}
+            elif current_context.get('departure_date') or not re.search(r'ida.*volta', message_lower, re.IGNORECASE):
+                return {'departure_date': relative_date}
+            else:
+                # Se não conseguir decidir, assume data de ida
+                return {'departure_date': relative_date}
         
         # Extração especial para "Miami"
         # Se o usuário menciona Miami como destino, mas não especifica origem
@@ -221,14 +270,20 @@ class ChatProcessor:
         departure_date = "não informada"
         return_date = "não informada"
         
-        if travel_info.get('departure_date'):
+        # Primeiro tentar usar datas formatadas pré-calculadas com dia da semana
+        if travel_info.get('departure_date_formatted'):
+            departure_date = travel_info['departure_date_formatted']
+        elif travel_info.get('departure_date'):
             try:
                 date_obj = datetime.strptime(travel_info['departure_date'], '%Y-%m-%d')
                 departure_date = date_obj.strftime('%d/%m/%Y')
             except Exception:
                 departure_date = travel_info['departure_date']
         
-        if travel_info.get('return_date'):
+        # Primeiro tentar usar datas formatadas pré-calculadas com dia da semana
+        if travel_info.get('return_date_formatted'):
+            return_date = travel_info['return_date_formatted']
+        elif travel_info.get('return_date'):
             try:
                 date_obj = datetime.strptime(travel_info['return_date'], '%Y-%m-%d')
                 return_date = date_obj.strftime('%d/%m/%Y')

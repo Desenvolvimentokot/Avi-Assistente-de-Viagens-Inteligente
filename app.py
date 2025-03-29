@@ -143,12 +143,39 @@ def chat():
                     step = 1
                     
                     # Formatar as informações para confirmar
-                    summary = chat_processor.format_travel_info_summary(current_travel_info)
+                    # Converter datas relativas em datas exatas para apresentação
+                    # Clonar o dicionário para não modificar o original
+                    presentation_info = current_travel_info.copy()
+                    
+                    # Formatar para mostrar data completa formatada
+                    if 'departure_date' in presentation_info:
+                        try:
+                            date_obj = datetime.strptime(presentation_info['departure_date'], '%Y-%m-%d')
+                            # Adicionar dia da semana à apresentação
+                            dias_semana = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo']
+                            dia_semana = dias_semana[date_obj.weekday()]
+                            presentation_info['departure_date_formatted'] = f"{date_obj.strftime('%d/%m/%Y')} ({dia_semana})"
+                        except Exception as e:
+                            logger.error(f"Erro ao formatar data de partida: {str(e)}")
+                    
+                    if 'return_date' in presentation_info:
+                        try:
+                            date_obj = datetime.strptime(presentation_info['return_date'], '%Y-%m-%d')
+                            # Adicionar dia da semana à apresentação
+                            dias_semana = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo']
+                            dia_semana = dias_semana[date_obj.weekday()]
+                            presentation_info['return_date_formatted'] = f"{date_obj.strftime('%d/%m/%Y')} ({dia_semana})"
+                        except Exception as e:
+                            logger.error(f"Erro ao formatar data de retorno: {str(e)}")
+                    
+                    summary = chat_processor.format_travel_info_summary(presentation_info)
+                    
                     system_context = f"""
                     Temos todas as informações necessárias para busca:
                     {summary}
                     
                     Confirme estes detalhes com o usuário de forma natural antes de realizar a busca.
+                    IMPORTANTE: Mostre exatamente as datas formatadas como estão no resumo acima.
                     NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
                     """
                     
