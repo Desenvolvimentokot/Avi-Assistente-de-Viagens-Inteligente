@@ -6,9 +6,15 @@
 class FlightResultsPanel {
     constructor() {
         this.panel = null;
+        this.toggleButton = null;
+        this.transitionOverlay = null;
         this.isActive = false;
         this.currentSessionId = null;
+        this.selectedFlightData = null; // Para armazenar a escolha do usuário
         this.init();
+        
+        // Configurar armazenamento compartilhado
+        this.setupSharedStorage();
     }
 
     init() {
@@ -18,14 +24,146 @@ class FlightResultsPanel {
         } else {
             this.panel = document.querySelector('.flight-results-panel');
         }
+        
+        // Criar o botão de toggle se ainda não existir
+        if (!document.querySelector('.toggle-flight-panel-btn')) {
+            this.createToggleButton();
+        } else {
+            this.toggleButton = document.querySelector('.toggle-flight-panel-btn');
+        }
+        
+        // Criar overlay de transição
+        if (!document.querySelector('.flight-transition-overlay')) {
+            this.createTransitionOverlay();
+        } else {
+            this.transitionOverlay = document.querySelector('.flight-transition-overlay');
+        }
 
         // Adicionar listener para eventos de mensagens que mostram o painel
         document.addEventListener('showFlightResults', (event) => {
             console.log('Evento showFlightResults recebido:', event.detail);
             if (event.detail && event.detail.sessionId) {
-                this.loadAndShowResults(event.detail.sessionId);
+                // Mostrar overlay de transição antes de mostrar os resultados
+                this.showTransitionMessage(() => {
+                    this.loadAndShowResults(event.detail.sessionId);
+                });
             }
         });
+        
+        // Adicionar listener para verificar mudanças no localStorage
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'flightPanelState') {
+                const state = JSON.parse(event.newValue || '{}');
+                if (state.isActive !== undefined && state.isActive !== this.isActive) {
+                    if (state.isActive) {
+                        this.showPanel();
+                    } else {
+                        this.hidePanel();
+                    }
+                }
+            }
+        });
+        
+        // Restaurar estado anterior (se existir)
+        this.restoreState();
+    }
+    
+    setupSharedStorage() {
+        // Criar objeto global para compartilhar dados entre componentes
+        if (!window.flightSharedData) {
+            window.flightSharedData = {
+                selectedFlight: null,
+                searchResults: null,
+                lastSessionId: null
+            };
+        }
+    }
+    
+    // Salvar estado no localStorage para persistência
+    saveState() {
+        const state = {
+            isActive: this.isActive,
+            sessionId: this.currentSessionId,
+            selectedFlight: this.selectedFlightData
+        };
+        localStorage.setItem('flightPanelState', JSON.stringify(state));
+        
+        // Atualizar também o objeto compartilhado
+        if (window.flightSharedData) {
+            window.flightSharedData.selectedFlight = this.selectedFlightData;
+            window.flightSharedData.lastSessionId = this.currentSessionId;
+        }
+    }
+    
+    // Restaurar estado do localStorage
+    restoreState() {
+        try {
+            const savedState = JSON.parse(localStorage.getItem('flightPanelState') || '{}');
+            if (savedState.isActive) {
+                // Se estava ativo, mostrar novamente
+                this.currentSessionId = savedState.sessionId;
+                this.selectedFlightData = savedState.selectedFlight;
+                
+                // Se tivermos um ID de sessão, tentar carregar os dados novamente
+                if (this.currentSessionId) {
+                    this.loadAndShowResults(this.currentSessionId);
+                } else {
+                    this.showPanel();
+                }
+            }
+            
+            // Atualizar objeto compartilhado
+            if (window.flightSharedData) {
+                window.flightSharedData.selectedFlight = this.selectedFlightData;
+                window.flightSharedData.lastSessionId = this.currentSessionId;
+            }
+        } catch (error) {
+            console.error('Erro ao restaurar estado do painel:', error);
+        }
+    }
+    
+    // Criar botão flutuante para toggle do painel
+    createToggleButton() {
+        this.toggleButton = document.createElement('button');
+        this.toggleButton.className = 'toggle-flight-panel-btn';
+        this.toggleButton.innerHTML = '<i class="fas fa-plane"></i><span>Ver Voos</span>';
+        
+        // Adicionar ao body
+        document.body.appendChild(this.toggleButton);
+        
+        // Adicionar evento de clique
+        this.toggleButton.addEventListener('click', () => {
+            this.togglePanel();
+        });
+    }
+    
+    // Criar overlay de transição
+    createTransitionOverlay() {
+        this.transitionOverlay = document.createElement('div');
+        this.transitionOverlay.className = 'flight-transition-overlay';
+        this.transitionOverlay.innerHTML = `
+            <div class="flight-transition-message">
+                <div class="flight-transition-icon">
+                    <i class="fas fa-plane-departure"></i>
+                </div>
+                <h3>Buscando voos reais para você</h3>
+                <p>A Avi está consultando a API Amadeus para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
+            </div>
+        `;
+        
+        // Adicionar ao body
+        document.body.appendChild(this.transitionOverlay);
+    }
+    
+    // Mostrar mensagem de transição por alguns segundos antes de mostrar os resultados
+    showTransitionMessage(callback) {
+        this.transitionOverlay.classList.add('active');
+        
+        // Esconder após 2.5 segundos
+        setTimeout(() => {
+            this.transitionOverlay.classList.remove('active');
+            if (callback) callback();
+        }, 2500);
     }
 
     createPanel() {
@@ -60,11 +198,28 @@ class FlightResultsPanel {
     showPanel() {
         this.panel.classList.add('active');
         this.isActive = true;
+        
+        // Mostrar o botão de toggle
+        if (this.toggleButton) {
+            this.toggleButton.style.display = 'block';
+            this.toggleButton.classList.add('panel-visible');
+        }
+        
+        // Salvar o estado
+        this.saveState();
     }
 
     hidePanel() {
         this.panel.classList.remove('active');
         this.isActive = false;
+        
+        // Reposicionar o botão de toggle
+        if (this.toggleButton) {
+            this.toggleButton.classList.remove('panel-visible');
+        }
+        
+        // Salvar o estado
+        this.saveState();
     }
 
     togglePanel() {
@@ -255,15 +410,192 @@ class FlightResultsPanel {
     }
 
     showFlightDetails(offerId) {
-        // Implementação futura para mostrar detalhes do voo
-        console.log(`Mostrando detalhes do voo ${offerId}`);
-        alert(`Detalhes do voo ${offerId} serão implementados em breve.`);
+        // Encontrar a oferta correspondente
+        fetch(`/api/flight_results/${this.currentSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                const offers = data.data || [];
+                const selectedOffer = offers.find(offer => offer.id === offerId);
+                
+                if (selectedOffer) {
+                    // Salvar a oferta selecionada
+                    this.selectedFlightData = selectedOffer;
+                    this.saveState();
+                    
+                    // Atualizar objeto compartilhado
+                    if (window.flightSharedData) {
+                        window.flightSharedData.selectedFlight = selectedOffer;
+                    }
+                    
+                    // Criar modal com detalhes do voo
+                    this.showFlightDetailsModal(selectedOffer);
+                    
+                    // Disparar evento para informar o chat que um voo foi selecionado
+                    document.dispatchEvent(new CustomEvent('flightSelected', {
+                        detail: {
+                            flightData: selectedOffer
+                        }
+                    }));
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao buscar detalhes do voo:', error);
+                alert('Não foi possível obter os detalhes deste voo. Tente novamente.');
+            });
+    }
+    
+    showFlightDetailsModal(flightData) {
+        // Extrair informações do voo
+        const itinerary = flightData.itineraries[0];
+        const price = flightData.price.total;
+        const currency = flightData.price.currency;
+        
+        // Criar modal com animação
+        const modal = document.createElement('div');
+        modal.className = 'flight-details-modal';
+        modal.innerHTML = `
+            <div class="flight-details-modal-content">
+                <div class="flight-details-modal-header">
+                    <h3>Detalhes do Voo</h3>
+                    <button class="close-modal-btn">&times;</button>
+                </div>
+                <div class="flight-details-modal-body">
+                    <div class="flight-details-price">
+                        <span class="price-label">Preço Total:</span>
+                        <span class="price-value">${currency} ${parseFloat(price).toFixed(2)}</span>
+                    </div>
+                    <div class="flight-itinerary">
+                        <h4>Itinerário</h4>
+                        <div class="flight-segments">
+                            ${this.renderSegments(itinerary.segments)}
+                        </div>
+                    </div>
+                </div>
+                <div class="flight-details-modal-footer">
+                    <button class="select-flight-btn" data-offer-id="${flightData.id}">Selecionar Este Voo</button>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar modal ao DOM
+        document.body.appendChild(modal);
+        
+        // Adicionar evento de fechar
+        modal.querySelector('.close-modal-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Adicionar evento de seleção
+        modal.querySelector('.select-flight-btn').addEventListener('click', () => {
+            this.bookFlight(flightData.id);
+            modal.remove();
+        });
+        
+        // Exibir modal com animação
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 50);
+    }
+    
+    // Renderizar segmentos do voo
+    renderSegments(segments) {
+        let html = '';
+        
+        segments.forEach((segment, index) => {
+            const departure = segment.departure;
+            const arrival = segment.arrival;
+            const duration = this.formatDuration(segment.duration);
+            
+            html += `
+                <div class="flight-segment-details">
+                    <div class="segment-header">
+                        <span class="segment-airline">${segment.carrierCode} ${segment.number}</span>
+                        <span class="segment-duration">${duration}</span>
+                    </div>
+                    <div class="segment-route">
+                        <div class="segment-departure">
+                            <div class="segment-airport">${departure.iataCode}</div>
+                            <div class="segment-time">${this.formatDateTime(departure.at)}</div>
+                        </div>
+                        <div class="segment-arrow">→</div>
+                        <div class="segment-arrival">
+                            <div class="segment-airport">${arrival.iataCode}</div>
+                            <div class="segment-time">${this.formatDateTime(arrival.at)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Adicionar indicador de conexão entre segmentos
+            if (index < segments.length - 1) {
+                const connectionTime = this.calculateConnectionTime(segment.arrival.at, segments[index + 1].departure.at);
+                html += `
+                    <div class="segment-connection">
+                        <div class="connection-indicator">
+                            <div class="connection-line"></div>
+                            <div class="connection-dot"></div>
+                        </div>
+                        <div class="connection-info">
+                            <span class="connection-airport">${arrival.iataCode}</span>
+                            <span class="connection-time">${connectionTime} de conexão</span>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        return html;
+    }
+    
+    // Calcular tempo de conexão entre segmentos
+    calculateConnectionTime(arrivalTime, departureTime) {
+        const arrival = new Date(arrivalTime);
+        const departure = new Date(departureTime);
+        
+        const diffMs = departure - arrival;
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return diffHrs > 0 ? `${diffHrs}h ${diffMins}m` : `${diffMins}m`;
     }
 
     bookFlight(offerId) {
-        // Implementação futura para iniciar o processo de reserva
-        console.log(`Iniciando reserva do voo ${offerId}`);
-        alert(`Processo de reserva para o voo ${offerId} será implementado em breve.`);
+        // Encontrar a oferta correspondente
+        fetch(`/api/flight_results/${this.currentSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                const offers = data.data || [];
+                const selectedOffer = offers.find(offer => offer.id === offerId);
+                
+                if (selectedOffer) {
+                    // Salvar a oferta selecionada
+                    this.selectedFlightData = selectedOffer;
+                    this.saveState();
+                    
+                    // Atualizar objeto compartilhado
+                    if (window.flightSharedData) {
+                        window.flightSharedData.selectedFlight = selectedOffer;
+                    }
+                    
+                    // Fechar o painel
+                    this.hidePanel();
+                    
+                    // Disparar evento para informar o chat que um voo foi selecionado
+                    document.dispatchEvent(new CustomEvent('flightSelected', {
+                        detail: {
+                            flightData: selectedOffer,
+                            message: "Voo selecionado com sucesso"
+                        }
+                    }));
+                    
+                    // Mostrar mensagem de confirmação
+                    alert('Voo selecionado com sucesso! Agora você pode continuar a conversa com a Avi.');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao selecionar voo:', error);
+                alert('Não foi possível selecionar este voo. Tente novamente.');
+            });
     }
 
     // Utilitários para formatação

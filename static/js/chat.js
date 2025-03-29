@@ -1,4 +1,34 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Listener para evento de seleção de voo
+    document.addEventListener('flightSelected', (event) => {
+        console.log('Chat: Evento flightSelected recebido:', event.detail);
+        
+        if (event.detail && event.detail.flightData) {
+            // Obter os dados do voo selecionado
+            const flightData = event.detail.flightData;
+            
+            // Armazenar no contexto
+            if (chatContext) {
+                chatContext.selectedFlight = flightData;
+            }
+            
+            // Se estiver aguardando seleção, adicionar mensagem confirmando
+            const firstSegment = flightData.itineraries[0].segments[0];
+            const lastSegment = flightData.itineraries[0].segments[flightData.itineraries[0].segments.length - 1];
+            
+            // Formatar mensagem com detalhes básicos do voo selecionado
+            const message = `✅ Voo selecionado: ${firstSegment.carrierCode} de ${firstSegment.departure.iataCode} para ${lastSegment.arrival.iataCode} por ${flightData.price.currency} ${parseFloat(flightData.price.total).toFixed(2)}`;
+            
+            // Adicionar como mensagem do assistente
+            addMessage(message, false);
+            
+            // Adicionar mensagem sugerindo continuar a conversa
+            addMessage("Você pode me fazer perguntas específicas sobre este voo ou solicitar outras informações para sua viagem.", false);
+            
+            // Scroll para mostrar a mensagem
+            scrollToBottom();
+        }
+    });
     // Elementos do DOM
     const chatMessages = document.querySelector('.chat-messages');
     const messageInput = document.querySelector('.message-input');
@@ -10,10 +40,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentConversationId = null;
     let sessionId = null; // Para manter a sessão com o servidor
     let chatHistory = []; // Para manter o histórico da conversa
+    let awaitingFlightSelection = false; // Flag para controlar se estamos esperando o usuário selecionar um voo
     let chatContext = {
         mode: 'quick-search',
         quickSearchStep: 0,
-        quickSearchData: {}
+        quickSearchData: {},
+        selectedFlight: null // Para armazenar os dados do voo selecionado
     };
 
     // Inicialização
