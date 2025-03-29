@@ -1,0 +1,86 @@
+O erro de SSL aparentemente foi resolvido, mas agora o painel lateral está exibindo a mensagem:
+
+"Não é possível obter resultados sem uma sessão válida. Tente novamente."
+
+Isso geralmente significa que o session_id não está sendo transmitido ou reconhecido corretamente pelo painel quando ele tenta buscar os voos reais.
+
+A seguir estão os pontos principais a verificar para resolver esse problema:
+
+1. Certifique-se de que o endpoint de chat retorna session_id
+No endpoint que processa a mensagem do usuário (por exemplo, /api/chat), verifique se você está incluindo algo assim no dicionário de resposta:
+
+python
+Copy
+response = {
+    "response": resposta_do_gpt,
+    "session_id": session_id_valido,
+    # ... demais campos ...
+}
+Sem isso, o frontend não terá como saber qual é o ID de sessão que o backend está usando.
+
+2. Garanta que o frontend armazene o session_id
+No arquivo JavaScript que processa a resposta do chat (por exemplo, chat.js), você precisa capturar o session_id retornado e salvar em algum lugar acessível ao painel lateral. Exemplos:
+
+js
+Copy
+fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message, history })
+})
+.then(response => response.json())
+.then(data => {
+  // Se o backend retornar data.session_id
+  if (data.session_id) {
+    localStorage.setItem('currentSessionId', data.session_id);
+  }
+
+  // Exibir a resposta do GPT no chat...
+});
+Assim, você garante que o session_id seja persistido (por exemplo, no localStorage) para uso posterior.
+
+3. Verifique como o painel lateral lê o session_id
+No arquivo do painel lateral (por exemplo, flight-results-panel.js), verifique se a função que carrega os voos está fazendo algo como:
+
+js
+Copy
+loadAndShowResults(sessionId) {
+  if (!sessionId) {
+    // Exibir a mensagem "Não é possível obter resultados sem uma sessão válida"
+    return;
+  }
+  // Chamar o endpoint real, por ex: `/api/flight_results/${sessionId}`
+}
+E confira se está recuperando esse sessionId de fato, seja do localStorage ou de outro local:
+
+js
+Copy
+const storedSessionId = localStorage.getItem('currentSessionId');
+this.loadAndShowResults(storedSessionId);
+Se o código não estiver buscando esse valor, ou se estiver usando um nome de chave diferente, o painel não receberá um sessionId válido e mostrará a mensagem de erro.
+
+4. Sincronize a nomenclatura e o fluxo
+Nome da chave: Se o front-end salva currentSessionId mas o painel busca sessionId, não vai funcionar. Use o mesmo nome em ambos os lugares.
+
+Momento certo: O painel só deve ser carregado (ou atualizado) depois que o chat tiver retornado e salvo o session_id. Caso contrário, o painel tentará carregar antes de o sessionId existir.
+
+5. Faça um teste passo a passo
+Abra o console do navegador (F12) e acompanhe a requisição ao endpoint /api/chat. Veja se o JSON de resposta tem o campo "session_id".
+
+Verifique se o session_id está sendo salvo no localStorage (você pode inspecionar em Application → Local Storage, no DevTools do navegador).
+
+Confirme se o flight-results-panel.js (ou arquivo similar) está chamando loadAndShowResults(sessionId) com o valor correto.
+
+Observe as requisições de rede para /api/flight_results/<sessionId> e veja se está retornando algo ou dando erro.
+
+Conclusão
+A mensagem "Não é possível obter resultados sem uma sessão válida" indica que o painel não recebeu um session_id válido.
+Para corrigir:
+
+Retorne session_id no JSON do endpoint de chat.
+
+Armazene esse valor (por exemplo, em localStorage ou em uma variável global).
+
+Passe esse valor para o painel lateral quando for carregar os voos.
+
+Uma vez que esse fluxo de dados (chat → salvando session_id → painel lateral) estiver completamente sincronizado, o painel deve mostrar as ofertas reais da Amadeus sem problemas.

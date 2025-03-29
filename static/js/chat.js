@@ -233,11 +233,28 @@ document.addEventListener('DOMContentLoaded', function() {
             // O backend envia a flag "show_flight_results" quando deve exibir o painel lateral
             if (data.show_flight_results) {
                 console.log("Recebido show_flight_results=true, mostrando painel lateral");
+                console.log("Dados completos recebidos:", data);
+                console.log("Session ID da resposta:", data.session_id);
+                console.log("Session ID atual:", sessionId);
+                
+                // Garantir que temos um session_id válido
+                if (data.session_id) {
+                    // Atualizar a variável global sessionId
+                    sessionId = data.session_id;
+                    console.log("Session ID atualizado para:", sessionId);
+                    
+                    // Salvar no localStorage para persistência entre reloads
+                    localStorage.setItem('currentSessionId', sessionId);
+                    console.log("Session ID salvo no localStorage");
+                } else {
+                    console.warn("ALERTA: Não recebemos session_id do servidor!");
+                }
                 
                 // FORÇAR EXIBIÇÃO DO PAINEL LATERAL COM RESULTADOS
                 // Adicionar pequeno atraso para garantir que tudo esteja carregado corretamente
                 setTimeout(() => {
                     console.log("Executando disparo do evento de exibição do painel (timeout)");
+                    console.log("Session ID que será enviado ao painel:", data.session_id || sessionId);
                     
                     // Verificar se temos a instância global do painel
                     if (window.flightResultsPanel) {
@@ -247,6 +264,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 sessionId: data.session_id || sessionId
                             }
                         }));
+                        
+                        // Atualizar também diretamente o objeto do painel
+                        window.flightResultsPanel.currentSessionId = data.session_id || sessionId;
                         
                         // Adicionar uma pequena mensagem de direcionamento na conversa
                         addMessage("👉 Resultados reais da API Amadeus disponíveis no painel lateral! Clique nas opções para ver detalhes.", false);

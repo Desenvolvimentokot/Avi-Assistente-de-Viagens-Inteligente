@@ -296,16 +296,41 @@ class FlightResultsPanel {
     }
     
     loadAndShowResults(sessionId) {
+        // VERIFICAÇÃO E REGISTRO DETALHADO
+        console.log("loadAndShowResults chamado com sessionId:", sessionId);
+        console.log("Tipo do sessionId:", typeof sessionId);
+        
         // Verificar se temos um sessionId válido
         if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
             console.warn("SessionId inválido, não podemos usar dados de teste");
-            this.showError("Não é possível exibir resultados sem uma sessão válida. Por favor, refaça sua pesquisa com a Avi.");
-            // NÃO CARREGAR DADOS DE TESTE
-            return;
+            
+            // Tentar recuperar do localStorage como último recurso
+            const savedSessionId = localStorage.getItem('currentSessionId');
+            console.log("Tentando recuperar sessionId do localStorage:", savedSessionId);
+            
+            if (savedSessionId && savedSessionId !== 'undefined' && savedSessionId !== 'null') {
+                console.log("Usando sessionId do localStorage:", savedSessionId);
+                sessionId = savedSessionId;
+            } else {
+                // Se realmente não temos nenhum ID válido, mostrar erro
+                this.showPanel();
+                this.showError("Não é possível exibir resultados sem uma sessão válida. Por favor, refaça sua pesquisa com a Avi.");
+                // NÃO CARREGAR DADOS DE TESTE
+                return;
+            }
         }
         
         // Salvar o ID da sessão atual
         this.currentSessionId = sessionId;
+        
+        // Salvar no localStorage também para persistência
+        localStorage.setItem('currentSessionId', sessionId);
+        console.log("Session ID salvo no localStorage:", sessionId);
+        
+        // Atualizar o objeto compartilhado
+        if (window.flightSharedData) {
+            window.flightSharedData.lastSessionId = sessionId;
+        }
         
         // Mostrar o painel e indicar carregamento
         this.showPanel();
@@ -316,6 +341,7 @@ class FlightResultsPanel {
         // Chamar a API para obter os resultados de voo
         fetch(`/api/flight_results/${sessionId}`)
             .then(response => {
+                console.log("Resposta da API:", response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error(`Erro de rede: ${response.status}`);
                 }
@@ -323,11 +349,15 @@ class FlightResultsPanel {
             })
             .then(data => {
                 console.log('Resultados obtidos:', data);
+                // Guardar no objeto compartilhado
+                if (window.flightSharedData) {
+                    window.flightSharedData.searchResults = data;
+                }
                 this.renderResults(data);
             })
             .catch(error => {
                 console.error('Erro ao buscar resultados:', error);
-                this.showError(error.message);
+                this.showError(`Erro ao buscar resultados: ${error.message}. Por favor, tente novamente ou refaça sua pesquisa com a Avi.`);
             });
     }
 
