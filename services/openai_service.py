@@ -87,18 +87,28 @@ class OpenAIService:
         # VERIFICAÇÃO CRÍTICA: Detectar se é uma solicitação de busca de voos/passagens
         is_flight_search = False
         
-        # Lista de palavras-chave para identificar buscas de voos
-        flight_keywords = [
-            "voo", "passagem", "voar", "aéreo", "aérea", "avião", "aereo", "aerea",
-            "aeroporto", "partida", "chegada", "origem", "destino", "decolagem", "pouso",
-            "companhia aérea", "companhia aerea", "GOL", "LATAM", "Azul", "ida e volta", "só ida",
-            "confirmo", "quero essas", "confirmar", "reservar", "comprar passagem", "comprar voo"
+        # CORREÇÃO: Somente bloqueamos pesquisas específicas de voo, não todas as conversas
+        # Lista de combinações de palavras-chave precisas que indicam busca de voo
+        flight_keyword_combinations = [
+            ["quero", "passagem", "para"],
+            ["quero", "voo", "para"],
+            ["buscar", "voo"],
+            ["pesquisar", "passagem"],
+            ["confirmo", "esta", "viagem"],
+            ["confirmo", "esses", "dados"],
+            ["confirmando", "os", "dados"],
+            ["reservar", "passagem"],
+            ["comprar", "passagem"]
         ]
         
-        # Verificar se a mensagem contém alguma palavra-chave de busca de voos
+        # Procurar combinações de palavras específicas, não apenas palavras isoladas
         user_message_lower = user_message.lower()
-        if any(keyword in user_message_lower for keyword in flight_keywords):
-            is_flight_search = True
+        
+        # Verificar apenas combinações específicas de palavras que indicam busca de voo
+        for combo in flight_keyword_combinations:
+            if all(word in user_message_lower for word in combo):
+                is_flight_search = True
+                break
             
         # Verificar se o contexto indica busca de voos
         flight_context_keywords = [
