@@ -191,6 +191,34 @@ body {
     background-color: #f1f5fe;
 }
 
+/* Botão de Mural de Ofertas */
+.flights-panel-button {
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.flights-panel-button:hover {
+    background-color: #1c6dc9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.flights-panel-button i {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.flights-panel-button span {
+    font-size: 13px;
+}
+
 /* Chat mode controls */
 .chat-modes {
     padding: 10px 20px;

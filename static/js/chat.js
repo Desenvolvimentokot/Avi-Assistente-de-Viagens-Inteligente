@@ -1,4 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar evento para o botão do mural de voos
+    const flightsMuralButton = document.getElementById('openFlightsMuralButton');
+    if (flightsMuralButton) {
+        flightsMuralButton.addEventListener('click', function() {
+            console.log("Botão do Mural de Voos clicado");
+            
+            // Verificar se temos o objeto global do painel
+            if (window.flightResultsPanel) {
+                // Mostrar o painel com o ID da sessão atual
+                window.flightResultsPanel.showPanel();
+                
+                // Se tivermos um ID de sessão, carregar resultados
+                if (sessionId) {
+                    console.log("Mostrando painel com sessionId:", sessionId);
+                    window.flightResultsPanel.loadAndShowResults(sessionId);
+                } else {
+                    console.log("Painel mostrado sem sessionId");
+                }
+            } else {
+                console.error("Painel de voos não está disponível");
+            }
+        });
+    } else {
+        console.error("Botão do Mural de Voos não encontrado");
+    }
+    
     // Listener para evento de seleção de voo
     document.addEventListener('flightSelected', (event) => {
         console.log('Chat: Evento flightSelected recebido:', event.detail);
