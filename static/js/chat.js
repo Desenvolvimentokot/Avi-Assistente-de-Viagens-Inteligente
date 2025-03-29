@@ -3,30 +3,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const flightsMuralButton = document.getElementById('openFlightsMuralButton');
     if (flightsMuralButton) {
         flightsMuralButton.addEventListener('click', function() {
-            console.log("Botão do Mural de Voos clicado - TESTE URGENTE");
-            alert("Botão do Mural clicado! Tentando mostrar resultados de voo.");
+            console.log("Botão do Mural de Voos clicado");
             
             // Verificar se temos o objeto global do painel
             if (window.flightResultsPanel) {
-                console.log("flightResultsPanel encontrado:", window.flightResultsPanel);
                 // Mostrar o painel com o ID da sessão atual
                 window.flightResultsPanel.showPanel();
                 
                 // Se tivermos um ID de sessão, carregar resultados
                 if (sessionId) {
                     console.log("Mostrando painel com sessionId:", sessionId);
-                    alert("Carregando resultados para a sessão: " + sessionId);
                     window.flightResultsPanel.loadAndShowResults(sessionId);
                 } else {
-                    console.log("Painel mostrado sem sessionId - Usando última sessão conhecida");
+                    console.log("Painel mostrado sem sessionId");
                     // Tentar encontrar uma sessão armazenada no localStorage
                     const savedState = JSON.parse(localStorage.getItem('flightPanelState') || '{}');
-                    if (savedState.sessionId) {
+                    if (savedState && savedState.sessionId) {
                         console.log("Usando sessionId do localStorage:", savedState.sessionId);
                         window.flightResultsPanel.loadAndShowResults(savedState.sessionId);
-                    } else {
-                        alert("Nenhuma sessão ativa. Por favor, faça uma pesquisa de voo primeiro.");
                     }
+                }
             } else {
                 console.error("Painel de voos não está disponível");
             }
