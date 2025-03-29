@@ -10,22 +10,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Mostrar o painel com o ID da sessão atual
                 window.flightResultsPanel.showPanel();
                 
+                // FORÇA TESTE PRIMEIRO para garantir que algo seja exibido
+                if (!sessionId) {
+                    console.log("TESTE: Usando endpoint de teste por não ter sessionId");
+                    window.flightResultsPanel.loadTestResults();
+                    return;
+                }
+                
                 // Se tivermos um ID de sessão, carregar resultados
                 if (sessionId) {
                     console.log("Mostrando painel com sessionId:", sessionId);
+                    // Salvar sessionId no localStorage para persistência
+                    localStorage.setItem('currentSessionId', sessionId);
+                    // Salvar no objeto do painel também
+                    window.flightResultsPanel.currentSessionId = sessionId;
                     window.flightResultsPanel.loadAndShowResults(sessionId);
                 } else {
                     console.log("Painel mostrado sem sessionId");
-                    // Tentar encontrar uma sessão armazenada no localStorage
-                    const savedState = JSON.parse(localStorage.getItem('flightPanelState') || '{}');
-                    if (savedState && savedState.sessionId) {
-                        console.log("Usando sessionId do localStorage:", savedState.sessionId);
-                        window.flightResultsPanel.loadAndShowResults(savedState.sessionId);
+                    // Tentar restaurar do localStorage
+                    const savedSessionId = localStorage.getItem('currentSessionId');
+                    if (savedSessionId) {
+                        console.log("Usando sessionId do localStorage:", savedSessionId);
+                        window.flightResultsPanel.loadAndShowResults(savedSessionId);
+                    } else {
+                        // Último recurso: mostrar dados de teste
+                        window.flightResultsPanel.loadTestResults();
                     }
                 }
             } else {
-                console.error("Painel de voos não está disponível");
-            }
+                console.error("Painel de voos não está disponível, tentando inicializar");
+                // Tentar inicializar manualmente
+                window.flightResultsPanel = new FlightResultsPanel();
         });
     } else {
         console.error("Botão do Mural de Voos não encontrado");

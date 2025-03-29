@@ -281,7 +281,51 @@ class FlightResultsPanel {
         `;
     }
 
+    // Método para carregar dados de teste (garantir que sempre haja algo para mostrar)
+    loadTestResults() {
+        // Mostrar o painel e indicar carregamento
+        this.showPanel();
+        this.showLoading();
+        
+        console.log("Carregando dados de teste...");
+        
+        // Usar o endpoint de teste
+        fetch('/api/flight_results/test')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro de rede: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Dados de teste carregados com sucesso:", data);
+                // Limpar o loader
+                clearInterval(this.loadingInterval);
+                
+                // Mostrar os resultados
+                this.renderFlightResults(data);
+                
+                // Destacar que são dados de teste
+                const headerEl = this.panel.querySelector('.flight-results-header span');
+                if (headerEl) {
+                    headerEl.textContent = "Resultados de Teste - API Amadeus";
+                    headerEl.style.color = "#ff9f43";
+                }
+            })
+            .catch(error => {
+                console.error("Erro ao carregar dados de teste:", error);
+                this.showError("Erro ao carregar dados de teste. Por favor, tente novamente.");
+            });
+    }
+    
     loadAndShowResults(sessionId) {
+        // Verificar se temos um sessionId válido
+        if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
+            console.warn("SessionId inválido, usando dados de teste");
+            this.loadTestResults();
+            return;
+        }
+        
         // Salvar o ID da sessão atual
         this.currentSessionId = sessionId;
         
@@ -307,6 +351,31 @@ class FlightResultsPanel {
                 console.error('Erro ao buscar resultados:', error);
                 this.showError(error.message);
             });
+    }
+
+    // Método centralizado para renderização de resultados (usado tanto pelos testes quanto pelos dados reais)
+    renderFlightResults(data) {
+        // Limpar o loader
+        if (this.loadingInterval) {
+            clearInterval(this.loadingInterval);
+            this.loadingInterval = null;
+        }
+        
+        // Verificar se temos dados para mostrar
+        if (data.error) {
+            this.showError(data.error);
+            return;
+        }
+
+        // Verificar se temos ofertas para mostrar
+        const offers = data.data || [];
+        if (offers.length === 0) {
+            this.showNoResults();
+            return;
+        }
+        
+        // Usar o método principal de renderização
+        this.renderResults(data);
     }
 
     renderResults(data) {
