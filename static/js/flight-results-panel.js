@@ -281,42 +281,18 @@ class FlightResultsPanel {
         `;
     }
 
-    // Método para informar que dados de teste não estão mais disponíveis
+    // Método desativado - substituído por mensagem informativa
     loadTestResults() {
         // Mostrar o painel
         this.showPanel();
         
-        console.log("Carregando dados de teste...");
+        console.log("Modo de teste desativado - apenas dados reais disponíveis");
         
-        // Usar o endpoint de teste (que agora retorna uma mensagem de erro)
-        fetch('/api/flight_results/test')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erro de rede: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Dados de teste carregados com sucesso:", data);
-                
-                // Limpar qualquer loader em andamento
-                if (this.loadingInterval) {
-                    clearInterval(this.loadingInterval);
-                }
-                
-                // Mostrar a mensagem de erro em vez de tentar renderizar dados
-                if (data.error) {
-                    this.showError(data.error);
-                    return;
-                }
-                
-                // Este código não deve ser executado, mas deixamos por segurança
-                this.renderFlightResults(data);
-            })
-            .catch(error => {
-                console.error("Erro ao carregar dados de teste:", error);
-                this.showError("Para ver resultados reais de voos, faça uma busca completa através da conversa com a Avi.");
-            });
+        // Exibir mensagem explicativa diretamente sem fazer requisição
+        this.showError(
+            "Modo de teste desativado. O sistema Flai agora utiliza exclusivamente dados reais da API Amadeus. " +
+            "Para ver resultados de voos, converse com a Avi e forneça detalhes sobre sua viagem."
+        );
     }
     
     loadAndShowResults(sessionId) {

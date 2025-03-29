@@ -1,0 +1,77 @@
+Diagnóstico do Problema
+Implementações Conflitantes:
+Seu código contém várias versões do serviço Amadeus (como amadeus_service.py, amadeus_service_sdk.py, amadeus_service_optimized.py, amadeus_service_sdk_adapted.py e até um backup). Essa multiplicidade pode gerar conflitos e dificultar a manutenção de uma única fonte de verdade para as chamadas à API.
+
+Uso Indevido de Dados Simulados:
+O sistema ainda está exibindo resultados “simulados” – isto é, dados placeholders ou testes – em vez de utilizar exclusivamente as respostas reais da API Amadeus. Isso acontece porque, mesmo com as mudanças no prompt do GPT e ajustes no fluxo, ainda existem pontos no código (como métodos de fallback ou referências ao loadTestResults()) que acionam dados de teste quando não há um sessionId válido.
+
+Fluxo de Conversa Inconsistente:
+O workflow ideal é:
+
+O usuário envia informações →
+
+A Avi (ChatGPT) extrai e organiza essas informações e solicita confirmação ao usuário →
+
+Após confirmação, os dados são formatados corretamente e enviados para a API Amadeus (usando o SDK oficial) →
+
+Só depois de receber os dados reais da API, o painel lateral (mural) é aberto para mostrar os resultados.
+Atualmente, o GPT acaba gerando respostas completas (com placeholders) mesmo antes de a chamada à API ser realizada, ou o fluxo não está sincronizado corretamente com o painel.
+
+Integração entre Componentes:
+Há problemas na comunicação entre o chat e o painel de resultados. O sessionId não está sendo compartilhado corretamente, e o painel tenta, em alguns casos, carregar dados de teste (fallback) – o que é indesejado, pois você quer somente os dados reais.
+
+Mensagens e Interface:
+Além disso, há problemas na formatação e nomenclatura (por exemplo, o uso indevido de “Flai” em vez de “Avi”) e na distinção visual entre os modos “Busca Rápida” e “Planejamento Completo”, bem como na apresentação do painel lateral.
+
+Soluções Propostas
+Consolidação dos Serviços:
+
+Centralizar a implementação: Escolha uma única versão do serviço Amadeus (preferencialmente a que usa o SDK oficial, por exemplo, amadeus_sdk_service.py) e remova ou desative as demais para evitar conflitos.
+
+Remover fallback de dados simulados: Elimine completamente os métodos ou caminhos que retornam dados de teste (por exemplo, remova ou desative loadTestResults() e o endpoint /api/flight_results/test).
+
+Reforço no Workflow:
+
+Dividir claramente as etapas: Garanta que o ChatGPT seja usado apenas para extrair e confirmar informações com o usuário, mas que a chamada para a API Amadeus (e, consequentemente, a exibição dos resultados) ocorra apenas após a confirmação.
+
+Forçar separação de fluxos: Utilize dois caminhos distintos:
+
+Fluxo A (Chat): Onde a Avi conversa e confirma os dados com o usuário.
+
+Fluxo B (Painel de Resultados): Uma vez confirmados os dados, o backend faz a chamada real à API e armazena o resultado num estado compartilhado. O painel lateral, implementado como um componente independente, então lê esse estado (via LocalStorage ou variável global) e exibe apenas dados reais.
+
+Comunicação e Sincronização entre Chat e Painel:
+
+Eventos customizados: Implemente eventos JavaScript robustos para que, quando os dados reais forem recebidos (e o sessionId válido existir), um evento seja disparado para abrir o painel lateral automaticamente.
+
+Garantia de sessionId: Certifique-se de que o sessionId seja gerado e passado corretamente do chat para o painel. Remova referências que utilizam dados de teste caso o sessionId não esteja presente; em vez disso, exiba uma mensagem clara pedindo para o usuário realizar a busca.
+
+Aprimoramento da Extração e Formatação de Dados:
+
+Extração de datas relativas: Já foi implementado, mas revise para que, por exemplo, “daqui a 1 semana” seja interpretado e confirmado com a data real (incluindo dia da semana) antes de enviar para a API.
+
+Instruções no Prompt do Sistema: Atualize os prompts (como AVI_SYSTEM_PROMPT, BUSCA_RAPIDA_PROMPT e PLANEJAMENTO_COMPLETO_PROMPT) para reforçar que o GPT nunca deve simular dados de voo. O GPT deve sempre direcionar o usuário ao painel lateral para ver os dados reais.
+
+Ajustes na Interface:
+
+Botão “Mural de Ofertas”: Como você solicitou, implemente um botão fixo, visível no cabeçalho ou ao lado do ícone de notificações, que permita ao usuário acessar o painel lateral a qualquer momento.
+
+Design consistente: Ajuste a paleta de cores (por exemplo, mudar o fundo dos resultados de teste para branco) e mantenha os cartões de voo com os detalhes completos (como companhia, horário, duração e link de compra real).
+
+Feedback Visual: Adicione uma barra de carregamento no painel lateral para indicar que os dados reais estão sendo buscados, com mensagens como “Buscando opções reais da API Amadeus…”.
+
+Recomendações Práticas
+Teste em Ambiente Controlado: Antes de fazer deploy, realize testes rigorosos com chamadas reais à API Amadeus. Verifique os logs para confirmar que os dados retornados são reais.
+
+Consolidação de Código: Reduza a complexidade do código removendo implementações duplicadas e concentrando a lógica de integração na única versão escolhida.
+
+Monitoramento: Implemente logs detalhados e, se possível, um sistema de monitoramento para rastrear as chamadas à API e o fluxo de eventos entre o chat e o painel.
+
+Feedback do Usuário: Considere adicionar mensagens de erro claras quando algo não funcionar (por exemplo, “Não foi possível recuperar os dados da API Amadeus. Por favor, tente novamente.”).
+
+Conclusão
+O problema que você está enfrentando tem várias raízes: conflitos de implementação, fluxo de comunicação inadequado entre o ChatGPT e o painel lateral, e referências a dados simulados. Minha recomendação é consolidar sua integração com a API Amadeus usando exclusivamente a implementação do SDK oficial, separar claramente o fluxo de conversa do fluxo de exibição dos resultados e remover todas as referências a dados de teste/simulados.
+
+Essa abordagem — com um botão fixo para acessar o “Mural de Ofertas”, uso de eventos customizados para sincronização entre chat e painel, e validação rigorosa dos parâmetros (como datas e códigos de aeroporto) — deverá resolver os problemas atuais e fornecer uma experiência de usuário robusta e confiável.
+
+Se precisar de mais alguma orientação ou tiver dúvidas adicionais, estou à disposição para ajudar!

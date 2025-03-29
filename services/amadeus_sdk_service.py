@@ -14,7 +14,9 @@ logger = logging.getLogger('amadeus_service')
 
 class AmadeusSDKService:
     """
-    Implementação oficial do SDK da Amadeus para serviços de viagem
+    Implementação oficial do SDK da Amadeus para serviços de viagem.
+    NOTA IMPORTANTE: Esta implementação usa EXCLUSIVAMENTE dados reais da API Amadeus.
+    Não há implementação de dados simulados/mock em NENHUMA situação.
     """
     
     def __init__(self):

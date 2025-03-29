@@ -234,6 +234,40 @@
   font-size: 15px;
 }
 
+.error-icon {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.error-text {
+  font-weight: 500;
+  margin-bottom: 15px;
+}
+
+.error-help {
+  color: #666;
+  font-size: 14px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+  text-align: left;
+}
+
+.error-help p {
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.error-help ol {
+  padding-left: 25px;
+}
+
+.error-help li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
 /* Sem resultados */
 .no-results {
   text-align: center;

@@ -102,9 +102,9 @@ def test_flight_results():
     Este endpoint está desativado para garantir que apenas dados reais sejam mostrados
     """
     try:
-        # Não permitimos mais dados de teste - retornar erro explicativo
+        # Mensagem mais clara e informativa
         return jsonify({
-            "error": "Uso de dados de teste desativado. É necessário realizar uma pesquisa real com a Avi para ver resultados.",
+            "error": "MODO DE TESTE DESATIVADO: O sistema Flai agora utiliza EXCLUSIVAMENTE dados reais da API Amadeus. Para ver resultados de voos, converse com a Avi e forneça detalhes sobre sua viagem.",
             "data": []
         })
     except Exception as e:
