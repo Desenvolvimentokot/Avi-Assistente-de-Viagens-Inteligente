@@ -1,6 +1,8 @@
 /**
  * NOVO PAINEL DE RESULTADOS DE VOOS REAIS
- * Implementação completamente nova e simplificada
+ * Implementação seguindo o plano de solução detalhado para garantir
+ * que apenas dados reais da API Amadeus sejam exibidos, completamente
+ * separados do fluxo de conversação com o ChatGPT.
  */
 class FlightPanel {
     constructor() {
@@ -577,20 +579,46 @@ class FlightPanel {
         });
     }
     
-    // Mostrar o painel
+    // Mostrar o painel com animação aprimorada
     show() {
+        // Primeiro, remove qualquer transition anterior que possa estar em andamento
+        this.panel.style.transition = 'none';
+        this.panel.offsetHeight; // Force a reflow para garantir que o estilo seja aplicado
+        
+        // Agora configura a transição para ser mais fluida
+        this.panel.style.transition = 'right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        
+        // Aplica as classes para mostrar
         this.panel.classList.add('visible');
         this.overlay.classList.add('visible');
         this.toggleButton.classList.add('panel-visible');
         this.isVisible = true;
+        
+        // Adiciona efeito de pulso à borda ao abrir
+        setTimeout(() => {
+            this.panel.style.boxShadow = '0 0 0 2px rgba(74, 144, 226, 0.8)';
+            setTimeout(() => {
+                this.panel.style.boxShadow = '-2px 0 15px rgba(0, 0, 0, 0.2)';
+            }, 400);
+        }, 100);
+        
+        // Dispara evento personalizado para notificar que o painel foi aberto
+        document.dispatchEvent(new CustomEvent('flightPanelOpened'));
     }
     
-    // Esconder o painel
+    // Esconder o painel com animação
     hide() {
+        // Configura transição de saída
+        this.panel.style.transition = 'right 0.4s ease-in';
+        
+        // Remove classes de visibilidade
         this.panel.classList.remove('visible');
         this.overlay.classList.remove('visible');
         this.toggleButton.classList.remove('panel-visible');
         this.isVisible = false;
+        
+        // Dispara evento personalizado para notificar que o painel foi fechado
+        document.dispatchEvent(new CustomEvent('flightPanelClosed'));
     }
     
     // Alternar visibilidade do painel
@@ -602,16 +630,147 @@ class FlightPanel {
         }
     }
     
-    // Mostrar loading
+    // Mostrar loading com animação avançada
     showLoading() {
         this.isLoading = true;
+        
+        // Adiciona CSS necessário para a animação avançada se ainda não existir
+        if (!document.getElementById('flight-panel-loading-animation')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'flight-panel-loading-animation';
+            styleEl.textContent = `
+                @keyframes flightPath {
+                    0% { transform: translate(-100px, 20px) scale(0.7); }
+                    25% { transform: translate(-50px, -15px) scale(0.8); }
+                    50% { transform: translate(0, 10px) scale(1); }
+                    75% { transform: translate(50px, -15px) scale(0.8); }
+                    100% { transform: translate(100px, 20px) scale(0.7); }
+                }
+                
+                @keyframes cloudFloat {
+                    0% { transform: translateX(0); opacity: 0.7; }
+                    50% { transform: translateX(-15px); opacity: 1; }
+                    100% { transform: translateX(0); opacity: 0.7; }
+                }
+                
+                @keyframes dotPulse {
+                    0% { opacity: 0.3; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0.3; }
+                }
+                
+                .loading-dots span {
+                    animation: dotPulse 1.5s infinite;
+                    display: inline-block;
+                    margin: 0 2px;
+                }
+                
+                .loading-dots span:nth-child(2) {
+                    animation-delay: 0.3s;
+                }
+                
+                .loading-dots span:nth-child(3) {
+                    animation-delay: 0.6s;
+                }
+                
+                .flight-path-animation {
+                    position: relative;
+                    height: 150px;
+                    width: 100%;
+                    margin: 30px 0;
+                }
+                
+                .animated-plane {
+                    position: absolute;
+                    left: 50%;
+                    top: 50%;
+                    transform: translate(-50%, -50%);
+                    animation: flightPath 5s infinite ease-in-out;
+                    z-index: 5;
+                }
+                
+                .animated-plane i {
+                    font-size: 30px;
+                    color: #4a90e2;
+                }
+                
+                .cloud {
+                    position: absolute;
+                    color: #e0e0e0;
+                    opacity: 0.7;
+                    animation: cloudFloat 6s infinite ease-in-out;
+                }
+                
+                .cloud:nth-child(1) {
+                    left: 20%;
+                    top: 20%;
+                    font-size: 20px;
+                    animation-delay: 0.2s;
+                }
+                
+                .cloud:nth-child(2) {
+                    left: 80%;
+                    top: 50%;
+                    font-size: 24px;
+                    animation-delay: 2s;
+                    animation-duration: 7s;
+                }
+                
+                .cloud:nth-child(3) {
+                    left: 40%;
+                    top: 70%;
+                    font-size: 16px;
+                    animation-delay: 1s;
+                    animation-duration: 5s;
+                }
+                
+                .loading-progress {
+                    width: 80%;
+                    height: 4px;
+                    background-color: #f0f0f0;
+                    border-radius: 2px;
+                    margin: 15px auto;
+                    overflow: hidden;
+                }
+                
+                .progress-bar {
+                    height: 100%;
+                    width: 0%;
+                    background-color: #4a90e2;
+                    animation: progressAnimation 2.5s infinite ease-in-out;
+                }
+                
+                @keyframes progressAnimation {
+                    0% { width: 0%; }
+                    50% { width: 70%; }
+                    70% { width: 75%; }
+                    90% { width: 90%; }
+                    100% { width: 100%; }
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+        
+        // HTML com a animação
         this.panel.querySelector('.flight-panel-content').innerHTML = `
             <div class="loading-container">
                 <div class="loading-animation">
-                    <div class="plane-icon">
-                        <i class="fas fa-plane"></i>
+                    <h3>Buscando Dados Reais</h3>
+                    <div class="flight-path-animation">
+                        <div class="cloud"><i class="fas fa-cloud"></i></div>
+                        <div class="cloud"><i class="fas fa-cloud"></i></div>
+                        <div class="cloud"><i class="fas fa-cloud"></i></div>
+                        <div class="animated-plane"><i class="fas fa-plane"></i></div>
                     </div>
-                    <div class="loading-text">Buscando voos reais...</div>
+                    <div class="loading-text">
+                        Consultando API Amadeus<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+                    </div>
+                    <div class="loading-progress">
+                        <div class="progress-bar"></div>
+                    </div>
+                    <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                        Aguarde enquanto buscamos as melhores ofertas para sua viagem
+                    </div>
                 </div>
             </div>
         `;
