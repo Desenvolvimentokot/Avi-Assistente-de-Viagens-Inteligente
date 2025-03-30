@@ -218,4 +218,56 @@ def direct_flight_search():
         }), 500
 
 
-# Endpoint de teste completamente removido para evitar qualquer uso acidental
+# Endpoint de teste para verificar a conexão com a API Amadeus
+@api_blueprint.route('/amadeus-test', methods=['GET'])
+def amadeus_test():
+    """
+    Endpoint para testar a conexão direta com a API Amadeus.
+    Retorna os resultados reais de uma busca padrão.
+    """
+    try:
+        logger.warning("📡 TESTE AMADEUS: Iniciando teste de conexão direta")
+        
+        # Preparar dados para teste
+        search_data = {
+            "origin": "GRU",
+            "destination": "MIA",
+            "departure_date": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'),
+            "adults": 1,
+            "session_id": str(uuid.uuid4())
+        }
+        
+        # Usar o flight_service_connector para buscar resultados reais
+        search_results = flight_service_connector.search_flights_from_chat(
+            travel_info=search_data,
+            session_id=search_data["session_id"]
+        )
+        
+        # Verificar resultados
+        if not search_results or 'error' in search_results:
+            error_msg = search_results.get('error', 'Erro desconhecido') if search_results else 'Sem resultados'
+            logger.error(f"❌ TESTE AMADEUS: Falha na conexão - {error_msg}")
+            return jsonify({
+                "error": error_msg,
+                "data": [],
+                "success": False
+            }), 500
+        
+        # Adicionar metadados para diagnóstico
+        flight_count = len(search_results.get('data', []))
+        search_results['success'] = True
+        search_results['test_timestamp'] = datetime.utcnow().isoformat()
+        search_results['flight_count'] = flight_count
+        
+        logger.warning(f"✅ TESTE AMADEUS: Conexão bem-sucedida - {flight_count} voos encontrados")
+        return jsonify(search_results)
+        
+    except Exception as e:
+        logger.error(f"❌ TESTE AMADEUS: Erro durante o teste - {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "error": f"Erro no teste: {str(e)}",
+            "data": [],
+            "success": False
+        }), 500

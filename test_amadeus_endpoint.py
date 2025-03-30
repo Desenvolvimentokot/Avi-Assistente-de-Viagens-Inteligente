@@ -1,45 +1,54 @@
-
-import requests
 import logging
-import time
-import json
+import requests
+import sys
 import os
+import json
+from datetime import datetime, timedelta
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
 logger = logging.getLogger(__name__)
 
 def test_amadeus_endpoint():
-    """
-    Testa o endpoint /amadeus-test para verificar conexão direta com a API Amadeus
-    """
+    """Teste do endpoint /amadeus-test para verificar a conexão direta com a API Amadeus"""
+    logger.info("=== TESTANDO ENDPOINT /AMADEUS-TEST ===")
+
     try:
-        # Definir uma URL base para o ambiente local
+        # URL base da aplicação
         base_url = "http://localhost:5000"
-        
-        # Testar conexão ao endpoint de teste do Amadeus
-        amadeus_url = f"{base_url}/amadeus-test"
-        logger.info(f"Testando endpoint de autenticação Amadeus: {amadeus_url}")
-        
-        response = requests.get(amadeus_url)
-        
+
+        # Endpoint de teste para Amadeus
+        endpoint = "/amadeus-test"
+
+        logger.info(f"Testando o endpoint {endpoint}")
+
+        # Fazer requisição ao endpoint
+        response = requests.get(f"{base_url}{endpoint}")
+
         # Verificar resposta
-        if response.status_code != 200:
-            logger.error(f"Falha ao conectar ao endpoint: {response.status_code} - {response.text}")
-            return False
-            
-        logger.info(f"Resposta do endpoint Amadeus: {response.text[:200]}...")
-        
-        # Verificar se contém token
-        if "token_type" in response.text and "access_token" in response.text:
-            logger.info("✅ Autenticação com API Amadeus bem-sucedida")
-            return True
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"✅ TESTE DO ENDPOINT BEM-SUCEDIDO!")
+            logger.info(f"Resposta: {json.dumps(data, indent=2)}")
+
+            # Verificar se há dados de voos
+            if 'data' in data and len(data['data']) > 0:
+                logger.info(f"Encontrados {len(data['data'])} resultados de voo")
+                return True
+            else:
+                logger.warning("Resposta recebida, mas sem dados de voos")
+                return False
         else:
-            logger.error("❌ Falha na autenticação com API Amadeus")
+            logger.error(f"Erro na requisição: {response.status_code} - {response.text}")
             return False
-            
+
     except Exception as e:
-        logger.error(f"Erro ao testar endpoint Amadeus: {str(e)}")
+        logger.error(f"Erro na requisição: {str(e)}")
         return False
 
 def test_flight_search_api():

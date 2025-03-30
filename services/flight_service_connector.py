@@ -116,7 +116,7 @@ class FlightServiceConnector:
             # Construir URL absoluto para a API Amadeus
             amadeus_base_url = os.environ.get('AMADEUS_BASE_URL', 'https://test.api.amadeus.com/v2')
             url = f"{amadeus_base_url}/shopping/flight-offers"
-            logger.info(f"URL absoluto para API Amadeus: {url}")
+            logger.warning(f"URL absoluto para API Amadeus: {url}")
 
 
             # Incluir cabeçalhos específicos para identificar a solicitação

@@ -776,7 +776,7 @@ def get_conversation_messages(conversation_id):
             result.append({
                 "id": msg.id,
                 "is_user": msg.is_user,
-                ""content": msg.content,
+                "content": msg.content,
                 "timestamp": msg.timestamp.isoformat()
             })
 
