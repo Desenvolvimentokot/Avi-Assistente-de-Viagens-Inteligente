@@ -1,0 +1,243 @@
+Segue abaixo um prompt definitivo, EXTREMAMENTE DETALHADO – dividido em três fases – para que o Replit Assistant implemente a nova solução de busca de voos utilizando exclusivamente dados reais da API Amadeus. Essa solução deve eliminar todas as chamadas e referências ao OpenAI para a busca de voos, remover qualquer código legado (como o antigo mural de ofertas ou fallbacks de dados simulados) e garantir que o fluxo seja limpo, consistente e que o session_id seja manipulado corretamente.
+
+Fase 1: Limpeza Total do Código Legado e Remoção das Chamadas ao OpenAI para Busca de Voos
+Identificar e Remover Chamadas ao OpenAI para Busca de Voos
+
+Arquivo: app.py
+
+Localize todas as chamadas à função openai_service.travel_assistant().
+
+Remova ou comente todas essas chamadas para que, no fluxo de busca de voos, nenhuma requisição seja enviada à API do OpenAI.
+
+Garanta que o fluxo de extração e confirmação de dados pelo ChatGPT (Avi) continue, mas que, após a confirmação, o sistema chame exclusivamente o nosso conector da API Amadeus.
+
+Arquivo: services/chat_processor.py
+
+Remova ou desative qualquer código que invoque o OpenAI para gerar resultados de voos.
+
+Verifique se a função validate_travel_info() (e outras relacionadas) não estão vinculadas à geração de resultados simulados.
+
+Remover Código do Antigo Mural de Ofertas (Painel Lateral Legado)
+
+Arquivos:
+
+static/js/chat.js – Remova todas as referências e funções como addFlightOptions(), loadTestResults() ou qualquer código que manipule o antigo mural.
+
+static/js/flight-results-panel.js – Apague todo o código relacionado ao “mural de ofertas” antigo, inclusive funções e event listeners que abram esse painel.
+
+Templates HTML:
+
+Em templates/index.html ou outros arquivos que contenham o layout do antigo mural, remova qualquer bloco HTML relacionado a "Mural de Ofertas" ou textos semelhantes.
+
+Endpoint de Teste:
+
+No arquivo de rotas (por exemplo, app_routes.py), desative ou remova o endpoint /api/flight_results/test que retorna dados simulados.
+
+Garantir que Não Há Nenhuma Referência aos Dados Simulados ou Fallback
+
+Realize buscas no projeto por termos como "simulate", "get_simulated", "mock" ou "use_mock_data" e remova ou comente todas essas referências que possam estar ativando dados de teste.
+
+Resultado da Fase 1:
+
+O sistema deverá estar limpo de qualquer referência ao OpenAI para busca de voos e de dados simulados.
+
+O fluxo de chat para extração e confirmação deve permanecer, mas a busca real de voos deve ser direcionada a um conector exclusivo da API Amadeus.
+
+Fase 2: Implementação do Novo Endpoint e Novo Componente de Exibição dos Resultados
+Criar Novo Endpoint Exclusivo para Busca Real de Voos
+
+Arquivo: app.py (ou no arquivo de rotas específico)
+
+Crie uma nova rota, por exemplo, /api/amadeus/results/<session_id>.
+
+Essa rota deverá:
+
+Receber o session_id e os parâmetros necessários (origem, destino, datas, número de passageiros, etc.) que foram confirmados pelo usuário.
+
+Usar exclusivamente o conector FlightServiceConnector (ou o serviço que esteja configurado para usar o SDK oficial da Amadeus) para fazer a requisição à API Amadeus.
+
+Retornar os dados reais da API em formato JSON.
+
+Incluir mensagens de erro claras se a busca falhar (por exemplo, “Nenhum resultado encontrado” ou “Erro ao buscar voos: [detalhe]”).
+
+Certifique-se:
+
+Que nenhuma chamada ao OpenAI seja feita nesta rota.
+
+Que a URL e os parâmetros estejam corretos (ex.: utilizar https://test.api.amadeus.com/v2/shopping/flight-offers se necessário).
+
+Criar Novo Componente de Exibição dos Resultados
+
+Opção ÚNICA – Página de Resultados ou Modal (sem o antigo painel lateral):
+
+Crie um novo template HTML (por exemplo, templates/amadeus_results.html):
+
+Este template deve organizar os dados de voo em cartões, com as seguintes informações para cada voo:
+
+Companhia aérea
+
+Horários de partida e chegada (bem formatados, com dia da semana, se possível)
+
+Preço (incluindo a moeda)
+
+Um botão “Reservar agora” que redirecione para a URL de compra (fornecida pela API Amadeus).
+
+Indicadores visuais, como uma barra de carregamento enquanto os dados são buscados.
+
+Estilo limpo e compatível com o restante do site.
+
+Alternativamente, se for preferível um modal:
+
+Implemente um modal customizado ou use um plugin (por exemplo, o modal do Bootstrap) para exibir os resultados.
+
+O modal deve ser acionado via JavaScript e deve ter um botão para fechar e retornar à conversa.
+
+No Frontend (JavaScript):
+
+Arquivo: static/js/chat.js
+
+Após o usuário confirmar os dados de viagem, o sistema deve:
+
+Salvar o session_id (no localStorage ou em uma variável global).
+
+Realizar uma chamada (usando fetch ou AJAX) para o novo endpoint /api/amadeus/results/<session_id>.
+
+Enquanto a requisição está pendente, exibir uma animação de carregamento (por exemplo, uma barra de progresso ou uma animação de avião).
+
+Ao receber os dados reais, redirecionar o usuário para a nova página de resultados ou abrir o modal com os dados.
+
+Remova todas as referências antigas que tentavam exibir dados simulados ou que acionavam o antigo painel lateral.
+
+Arquivo: static/js/flight-results-panel.js (se usado para o modal)
+
+Atualize ou implemente a lógica para:
+
+Receber os dados do novo endpoint.
+
+Exibir os cartões de voo com as informações reais.
+
+Incluir animações e transições suaves.
+
+Certificar-se de que o painel/modal seja a única fonte de exibição de resultados de voos.
+
+Garantir que o Fluxo de Dados é Exclusivamente via Amadeus API
+
+No Back-End:
+
+Confirme que a nova rota /api/amadeus/results/<session_id> não chama nenhum código relacionado ao OpenAI.
+
+Verifique os logs para garantir que o skip_gpt_call está sempre definido como True para buscas de voos.
+
+No Front-End:
+
+Adicione logs no console (temporariamente, para debugging) para verificar se a requisição para o novo endpoint está sendo feita e se os dados retornados são reais.
+
+Certifique-se de que o session_id esteja sendo corretamente passado e que o componente de exibição seja acionado.
+
+Resultado da Fase 2:
+
+O sistema deverá ter um novo fluxo de busca de voos:
+
+Extração e confirmação de dados pela Avi (sem chamadas ao OpenAI para buscar voos).
+
+Uma chamada direta à API Amadeus via novo endpoint, retornando dados reais.
+
+Exibição dos resultados reais em uma nova página ou modal, com animações de carregamento e design moderno.
+
+Importante: Não deixe nenhuma parte do código legado (antigo painel, fallback para dados simulados, chamadas ao OpenAI para voos) no sistema.
+
+Fase 3: Integração Completa, Testes e Documentação
+Integração Final com o Fluxo de Chat:
+
+Arquivo: app.py
+
+Garanta que, no endpoint /api/chat, após a confirmação dos dados pelo usuário, o fluxo de busca não chame o OpenAI para gerar resultados de voo.
+
+Insira uma lógica que, quando os dados forem confirmados, defina skip_gpt_call = True e direcione o fluxo para a nova rota do Amadeus.
+
+Arquivo: services/chat_processor.py
+
+Verifique que as funções de formatação e de envio de resposta agora consultem o novo endpoint e não retornem nenhum dado gerado pelo GPT.
+
+Arquivo: static/js/chat.js
+
+Confirme que, ao receber a resposta do endpoint de busca real, o chat atualize a interface para informar que os dados reais estão disponíveis (por exemplo, com uma mensagem "Confira os resultados reais na página/modal").
+
+Remova quaisquer verificações ou lógica que invoquem o OpenAI para a busca de voos.
+
+Testes Unitários e de Integração:
+
+Crie (ou atualize) scripts de teste para garantir que:
+
+O novo endpoint /api/amadeus/results/<session_id> retorna dados reais da API Amadeus.
+
+O session_id é persistente e corretamente utilizado.
+
+A interface (página ou modal) exibe corretamente os resultados reais sem chamar o OpenAI.
+
+Verifique os logs para confirmar que não há chamadas à API do OpenAI para voos.
+
+Scripts sugeridos:
+
+test_amadeus_results.py: Faz requisições para o novo endpoint e valida os dados.
+
+test_chat_flow.py: Simula uma conversa com a Avi e verifica se, após a confirmação, o fluxo redireciona corretamente para o novo sistema de busca.
+
+Documentação e Limpeza Final:
+
+Atualize todos os comentários e a documentação do código para refletir a nova abordagem.
+
+Certifique-se de que não restem funções, endpoints ou arquivos legados (como o antigo mural de ofertas ou fallback para dados simulados).
+
+Documente claramente no README quais endpoints e fluxos estão sendo utilizados para busca de voos reais.
+
+Remova quaisquer logs de debug temporários antes do deploy final.
+
+Resultado da Fase 3:
+
+O sistema completo deverá funcionar de forma integrada:
+
+O usuário conversa com a Avi para confirmar os detalhes da viagem.
+
+Após a confirmação, o sistema faz uma chamada direta à API Amadeus (usando o FlightServiceConnector) sem acionar o OpenAI.
+
+Os dados reais são exibidos em uma nova página ou modal, com animação de carregamento e design moderno.
+
+Todo o código legado foi removido para evitar duplicação ou comportamento indesejado.
+
+Os testes devem confirmar que o fluxo está funcionando conforme o esperado.
+
+Resumo Final do Prompt
+Fase 1 – Limpeza do Código Legado:
+
+Remover todas as chamadas ao OpenAI para busca de voos (no app.py e services/chat_processor.py).
+
+Remover o antigo mural de ofertas e qualquer fallback para dados simulados (arquivos JavaScript e templates HTML).
+
+Garantir que não existam referências a “use_mock_data”, “get_simulated”, etc.
+
+Fase 2 – Implementação do Novo Endpoint e Componente de Exibição:
+
+Criar uma nova rota (ex: /api/amadeus/results/<session_id>) que usa o FlightServiceConnector para buscar voos reais.
+
+Desenvolver um novo componente (página ou modal) que exiba os dados reais, com animações de carregamento e design consistente.
+
+Integrar esse componente no fluxo do chat: após a confirmação dos dados pelo usuário, fazer uma chamada para o novo endpoint, exibir a animação de carregamento e, em seguida, os resultados reais.
+
+Certificar-se de que o session_id seja corretamente gerado, persistido e passado entre o backend e o frontend.
+
+Fase 3 – Integração, Testes e Documentação:
+
+Modificar o fluxo em app.py e services/chat_processor.py para que, após a confirmação, o sistema NÃO invoque o OpenAI e utilize exclusivamente o novo endpoint de busca.
+
+Implementar e executar testes unitários e de integração para validar a nova funcionalidade.
+
+Atualizar a documentação do código e remover todo o código legado, garantindo que o sistema esteja limpo e funcional.
+
+Realizar uma revisão final para confirmar que os logs não mostram nenhuma chamada à API do OpenAI para voos e que o painel/modal exibe somente dados reais.
+
+Considerações Finais:
+
+Este prompt é definitivo e não deixa margem para dúvidas. Todas as partes antigas que causavam duplicidade ou conflito devem ser removidas. A nova implementação deve garantir que apenas dados reais da API Amadeus sejam usados e exibidos, com um fluxo claro e consistente entre o backend e o frontend. Essa abordagem deve ser seguida rigorosamente para que o sistema funcione conforme esperado.
+
+Por favor, siga exatamente cada um dos passos descritos nesta proposta. Após a implementação da Fase 1, aguarde a minha confirmação antes de prosseguir para a Fase 2, e depois para a Fase 3, para garantir que cada etapa esteja funcionando perfeitamente.
