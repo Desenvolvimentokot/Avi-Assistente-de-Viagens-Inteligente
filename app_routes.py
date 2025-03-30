@@ -38,25 +38,14 @@ def get_flight_results(session_id):
         session_id: ID da sessão do chat
     """
     # Mensagem clara de início de processamento para debug
-    logger.warning(f"🛫 ENDPOINT ÚNICO PARA DADOS REAIS: Processando solicitação para sessão {session_id}")
+    logger.warning(f"🛫 ENDPOINT REAL: Processando solicitação de voos para sessão {session_id}")
     try:
-        logger.info(f"Recebida solicitação para resultados de voos autênticos - Sessão: {session_id}")
-        
-        # SEGURANÇA CRÍTICA: Este endpoint NUNCA gera dados sintéticos
-        # e sempre faz uma chamada direta e exclusiva ao conector Amadeus.
+        logger.info(f"Recebida solicitação para resultados de voos - Sessão: {session_id}")
         
         # Verificar se temos resultados para esta sessão no cache
         if session_id in flight_search_sessions:
-            logger.info(f"Retornando resultados REAIS em cache para sessão {session_id}")
-            results = flight_search_sessions[session_id]
-            
-            # Log para facilitar debug
-            if 'data' in results and results['data']:
-                logger.info(f"Cache contém {len(results['data'])} resultados autênticos")
-            else:
-                logger.warning(f"Cache existe mas não contém dados válidos: {results}")
-                
-            return jsonify(results)
+            logger.info(f"Retornando resultados em cache para sessão {session_id}")
+            return jsonify(flight_search_sessions[session_id])
         
         # Caso contrário, verificar se temos parâmetros de busca salvos
         from app import conversation_store

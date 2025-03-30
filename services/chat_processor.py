@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timedelta
 import requests
 
-from services.flight_service_connector import flight_service_connector
+from services.flight_data_provider import flight_data_provider
 
 # Configurar logger
 logging.basicConfig(level=logging.INFO)
@@ -149,13 +149,8 @@ class ChatProcessor:
                 if travel_info.get("flexible_dates", False):
                     best_prices_data = self._search_best_prices(travel_info, session_id)
                 
-                # Formatar os resultados para o chat (adaptado para a versão atual da API)
-                # Versão simplificada já que o painel lateral substitui a funcionalidade
-                response = {
-                    "message": "Encontrei algumas opções de voos para você! Verifique o painel lateral.",
-                    "show_flight_results": True,
-                    "session_id": session_id
-                }
+                # Formatar os resultados para o chat
+                response = flight_data_provider.format_flight_results_for_chat(flight_data, best_prices_data)
                 
                 # Adicionar o ID da sessão à resposta para garantir que o mural funcione
                 response['session_id'] = session_id
@@ -365,16 +360,14 @@ class ChatProcessor:
             return_date = travel_info.get("return_date")
             adults = travel_info.get("adults", 1)
             
-            # Buscar voos usando o serviço de conexão com a API Amadeus
-            flight_data = flight_service_connector.search_flights_from_chat(
-                travel_info={
-                    "origin": origin,
-                    "destination": destination,
-                    "departure_date": departure_date,
-                    "return_date": return_date,
-                    "adults": adults,
-                    "currency": "BRL"
-                },
+            # Buscar voos usando o provedor de dados
+            flight_data = flight_data_provider.search_flights(
+                origin=origin,
+                destination=destination,
+                departure_date=departure_date,
+                return_date=return_date,
+                adults=adults,
+                currency="BRL",
                 session_id=session_id
             )
             
@@ -418,16 +411,17 @@ class ChatProcessor:
                 date_range_start = today.strftime("%Y-%m-%d")
                 date_range_end = (today + timedelta(days=30)).strftime("%Y-%m-%d")
             
-            # NOTA: A busca de melhores preços foi movida para o painel lateral
-            # Esta seção é mantida para compatibilidade mas não executa mais uma busca real
-            # já que o painel lateral faz isso automaticamente
-            best_prices_data = {
-                "origin": origin,
-                "destination": destination,
-                "date_range": f"{date_range_start} a {date_range_end}",
-                "message": "Busca movida para o painel lateral",
-                "best_prices": []
-            }
+            # Buscar melhores preços usando o provedor de dados
+            best_prices_data = flight_data_provider.search_best_prices(
+                origin=origin,
+                destination=destination,
+                date_range_start=date_range_start,
+                date_range_end=date_range_end,
+                adults=travel_info.get("adults", 1),
+                currency="BRL",
+                max_dates=5,
+                session_id=session_id
+            )
             
             return best_prices_data
             

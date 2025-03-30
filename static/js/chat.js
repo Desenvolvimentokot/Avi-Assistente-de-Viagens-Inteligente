@@ -1,13 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Adicionar evento para o botão do mural de voos
-    const flightsMuralButton = document.getElementById('flightPanelTrigger');
+    const flightsMuralButton = document.getElementById('openFlightsMuralButton');
     if (flightsMuralButton) {
         flightsMuralButton.addEventListener('click', function() {
-            console.log("Botão de Resultados de Voos clicado");
+            console.log("Botão do Mural de Voos clicado");
             
             // Verificar se o NOVO painel está disponível
             if (window.flightPanel) {
-                console.log("Usando o painel de resultados de voos");
+                console.log("Usando o novo painel de voos");
                 
                 // Mostrar o painel
                 window.flightPanel.show();
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     } else {
-        console.error("Botão de Resultados de Voos não encontrado");
+        console.error("Botão do Mural de Voos não encontrado");
     }
     
     // Listener para evento de seleção de voo
@@ -214,47 +214,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Sessão ativa:", sessionId);
             }
 
-            // PARTE DO PLANO: Verificar se a resposta contém instrução para mostrar resultados reais de voos
-            if (data.show_flight_results && data.session_id) {
-                console.log("🚀 FLUXO DE DADOS REAIS ATIVADO! Detectada flag show_flight_results");
-                console.log("Abrindo painel de resultados de voos reais para a sessão:", data.session_id);
-                
-                // Salvar o ID da sessão para referência posterior
-                localStorage.setItem('currentSessionId', data.session_id);
-                localStorage.setItem('autoShowFlightPanel', 'true');
-                
-                // Disparar evento para abrir o painel de voos com dados reais
-                document.dispatchEvent(new CustomEvent('showFlightResults', {
-                    detail: {
-                        sessionId: data.session_id
-                    }
-                }));
-                
-                // Substituir qualquer mensagem por uma confirmação clara
-                if (!data.response || data.response.includes("BUSCANDO_DADOS_REAIS")) {
-                    data.response = `
-                        <div class="confirmation-message">
-                            <p>✅ <strong>Busca confirmada!</strong> Estou consultando a API da Amadeus para encontrar voos reais.</p>
-                            <p>O painel de resultados será aberto automaticamente assim que recebermos os dados.</p>
-                            <div class="loading-dots"><span>.</span><span>.</span><span>.</span></div>
-                        </div>
-                    `;
-                }
-            }
-            
-            // Verificação de segurança para evitar respostas simuladas (fallback)
+            // Verificar se estamos recebendo resposta de fallback do OpenAI
             if (data.response && data.response.includes("BUSCANDO_DADOS_REAIS_NA_API_AMADEUS")) {
-                console.error("⚠️ ATENÇÃO: Detectada resposta de fallback do OpenAI. O sistema deve usar APENAS dados reais da API Amadeus.");
-                console.log("Substituindo por mensagem apropriada e requisitando dados reais...");
+                console.error("ATENÇÃO: Detectada resposta de fallback do OpenAI. O sistema deve usar APENAS dados reais da API Amadeus.");
+                console.log("Requisitando dados reais em vez de usar respostas OpenAI...");
                 
                 // Substituir a mensagem por algo mais informativo
-                data.response = `
-                    <div class="verification-message">
-                        <p>⏳ Aguarde um momento...</p>
-                        <p>Estou consultando a API da Amadeus para encontrar opções reais de voos para sua viagem.</p>
-                        <p>Os resultados aparecerão no painel lateral em instantes.</p>
-                    </div>
-                `;
+                data.response = "Estou consultando a API da Amadeus para encontrar as melhores opções de voos. Por favor, aguarde um momento...";
             }
             
             // Adicionar resposta ao chat
@@ -365,8 +331,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // REMOVIDO: Não utilizamos mais o mural de ofertas antigo
-            // Todo o processamento de resultados de voos agora é feito através do painel lateral
+            // MANTÉM o código legado para compatibilidade com o sistema atual
+            // Eventualmente este código será substituído completamente pelo painel lateral
+            if (data.flight_data || data.best_prices_data) {
+                addFlightOptions(data.flight_data, data.best_prices_data);
+            }
+            
+            // Se houver link de compra direto, mostrar botão
+            if (data.purchase_link) {
+                addPurchaseLink(data.purchase_link);
+            }
         })
         .catch(error => {
             console.log("Error getting chat response:", error);
@@ -375,7 +349,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Adicionar mensagem ao chat com suporte para animações e estilos avançados
     function addMessage(text, isUser = false) {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
@@ -388,72 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const contentElement = document.createElement('div');
         contentElement.classList.add('message-content');
         
-        // Adicionar CSS para animações caso ainda não exista
-        if (!document.getElementById('chat-animations-css')) {
-            const styleEl = document.createElement('style');
-            styleEl.id = 'chat-animations-css';
-            styleEl.textContent = `
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                
-                .message {
-                    animation: fadeIn 0.3s ease-out forwards;
-                }
-                
-                .confirmation-message {
-                    background-color: #e8f5e9;
-                    padding: 12px 15px;
-                    border-radius: 8px;
-                    border-left: 4px solid #4caf50;
-                    margin: 5px 0;
-                }
-                
-                .confirmation-message p {
-                    margin: 5px 0;
-                }
-                
-                .verification-message {
-                    background-color: #e1f5fe;
-                    padding: 12px 15px;
-                    border-radius: 8px;
-                    border-left: 4px solid #03a9f4;
-                    margin: 5px 0;
-                }
-                
-                .verification-message p {
-                    margin: 5px 0;
-                }
-                
-                .loading-dots {
-                    display: inline-block;
-                }
-                
-                .loading-dots span {
-                    animation: dotPulse 1.5s infinite;
-                    display: inline-block;
-                    margin: 0 2px;
-                }
-                
-                .loading-dots span:nth-child(2) {
-                    animation-delay: 0.3s;
-                }
-                
-                .loading-dots span:nth-child(3) {
-                    animation-delay: 0.6s;
-                }
-                
-                @keyframes dotPulse {
-                    0% { opacity: 0.3; }
-                    50% { opacity: 1; }
-                    100% { opacity: 0.3; }
-                }
-            `;
-            document.head.appendChild(styleEl);
-        }
-        
-        // Processa o texto para manter formatação markdown básica e animações
+        // Processa o texto para manter formatação markdown básica
         if (!isUser) {
             // Converte markdown para HTML
             text = convertMarkdownHeaders(text);
@@ -473,14 +381,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isUser) {
             contentElement.style.whiteSpace = 'normal';
             contentElement.style.display = 'inline-block';
-        }
-        
-        // Se necessário, inicializar elementos animados
-        if (!isUser && text.includes('loading-dots')) {
-            // Quando há elementos animados, garantir que sejam exibidos corretamente
-            setTimeout(() => {
-                messageElement.style.opacity = '1';
-            }, 10);
         }
     }
     
@@ -503,19 +403,29 @@ document.addEventListener('DOMContentLoaded', function() {
         return text.replace(/- (.*?)$/gm, '<ul><li>$1</li></ul>').replace(/<\/ul><ul>/g, '');
     }
 
-    // NOTA: As funções legadas abaixo foram desativadas, mas mantidas por referência
-    // O sistema agora usa exclusivamente o painel lateral para exibir resultados de voos
-    
-    /* FUNÇÃO DESATIVADA - Substituída pelo painel lateral
     function addPurchaseLink(url) {
-        // Desativada - substituída pela funcionalidade no painel lateral
+        const purchaseElement = document.createElement('div');
+        purchaseElement.classList.add('purchase-link');
+        purchaseElement.innerHTML = `
+            <p>Quer comprar esta passagem? Clique no botão abaixo:</p>
+            <a href="${url}" target="_blank" class="purchase-button">
+                <i class="fas fa-shopping-cart"></i> Comprar Agora
+            </a>
+        `;
+
+        chatMessages.appendChild(purchaseElement);
+        scrollToBottom();
     }
-    */
     
-    /* FUNÇÃO DESATIVADA - Substituída pelo painel lateral
     function addFlightOptions(flightData, bestPricesData) {
-        // Desativada - substituída pela funcionalidade no painel lateral
-    */
+        // Se não tivermos dados de voos ou preços, não fazer nada
+        if (!flightData && !bestPricesData) return;
+        
+        const flightOptionsElement = document.createElement('div');
+        flightOptionsElement.classList.add('flight-options');
+        
+        let optionsHtml = '<div class="flight-options-container">';
+        optionsHtml += '<h3>Opções de Voos para Sua Viagem</h3>';
         
         // Adicionar dois cards: Voo solicitado e Recomendação
         if (bestPricesData && bestPricesData.best_prices && bestPricesData.best_prices.length > 0) {
