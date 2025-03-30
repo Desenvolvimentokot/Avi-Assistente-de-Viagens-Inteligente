@@ -365,16 +365,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // MANTÉM o código legado para compatibilidade com o sistema atual
-            // Eventualmente este código será substituído completamente pelo painel lateral
-            if (data.flight_data || data.best_prices_data) {
-                addFlightOptions(data.flight_data, data.best_prices_data);
-            }
-            
-            // Se houver link de compra direto, mostrar botão
-            if (data.purchase_link) {
-                addPurchaseLink(data.purchase_link);
-            }
+            // REMOVIDO: Não utilizamos mais o mural de ofertas antigo
+            // Todo o processamento de resultados de voos agora é feito através do painel lateral
         })
         .catch(error => {
             console.log("Error getting chat response:", error);
@@ -511,29 +503,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return text.replace(/- (.*?)$/gm, '<ul><li>$1</li></ul>').replace(/<\/ul><ul>/g, '');
     }
 
-    function addPurchaseLink(url) {
-        const purchaseElement = document.createElement('div');
-        purchaseElement.classList.add('purchase-link');
-        purchaseElement.innerHTML = `
-            <p>Quer comprar esta passagem? Clique no botão abaixo:</p>
-            <a href="${url}" target="_blank" class="purchase-button">
-                <i class="fas fa-shopping-cart"></i> Comprar Agora
-            </a>
-        `;
-
-        chatMessages.appendChild(purchaseElement);
-        scrollToBottom();
-    }
+    // NOTA: As funções legadas abaixo foram desativadas, mas mantidas por referência
+    // O sistema agora usa exclusivamente o painel lateral para exibir resultados de voos
     
+    /* FUNÇÃO DESATIVADA - Substituída pelo painel lateral
+    function addPurchaseLink(url) {
+        // Desativada - substituída pela funcionalidade no painel lateral
+    }
+    */
+    
+    /* FUNÇÃO DESATIVADA - Substituída pelo painel lateral
     function addFlightOptions(flightData, bestPricesData) {
-        // Se não tivermos dados de voos ou preços, não fazer nada
-        if (!flightData && !bestPricesData) return;
-        
-        const flightOptionsElement = document.createElement('div');
-        flightOptionsElement.classList.add('flight-options');
-        
-        let optionsHtml = '<div class="flight-options-container">';
-        optionsHtml += '<h3>Opções de Voos para Sua Viagem</h3>';
+        // Desativada - substituída pela funcionalidade no painel lateral
+    */
         
         // Adicionar dois cards: Voo solicitado e Recomendação
         if (bestPricesData && bestPricesData.best_prices && bestPricesData.best_prices.length > 0) {
