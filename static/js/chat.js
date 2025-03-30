@@ -1,13 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Adicionar evento para o botão do mural de voos
-    const flightsMuralButton = document.getElementById('openFlightsMuralButton');
+    const flightsMuralButton = document.getElementById('flightPanelTrigger');
     if (flightsMuralButton) {
         flightsMuralButton.addEventListener('click', function() {
-            console.log("Botão do Mural de Voos clicado");
+            console.log("Botão de Resultados de Voos clicado");
             
             // Verificar se o NOVO painel está disponível
             if (window.flightPanel) {
-                console.log("Usando o novo painel de voos");
+                console.log("Usando o painel de resultados de voos");
                 
                 // Mostrar o painel
                 window.flightPanel.show();
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     } else {
-        console.error("Botão do Mural de Voos não encontrado");
+        console.error("Botão de Resultados de Voos não encontrado");
     }
     
     // Listener para evento de seleção de voo

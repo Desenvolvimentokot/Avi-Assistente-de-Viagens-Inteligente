@@ -43,11 +43,12 @@ class FlightPanel {
     // Inicializar o painel
     init() {
         this.createPanel();
-        this.createToggleButton();
         this.setupEventListeners();
         
         // O painel começa escondido por padrão
         this.hide();
+        
+        console.log("Painel de resultados de voos inicializado com sucesso");
     }
     
     // Criar a estrutura do painel
@@ -535,8 +536,11 @@ class FlightPanel {
     
     // Configurar listeners de eventos
     setupEventListeners() {
-        // Toggle do painel
-        this.toggleButton.addEventListener('click', () => this.toggle());
+        // Toggle do painel via botão na header (flightPanelTrigger)
+        const flightPanelTrigger = document.getElementById('flightPanelTrigger');
+        if (flightPanelTrigger) {
+            flightPanelTrigger.addEventListener('click', () => this.toggle());
+        }
         
         // Botão de fechar
         this.panel.querySelector('.close-btn').addEventListener('click', () => this.hide());
