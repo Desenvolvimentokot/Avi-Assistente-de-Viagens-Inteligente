@@ -218,21 +218,4 @@ def direct_flight_search():
         }), 500
 
 
-@api_blueprint.route('/api/flight_results/test', methods=['GET'])
-def test_flight_results():
-    """
-    Endpoint de teste completamente desativado
-    Qualquer tentativa de acessar este endpoint resultará em erro 403
-    """
-    try:
-        # Retornar erro 403 para impedir completamente qualquer uso deste endpoint
-        logger.warning("❌ TENTATIVA DE ACESSO BLOQUEADA: Endpoint de teste desativado")
-        return jsonify({
-            "error": "ACESSO PROIBIDO: Este endpoint foi permanentemente desativado. O sistema Flai agora utiliza EXCLUSIVAMENTE dados reais da API Amadeus através do endpoint /api/flight_results/{session_id}.",
-            "data": []
-        }), 403
-    except Exception as e:
-        logging.error(f"Erro ao processar solicitação de teste: {str(e)}")
-        return jsonify({
-            "error": f"Ocorreu um erro ao processar a solicitação: {str(e)}"
-        }), 500
+# Endpoint de teste completamente removido para evitar qualquer uso acidental

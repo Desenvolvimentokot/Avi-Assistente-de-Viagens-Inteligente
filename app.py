@@ -30,22 +30,22 @@ def db_operation_with_retry(operation_func, max_retries=3, retry_delay=0.5):
     """
     Executa uma operação de banco de dados com tentativas de reconexão
     em caso de erros de conexão SSL ou outros problemas de conexão.
-    
+
     Args:
         operation_func: Função que executa a operação de banco de dados
         max_retries: Número máximo de tentativas
         retry_delay: Tempo de espera entre tentativas (em segundos)
-        
+
     Returns:
         O resultado da operação ou None se falhar em todas as tentativas
     """
     import time
     from sqlalchemy.exc import OperationalError, SQLAlchemyError
     import psycopg2
-    
+
     retries = 0
     last_error = None
-    
+
     while retries < max_retries:
         try:
             return operation_func()
@@ -56,10 +56,10 @@ def db_operation_with_retry(operation_func, max_retries=3, retry_delay=0.5):
                 retries += 1
                 last_error = e
                 logger.warning(f"Erro de conexão SSL ({retries}/{max_retries}): {error_msg}")
-                
+
                 # Pequena pausa antes de tentar novamente
                 time.sleep(retry_delay)
-                
+
                 # Tentar limpar a sessão atual
                 try:
                     db.session.remove()
@@ -78,7 +78,7 @@ def db_operation_with_retry(operation_func, max_retries=3, retry_delay=0.5):
             # Capturar erros genéricos
             logger.error(f"Erro inesperado no banco de dados: {str(e)}")
             raise
-    
+
     # Se chegou aqui, todas as tentativas falharam
     logger.error(f"Todas as {max_retries} tentativas de conexão falharam. Último erro: {str(last_error)}")
     return None
@@ -102,7 +102,7 @@ if database_url.startswith('postgresql'):
         # Se já tiver parâmetros, adicionar mais, senão, iniciar com o caractere '?'
         separator = '&' if '?' in database_url else '?'
         database_url = f"{database_url}{separator}sslmode=require"
-    
+
     # Certificar-se de que os outros parâmetros de conexão estão presentes
     needed_params = {
         'connect_timeout': '10', 
@@ -111,11 +111,11 @@ if database_url.startswith('postgresql'):
         'keepalives_interval': '10', 
         'keepalives_count': '5'
     }
-    
+
     for param, value in needed_params.items():
         if f"{param}=" not in database_url:
             database_url = f"{database_url}&{param}={value}"
-    
+
     logger.info(f"Database URL configurada com parâmetros de conexão SSL")
     # Log para debug, mas omitindo detalhes sensíveis
     safe_url = re.sub(r"postgresql://[^:]+:[^@]+@", "postgresql://user:***@", database_url)
@@ -173,26 +173,26 @@ def chat():
 
         if not message:
             return jsonify({"error": True, "message": "Mensagem vazia"})
-            
+
         # Inicializa ou recupera a sessão do usuário
         if session_id not in conversation_store:
             conversation_store[session_id] = {
                 'history': [],
                 'travel_info': {}
             }
-        
+
         # Usa o histórico armazenado no servidor, ou o enviado pelo cliente se disponível
         history = conversation_store[session_id]['history']
         if not history and client_history:
             history = client_history
-            
+
         # Adiciona a mensagem atual ao histórico
         history.append({'user': message})
 
         if mode == 'quick-search':
             # Recuperar travel_info anterior, se existir
             current_travel_info = conversation_store[session_id].get('travel_info', {})
-            
+
             # Transformar o histórico no formato esperado pelo OpenAI Service
             openai_history = []
             for msg in history:
@@ -200,41 +200,41 @@ def chat():
                     openai_history.append({'is_user': True, 'content': msg['user']})
                 elif 'assistant' in msg:
                     openai_history.append({'is_user': False, 'content': msg['assistant']})
-            
+
             # Análise do estágio atual do fluxo de conversação
             # 1. Se estamos extraindo informações inicialmente
             # 2. Se estamos confirmando os detalhes
             # 3. Se estamos buscando e apresentando resultados
-            
+
             # Definir o contexto de sistema para a API do GPT com base no estágio
             step = current_travel_info.get('step', 0)
-            
+
             # Extrair informações da mensagem antes para enriquecer o contexto
             travel_info = chat_processor.extract_travel_info(message)
             if travel_info:
                 current_travel_info.update(travel_info)
-                
+
             # Determinar se já temos informações suficientes para busca
             has_sufficient_info = False
             errors = chat_processor.validate_travel_info(current_travel_info)
             if not errors:
                 has_sufficient_info = True
-            
+
             # Preparar sistema de contexto específico para o GPT baseado no estágio
             system_context = ""
-            
+
             if step == 0:  # Etapa de extração de informações
                 # Informar o ChatGPT sobre o que já sabemos para ele focar no que falta
                 missing_info = []
                 for key, error in errors.items() if errors else {}:
                     missing_info.append(f"- {error}")
-                
+
                 if missing_info:
                     system_context = f"""
                     Estamos na etapa de coleta de informações para busca de voos.
                     As seguintes informações ainda precisam ser obtidas:
                     {chr(10).join(missing_info)}
-                    
+
                     Solicite ao usuário essas informações de forma natural e conversacional.
                     NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
                     """
@@ -242,12 +242,12 @@ def chat():
                     # Temos todas as informações, vamos para a confirmação
                     current_travel_info['step'] = 1
                     step = 1
-                    
+
                     # Formatar as informações para confirmar
                     # Converter datas relativas em datas exatas para apresentação
                     # Clonar o dicionário para não modificar o original
                     presentation_info = current_travel_info.copy()
-                    
+
                     # Formatar para mostrar data completa formatada
                     if 'departure_date' in presentation_info:
                         try:
@@ -258,7 +258,7 @@ def chat():
                             presentation_info['departure_date_formatted'] = f"{date_obj.strftime('%d/%m/%Y')} ({dia_semana})"
                         except Exception as e:
                             logger.error(f"Erro ao formatar data de partida: {str(e)}")
-                    
+
                     if 'return_date' in presentation_info:
                         try:
                             date_obj = datetime.strptime(presentation_info['return_date'], '%Y-%m-%d')
@@ -268,24 +268,24 @@ def chat():
                             presentation_info['return_date_formatted'] = f"{date_obj.strftime('%d/%m/%Y')} ({dia_semana})"
                         except Exception as e:
                             logger.error(f"Erro ao formatar data de retorno: {str(e)}")
-                    
+
                     summary = chat_processor.format_travel_info_summary(presentation_info)
-                    
+
                     system_context = f"""
                     Temos todas as informações necessárias para busca:
                     {summary}
-                    
+
                     Confirme estes detalhes com o usuário de forma natural antes de realizar a busca.
                     IMPORTANTE: Mostre exatamente as datas formatadas como estão no resumo acima.
                     NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
                     """
-                    
+
             elif step == 1:  # Etapa de confirmação
                 # Verificar se o usuário confirmou
                 confirmation = False
                 if "sim" in message.lower() or "confirmo" in message.lower() or "pode buscar" in message.lower() or "ok" in message.lower():
                     confirmation = True
-                    
+
                 if confirmation:
                     # Usuário confirmou, vamos buscar os voos
                     current_travel_info['confirmed'] = True
@@ -302,14 +302,14 @@ def chat():
                     system_context = f"""
                     Precisamos confirmar estas informações para busca:
                     {summary}
-                    
+
                     Confirme estes detalhes com o usuário de forma natural antes de realizar a busca.
                     NÃO SIMULE resultados de busca ou preços - não temos essas informações ainda.
                     """
-                    
+
             elif step == 2:  # Etapa de busca e apresentação de resultados
                 # IMPLEMENTAÇÃO DO PLANO DE AÇÃO: SEPARAÇÃO TOTAL DA BUSCA
-                
+
                 # Se já buscamos antes, apenas continuar a conversa
                 if current_travel_info.get('search_results'):
                     system_context = """
@@ -320,21 +320,21 @@ def chat():
                     # SOLUÇÃO DEFINITIVA: Pular completamente o ChatGPT neste ponto
                     # Quando estamos na etapa de busca (step 2), não precisamos do ChatGPT
                     # Os dados reais virão diretamente da API Amadeus
-                    
+
                     # Forçar a flag para pular ChatGPT imediatamente
                     logger.warning("🚫 ETAPA 2 DETECTADA: PULANDO GPT COMPLETAMENTE")
                     skip_gpt_call = True
-            
+
             # INTERCEPÇÃO CRÍTICA: VERIFICAR QUALQUER ESTÁGIO DE BUSCA
             # Aqui detectamos qualquer condição que indique que devemos realizar uma busca real
             # Isso impede COMPLETAMENTE que o GPT seja chamado para simulações
             skip_gpt_call = False
-            
+
             # Caso 1: Estamos na etapa 2 (busca) e o usuário já confirmou
             if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
                 logger.warning("⚠️ INTERCEPÇÃO DO FLUXO: Busca confirmada detectada, pulando ChatGPT completamente")
                 skip_gpt_call = True
-            
+
             # Caso 2: Se a mensagem contém alguma confirmação clara
             confirmation_phrases = ["sim", "confirmo", "pode buscar", "ok", "busque", "procure", "encontre"]
             if any(phrase in message.lower() for phrase in confirmation_phrases) and step == 1:
@@ -344,8 +344,12 @@ def chat():
                 current_travel_info['step'] = 2
                 current_travel_info['confirmed'] = True
                 step = 2
-            
+
             # Qualquer caso em que devemos pular o GPT:
+            chat_context = {
+                'step': step,
+                'travel_info': current_travel_info
+            }
             if skip_gpt_call:
                 # Definir resposta padrão sem chamar OpenAI
                 gpt_result = {
@@ -356,7 +360,7 @@ def chat():
                 # Apenas para casos onde não estamos fazendo busca real
                 logger.info(f"Chamando OpenAI normalmente para etapa {step}")
                 gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
-            
+
             if 'error' in gpt_result:
                 logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
                 # Fallback para processamento direto
@@ -375,37 +379,37 @@ def chat():
                 else:
                     # Se não existir, usa o valor padrão
                     gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"
-                
+
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
                     # IMPLEMENTAÇÃO DEFINITIVA: CONEXÃO DIRETA COM A API AMADEUS
                     # Apenas o flight_service_connector será utilizado para todas as buscas
                     # Este é o único ponto onde a busca real é feita
                     from services.flight_service_connector import flight_service_connector
-                    
+
                     # Log para rastrear este ponto crítico
                     logger.warning("🔍 BUSCA REAL: Chamando Amadeus API diretamente via flight_service_connector")
-                    
+
                     search_results = None
                     try:
                         # Garantir que o session_id seja persistido
                         if not session_id:
                             session_id = str(uuid.uuid4())
                             logger.warning(f"Gerado novo session_id: {session_id}")
-                        
+
                         # Adicionar log detalhado para os parâmetros de busca
                         logger.warning(f"PARÂMETROS DE BUSCA: Origem: {current_travel_info.get('origin')}, " + 
                                       f"Destino: {current_travel_info.get('destination')}, " +
                                       f"Data ida: {current_travel_info.get('departure_date')}, " +
                                       f"Data volta: {current_travel_info.get('return_date', 'N/A')}, " +
                                       f"Adultos: {current_travel_info.get('adults', 1)}")
-                        
+
                         # ÚNICO PONTO DE BUSCA REAL: using flight_service_connector
                         search_results = flight_service_connector.search_flights_from_chat(
                             travel_info=current_travel_info,
                             session_id=session_id
                         )
-                        
+
                         # Log detalhado sobre os resultados obtidos ou erros
                         if not search_results:
                             logger.error("❌ Busca direta retornou resultados vazios")
@@ -418,23 +422,23 @@ def chat():
                         else:
                             flight_count = len(search_results.get('data', []))
                             logger.warning(f"✅ RESULTADOS OBTIDOS COM SUCESSO: {flight_count} voos encontrados")
-                            
+
                             # Armazenar resultados da busca no contexto atual
                             current_travel_info['search_results'] = search_results
-                            
+
                             # Adicionar o session_id aos resultados para referência
                             search_results['session_id'] = session_id
-                            
+
                             # Usar o formatador do conector para preparar a resposta
                             formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
-                            
+
                             # Extrair a mensagem e a flag para mostrar o painel
                             response_text = formatted_response.get('message', 'Encontrei algumas opções de voos para você! Confira no painel lateral.')
-                            
+
                             # IMPORTANTE: Forçar abertura do painel quando houver resultados
                             show_flight_results = True
                             logger.warning(f"📊 Painel de resultados será exibido com session_id: {session_id}")
-                        
+
                         # Preparar dados para resposta
                         current_travel_info['show_flight_results'] = show_flight_results
                         if show_flight_results:
@@ -448,7 +452,7 @@ def chat():
                 else:
                     # Etapas 0 ou 1, ou sem confirmação - usar apenas a resposta do GPT
                     response_text = gpt_response
-                
+
                 # Atualizar o contexto
                 updated_context = {
                     'step': step,
@@ -457,42 +461,42 @@ def chat():
                     'error': None,
                     'gpt_response': gpt_response
                 }
-            
+
             # Armazena a resposta no histórico
             history.append({'assistant': response_text})
-            
+
             # Atualizar travel_info com o contexto atualizado
             current_travel_info['step'] = updated_context['step']
             if updated_context.get('search_results'):
                 current_travel_info['search_results'] = updated_context['search_results']
-            
+
             # Construir a resposta
             response = {"response": response_text, "error": False}
-            
+
             # FORÇAR EXIBIÇÃO DO PAINEL SEMPRE QUE TIVERMOS RESULTADOS DE BUSCA
             # Isso usa nosso novo provedor de dados de voo para garantir a exibição do painel
             if current_travel_info.get('show_flight_results', False):
                 # Se temos resultados de busca, mostrar o painel
                 response['show_flight_results'] = True
-                
+
                 # Passar o ID da sessão para o cliente
                 if current_travel_info.get('flight_session_id'):
                     response['session_id'] = current_travel_info.get('flight_session_id')
                 else:
                     response['session_id'] = session_id
-                
+
                 # Adicionar evento para que o JavaScript ative o mural
                 response['trigger_flight_panel'] = True
-                
+
                 logging.info(f"Exibindo painel de voos para a sessão: {response.get('session_id')}")
-            
+
             # Atualiza o armazenamento
             conversation_store[session_id]['history'] = history
             conversation_store[session_id]['travel_info'] = current_travel_info
-            
+
             # Adiciona session_id na resposta
             response['session_id'] = session_id
-            
+
             return jsonify(response)
         else:
             # Implementar lógica para planejamento completo
@@ -500,7 +504,7 @@ def chat():
             history.append({'assistant': response['response']})
             conversation_store[session_id]['history'] = history
             response['session_id'] = session_id
-            
+
             return jsonify(response)
 
     except Exception as e:
@@ -697,11 +701,11 @@ def get_conversations_login_required():
         """Função interna para buscar conversas (para uso com retry)"""
         conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.last_updated.desc()).all()
         return conversations
-    
+
     try:
         # Usar o mecanismo de retry para buscar conversas
         user_conversations = db_operation_with_retry(fetch_conversations, max_retries=5, retry_delay=0.8)
-        
+
         # Se todas as tentativas falharam, retornar uma lista vazia com uma mensagem amigável
         if user_conversations is None:
             logger.error("Falha ao recuperar conversas após múltiplas tentativas")
@@ -710,7 +714,7 @@ def get_conversations_login_required():
                 "message": "Não foi possível recuperar suas conversas no momento. Por favor, tente novamente.",
                 "conversations": []
             })
-        
+
         # Processar as conversas recuperadas com sucesso
         result = []
         for conv in user_conversations:
@@ -719,10 +723,10 @@ def get_conversations_login_required():
                 "title": conv.title,
                 "last_updated": conv.last_updated.strftime("%d/%m/%Y")
             })
-        
+
         logger.info(f"Conversas recuperadas com sucesso: {len(result)}")
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Erro ao buscar conversas: {str(e)}")
         # Retornar uma resposta amigável ao usuário
@@ -737,48 +741,48 @@ def get_conversation_messages(conversation_id):
     def fetch_conversation():
         """Função interna para buscar a conversa (para uso com retry)"""
         return Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first()
-    
+
     def fetch_messages():
         """Função interna para buscar as mensagens (para uso com retry)"""
         return Message.query.filter_by(conversation_id=conversation_id).order_by(Message.timestamp).all()
-    
+
     try:
         # Buscar a conversa com retry
         conv = db_operation_with_retry(fetch_conversation, max_retries=5, retry_delay=0.5)
-        
+
         if conv is None:
             logger.error(f"Não foi possível recuperar a conversa {conversation_id} após várias tentativas")
             return jsonify({
                 "error": True, 
                 "message": "Não foi possível recuperar esta conversa no momento. Por favor, tente novamente."
             }), 500
-        
+
         if not conv:
             return jsonify({"error": "Conversa não encontrada"}), 404
-            
+
         # Buscar as mensagens com retry
         messages = db_operation_with_retry(fetch_messages, max_retries=5, retry_delay=0.5)
-        
+
         if messages is None:
             logger.error(f"Não foi possível recuperar as mensagens da conversa {conversation_id} após várias tentativas")
             return jsonify({
                 "error": True,
                 "message": "Não foi possível recuperar as mensagens desta conversa no momento. Por favor, tente novamente."
             }), 500
-        
+
         # Processar os resultados com sucesso
         result = []
         for msg in messages:
             result.append({
                 "id": msg.id,
                 "is_user": msg.is_user,
-                "content": msg.content,
+                ""content": msg.content,
                 "timestamp": msg.timestamp.isoformat()
             })
-        
+
         logger.info(f"Recuperadas {len(result)} mensagens da conversa {conversation_id}")
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Erro ao recuperar mensagens da conversa {conversation_id}: {str(e)}")
         return jsonify({
