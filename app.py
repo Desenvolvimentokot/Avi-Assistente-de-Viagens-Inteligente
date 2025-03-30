@@ -325,35 +325,37 @@ def chat():
                     logger.warning("🚫 ETAPA 2 DETECTADA: PULANDO GPT COMPLETAMENTE")
                     skip_gpt_call = True
             
-            # INTERCEPÇÃO CRÍTICA: VERIFICAR ESTÁGIO DE BUSCA CONFIRMADA
-            # Aqui detectamos se estamos no estágio de busca após confirmação 
-            # para EVITAR COMPLETAMENTE a chamada ao GPT neste caso específico
+            # INTERCEPÇÃO CRÍTICA: VERIFICAR QUALQUER ESTÁGIO DE BUSCA
+            # Aqui detectamos qualquer condição que indique que devemos realizar uma busca real
+            # Isso impede COMPLETAMENTE que o GPT seja chamado para simulações
+            skip_gpt_call = False
+            
+            # Caso 1: Estamos na etapa 2 (busca) e o usuário já confirmou
             if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                logger.info("⚠️ INTERCEPÇÃO DO FLUXO: Busca confirmada detectada, pulando ChatGPT completamente")
-                
-                # FORÇAR skip_gpt_call = True para este caso específico
+                logger.warning("⚠️ INTERCEPÇÃO DO FLUXO: Busca confirmada detectada, pulando ChatGPT completamente")
                 skip_gpt_call = True
-                
+            
+            # Caso 2: Se a mensagem contém alguma confirmação clara
+            confirmation_phrases = ["sim", "confirmo", "pode buscar", "ok", "busque", "procure", "encontre"]
+            if any(phrase in message.lower() for phrase in confirmation_phrases) and step == 1:
+                logger.warning("⚠️ INTERCEPÇÃO DO FLUXO: Confirmação detectada na mensagem, pulando ChatGPT")
+                skip_gpt_call = True
+                # Forçar o avanço para etapa 2
+                current_travel_info['step'] = 2
+                current_travel_info['confirmed'] = True
+                step = 2
+            
+            # Qualquer caso em que devemos pular o GPT:
+            if skip_gpt_call:
                 # Definir resposta padrão sem chamar OpenAI
                 gpt_result = {
                     "response": "Estou consultando a API da Amadeus para encontrar as melhores opções reais de voos para sua viagem. Aguarde um momento..."
                 }
-                
-                logger.info("✅ Fluxo desviado com sucesso para API Amadeus direta")
+                logger.warning("✅ Fluxo desviado com sucesso para API Amadeus direta")
             else:
-                # Para outros casos, verificar se já temos instrução para pular
-                skip_gpt_call = locals().get('skip_gpt_call', False)
-                
-                if not skip_gpt_call:
-                    # SOLUÇÃO FINAL: Não há mais verificação de palavras-chave no serviço OpenAI
-                    # Chamamos a API OpenAI normalmente para todas as mensagens não confirmadas
-                    logger.info(f"Chamando OpenAI normalmente para etapa {step}")
-                    gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
-                    
-            # Inicializar gpt_result se ainda não existir (caso skip_gpt_call seja True)
-            if not 'gpt_result' in locals():
-                logger.warning("gpt_result não definido, usando mensagem padrão")
-                gpt_result = {"response": "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"}
+                # Apenas para casos onde não estamos fazendo busca real
+                logger.info(f"Chamando OpenAI normalmente para etapa {step}")
+                gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
             
             if 'error' in gpt_result:
                 logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
@@ -376,40 +378,52 @@ def chat():
                 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # IMPLEMENTAÇÃO DO PLANO: CONEXÃO DIRETA COM A API AMADEUS
-                    # Usar o conector unificado para a API Amadeus (via SDK oficial)
-                    # Este é o ponto crítico onde fazemos a busca real em vez de usar OpenAI
+                    # IMPLEMENTAÇÃO DEFINITIVA: CONEXÃO DIRETA COM A API AMADEUS
+                    # Apenas o flight_service_connector será utilizado para todas as buscas
+                    # Este é o único ponto onde a busca real é feita
                     from services.flight_service_connector import flight_service_connector
                     
                     # Log para rastrear este ponto crítico
-                    logger.warning("🔍 BUSCA REAL: Chamando Amadeus API diretamente, pulando completamente o GPT")
+                    logger.warning("🔍 BUSCA REAL: Chamando Amadeus API diretamente via flight_service_connector")
                     
                     search_results = None
                     try:
-                        # Enviar as informações de viagem diretamente para a API Amadeus
-                        # IMPORTANTE: Este fluxo evita COMPLETAMENTE a chamada à API do OpenAI para buscar voos
-                        logger.info(f"BUSCA DIRETA: Enviando para API Amadeus via conector - Sessão: {session_id}")
-                        logger.info(f"Parâmetros de busca: {current_travel_info.get('origin')} -> {current_travel_info.get('destination')}")
+                        # Garantir que o session_id seja persistido
+                        if not session_id:
+                            session_id = str(uuid.uuid4())
+                            logger.warning(f"Gerado novo session_id: {session_id}")
                         
-                        # Fazer a busca com o conector dedicado
+                        # Adicionar log detalhado para os parâmetros de busca
+                        logger.warning(f"PARÂMETROS DE BUSCA: Origem: {current_travel_info.get('origin')}, " + 
+                                      f"Destino: {current_travel_info.get('destination')}, " +
+                                      f"Data ida: {current_travel_info.get('departure_date')}, " +
+                                      f"Data volta: {current_travel_info.get('return_date', 'N/A')}, " +
+                                      f"Adultos: {current_travel_info.get('adults', 1)}")
+                        
+                        # ÚNICO PONTO DE BUSCA REAL: using flight_service_connector
                         search_results = flight_service_connector.search_flights_from_chat(
                             travel_info=current_travel_info,
                             session_id=session_id
                         )
                         
+                        # Log detalhado sobre os resultados obtidos ou erros
                         if not search_results:
-                            logger.error("Busca direta retornou resultados vazios")
+                            logger.error("❌ Busca direta retornou resultados vazios")
                             response_text = "Desculpe, não consegui encontrar voos para a sua busca. Poderia verificar as informações fornecidas?"
                             show_flight_results = False
                         elif 'error' in search_results:
-                            logger.error(f"Erro na busca direta: {search_results['error']}")
+                            logger.error(f"❌ Erro na busca direta: {search_results['error']}")
                             response_text = f"Ocorreu um erro ao buscar voos: {search_results['error']}"
                             show_flight_results = False
                         else:
-                            logger.info(f"RESULTADOS DIRETOS OBTIDOS: {len(search_results.get('data', []))} voos encontrados")
+                            flight_count = len(search_results.get('data', []))
+                            logger.warning(f"✅ RESULTADOS OBTIDOS COM SUCESSO: {flight_count} voos encontrados")
                             
-                            # Armazenar resultados da busca
+                            # Armazenar resultados da busca no contexto atual
                             current_travel_info['search_results'] = search_results
+                            
+                            # Adicionar o session_id aos resultados para referência
+                            search_results['session_id'] = session_id
                             
                             # Usar o formatador do conector para preparar a resposta
                             formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
@@ -419,15 +433,18 @@ def chat():
                             
                             # IMPORTANTE: Forçar abertura do painel quando houver resultados
                             show_flight_results = True
-                            logger.info("Painel de resultados será exibido automaticamente")
+                            logger.warning(f"📊 Painel de resultados será exibido com session_id: {session_id}")
                         
                         # Preparar dados para resposta
                         current_travel_info['show_flight_results'] = show_flight_results
                         if show_flight_results:
                             current_travel_info['flight_session_id'] = session_id
                     except Exception as e:
-                        logging.error(f"Erro na busca de voos: {str(e)}")
-                        response_text = f"{gpt_response}\n\nDesculpe, tive um problema técnico ao buscar voos: {str(e)}"
+                        logging.error(f"❌ Erro grave na busca de voos: {str(e)}")
+                        # Mostrar rastreamento completo para depuração
+                        import traceback
+                        logging.error(traceback.format_exc())
+                        response_text = "Desculpe, ocorreu um erro técnico ao buscar voos. Por favor, tente novamente."
                 else:
                     # Etapas 0 ou 1, ou sem confirmação - usar apenas a resposta do GPT
                     response_text = gpt_response

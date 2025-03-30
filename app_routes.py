@@ -25,7 +25,7 @@ flight_search_sessions = {}
 @api_blueprint.route('/api/flight_results/<session_id>', methods=['GET'])
 def get_flight_results(session_id):
     """
-    IMPLEMENTAÇÃO DO PLANO DE AÇÃO: ENDPOINT UNIFICADO PARA MURAL DE VOOS
+    ENDPOINT DEFINITIVO PARA MURAL DE VOOS
     
     Obtém os resultados de voos reais da API Amadeus para uma sessão específica,
     usando exclusivamente o serviço FlightServiceConnector para garantir que
@@ -39,46 +39,79 @@ def get_flight_results(session_id):
     """
     # Mensagem clara de início de processamento para debug
     logger.warning(f"🛫 ENDPOINT REAL: Processando solicitação de voos para sessão {session_id}")
+    
+    # Validar session_id
+    if not session_id or session_id == "undefined" or session_id == "null":
+        logger.error("❌ Session ID inválido ou não fornecido")
+        return jsonify({
+            "error": "ID de sessão inválido. Por favor, inicie uma nova conversa.",
+            "data": []
+        }), 400
+    
     try:
-        logger.info(f"Recebida solicitação para resultados de voos - Sessão: {session_id}")
-        
         # Verificar se temos resultados para esta sessão no cache
         if session_id in flight_search_sessions:
-            logger.info(f"Retornando resultados em cache para sessão {session_id}")
-            return jsonify(flight_search_sessions[session_id])
+            logger.warning(f"✅ Usando resultados em CACHE para sessão {session_id}")
+            
+            # Verificar se os dados em cache são válidos (têm lista de voos)
+            cached_results = flight_search_sessions[session_id]
+            if cached_results and 'data' in cached_results and len(cached_results['data']) > 0:
+                logger.warning(f"📊 Retornando {len(cached_results['data'])} voos do cache")
+                
+                # Inserir cabeçalho para debugging
+                cached_results['source'] = 'cache'
+                return jsonify(cached_results)
+            else:
+                logger.warning("⚠️ Dados em cache existem mas estão vazios ou inválidos")
         
         # Caso contrário, verificar se temos parâmetros de busca salvos
         from app import conversation_store
         
+        # Verificar se a sessão existe no conversation_store
         if session_id not in conversation_store:
-            logger.warning(f"Sessão {session_id} não encontrada no conversation_store")
+            logger.error(f"❌ Sessão {session_id} não encontrada no conversation_store")
             return jsonify({
                 "error": "Sessão não encontrada. Por favor, inicie uma nova conversa.",
                 "data": []
-            })
+            }), 404
         
+        logger.warning(f"📝 Encontrada sessão {session_id} no conversation_store")
         travel_info = conversation_store[session_id].get('travel_info', {})
         
         # Verificar se temos resultados já salvos
         if travel_info.get('search_results'):
-            logger.info(f"Retornando resultados armazenados em travel_info para sessão {session_id}")
-            flight_search_sessions[session_id] = travel_info['search_results']
-            return jsonify(travel_info['search_results'])
+            logger.warning(f"📊 Encontrados resultados salvos na travel_info da sessão {session_id}")
+            
+            # Validar se os resultados salvos têm dados
+            saved_results = travel_info['search_results']
+            if saved_results and 'data' in saved_results and len(saved_results['data']) > 0:
+                logger.warning(f"📊 Retornando {len(saved_results['data'])} voos da travel_info")
+                
+                # Atualizar o cache e retornar
+                flight_search_sessions[session_id] = saved_results
+                
+                # Inserir cabeçalho para debugging
+                saved_results['source'] = 'travel_info'
+                return jsonify(saved_results)
+            else:
+                logger.warning("⚠️ Resultados salvos existem mas estão vazios ou inválidos")
         
         # Verificar se temos parâmetros suficientes para realizar a busca
         if not (travel_info.get('origin') and travel_info.get('destination') and 
                 (travel_info.get('departure_date') or travel_info.get('date_range_start'))):
-            logger.warning(f"Parâmetros insuficientes para busca na sessão {session_id}")
+            logger.error(f"❌ Parâmetros insuficientes para busca na sessão {session_id}")
             return jsonify({
                 "error": "Informações insuficientes para realizar a busca. Forneça origem, destino e data.",
                 "data": []
-            })
+            }), 400
         
-        # Usar o serviço FlightServiceConnector para buscar resultados
-        logger.info(f"Buscando resultados reais da API Amadeus para sessão {session_id}")
-        logger.debug(f"Parâmetros de busca: {json.dumps(travel_info, default=str)}")
+        # Usar o serviço FlightServiceConnector para buscar resultados novos
+        logger.warning(f"🔄 Buscando NOVOS resultados reais da API Amadeus para sessão {session_id}")
         
-        # Realizar a busca com o conector de serviço de voos
+        # Importar o connector antes de usá-lo
+        from services.flight_service_connector import flight_service_connector
+        
+        # Realizar a busca com o conector direto
         search_results = flight_service_connector.search_flights_from_chat(
             travel_info=travel_info,
             session_id=session_id
@@ -86,34 +119,47 @@ def get_flight_results(session_id):
         
         # Validar os resultados
         if not search_results:
-            logger.error(f"Não foi possível obter resultados da API para sessão {session_id}")
+            logger.error(f"❌ Não foi possível obter resultados da API para sessão {session_id}")
             return jsonify({
                 "error": "Falha na busca de resultados. Tente novamente com outros parâmetros.",
                 "data": []
-            })
+            }), 500
             
         if 'error' in search_results:
-            logger.error(f"Erro na busca de voos: {search_results['error']}")
+            logger.error(f"❌ Erro na busca de voos: {search_results['error']}")
             return jsonify({
                 "error": search_results['error'],
                 "data": []
-            })
+            }), 500
         
-        # Salvar os resultados na sessão para futuras consultas
-        logger.info(f"Resultados de voos obtidos com sucesso. Salvando para sessão {session_id}")
+        # Verificar se recebemos dados válidos
+        if 'data' not in search_results or not search_results['data']:
+            logger.error(f"❌ API retornou estrutura sem voos para sessão {session_id}")
+            return jsonify({
+                "error": "A API não retornou voos para sua busca. Tente com outros parâmetros.",
+                "data": []
+            }), 404
+        
+        # Adicionar metadados para diagnóstico
+        search_results['source'] = 'api_direct'
+        search_results['session_id'] = session_id
+        from datetime import datetime
+        search_results['timestamp'] = datetime.utcnow().isoformat()
+        
+        # Salvar os resultados em todos os lugares relevantes
+        logger.warning(f"✅ Obtidos {len(search_results['data'])} voos novos. Salvando para sessão {session_id}")
         flight_search_sessions[session_id] = search_results
         travel_info['search_results'] = search_results
+        
         return jsonify(search_results)
-            
-        # Se chegamos aqui, não temos informações suficientes
-        return jsonify({
-            "error": "Não há resultados disponíveis para esta sessão. Realize uma busca primeiro."
-        })
         
     except Exception as e:
-        logger.error(f"Erro ao obter resultados de voos: {str(e)}")
+        import traceback
+        logger.error(f"❌ Erro ao obter resultados de voos: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({
-            "error": f"Ocorreu um erro ao buscar os resultados: {str(e)}"
+            "error": f"Ocorreu um erro ao buscar os resultados: {str(e)}",
+            "data": []
         }), 500
 
 
@@ -175,15 +221,16 @@ def direct_flight_search():
 @api_blueprint.route('/api/flight_results/test', methods=['GET'])
 def test_flight_results():
     """
-    Endpoint de teste para verificar a funcionalidade do painel lateral
-    Este endpoint está desativado para garantir que apenas dados reais sejam mostrados
+    Endpoint de teste completamente desativado
+    Qualquer tentativa de acessar este endpoint resultará em erro 403
     """
     try:
-        # Mensagem mais clara e informativa
+        # Retornar erro 403 para impedir completamente qualquer uso deste endpoint
+        logger.warning("❌ TENTATIVA DE ACESSO BLOQUEADA: Endpoint de teste desativado")
         return jsonify({
-            "error": "MODO DE TESTE DESATIVADO: O sistema Flai agora utiliza EXCLUSIVAMENTE dados reais da API Amadeus. Para ver resultados de voos, converse com a Avi e forneça detalhes sobre sua viagem.",
+            "error": "ACESSO PROIBIDO: Este endpoint foi permanentemente desativado. O sistema Flai agora utiliza EXCLUSIVAMENTE dados reais da API Amadeus através do endpoint /api/flight_results/{session_id}.",
             "data": []
-        })
+        }), 403
     except Exception as e:
         logging.error(f"Erro ao processar solicitação de teste: {str(e)}")
         return jsonify({

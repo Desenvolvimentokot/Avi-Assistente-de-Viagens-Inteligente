@@ -68,7 +68,7 @@ class FlightServiceConnector:
     def _search_specific_flights(self, travel_info, session_id):
         """
         Busca voos para data específica usando diretamente
-        o endpoint do nosso buscador do Amadeus-test
+        o endpoint do nosso buscador do Amadeus
         
         Args:
             travel_info: Informações da viagem
@@ -78,46 +78,98 @@ class FlightServiceConnector:
             dict: Resultados da busca
         """
         try:
+            # Logs de monitoramento detalhados para rastrear a busca
+            logger.warning(f"⭐ BUSCA REAL: Iniciando busca para sessão {session_id}")
+            
+            # Validação dos parâmetros obrigatórios
+            required_params = ['origin', 'destination', 'departure_date']
+            for param in required_params:
+                if not travel_info.get(param):
+                    error_msg = f"Parâmetro obrigatório ausente: {param}"
+                    logger.error(error_msg)
+                    return {
+                        "error": error_msg,
+                        "data": []
+                    }
+            
             # Preparar dados para a requisição
             search_data = {
                 "originLocationCode": travel_info.get('origin'),
                 "destinationLocationCode": travel_info.get('destination'),
                 "departureDate": travel_info.get('departure_date'),
                 "adults": travel_info.get('adults', 1),
-                "currencyCode": travel_info.get('currency', 'BRL')
+                "currencyCode": travel_info.get('currency', 'BRL'),
+                "max": 20  # Obter mais resultados para melhor comparação
             }
             
             # Adicionar data de retorno se disponível
             if travel_info.get('return_date'):
                 search_data["returnDate"] = travel_info.get('return_date')
             
-            # Fazer a requisição para o nosso endpoint de teste do Amadeus
-            logger.info(f"Fazendo requisição direta para API Amadeus com {search_data}")
+            # Adicionar o session_id para rastreamento
+            search_data["session_id"] = session_id
+            
+            # Fazer a requisição para o endpoint da API Amadeus
+            logger.warning(f"📡 Requisitando dados reais da API Amadeus: {json.dumps(search_data)}")
             
             # URL relativa para evitar problemas com portas
             url = "/api/amadeus/flights"
-            logger.info(f"URL de conexão: {url}")
+            
+            # Incluir cabeçalhos específicos para identificar a solicitação
+            headers = {
+                "X-Session-ID": session_id,
+                "X-Request-Source": "flight_service_connector",
+                "Content-Type": "application/json"
+            }
+            
+            # Registrar tempo de início para medição
+            import time
+            start_time = time.time()
             
             response = requests.post(
                 url,
+                headers=headers,
                 json=search_data,
-                timeout=30
+                timeout=30  # 30 segundos de timeout
             )
+            
+            # Calcular tempo de resposta
+            elapsed_time = time.time() - start_time
+            logger.warning(f"⏱️ Tempo de resposta da API: {elapsed_time:.2f} segundos")
             
             # Processar resposta
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"Resultados obtidos com sucesso! {len(result.get('data', []))} voos encontrados")
-                return result
+                flight_count = len(result.get('data', []))
+                
+                if flight_count > 0:
+                    logger.warning(f"✅ SUCESSO! {flight_count} voos reais encontrados para sessão {session_id}")
+                    
+                    # Adicionar session_id aos resultados
+                    result['session_id'] = session_id
+                    
+                    # Armazenar nos resultados quando foi feita a busca
+                    from datetime import datetime
+                    result['search_timestamp'] = datetime.utcnow().isoformat()
+                    
+                    return result
+                else:
+                    logger.error(f"⚠️ API retornou 0 resultados para sessão {session_id}")
+                    return {
+                        "error": "Nenhum voo encontrado para os critérios informados",
+                        "data": []
+                    }
             else:
-                logger.error(f"Erro na requisição: {response.status_code} - {response.text}")
+                logger.error(f"❌ Erro na requisição: {response.status_code} - {response.text}")
                 return {
                     "error": f"Erro ao buscar voos: {response.status_code}",
                     "data": []
                 }
                 
         except Exception as e:
-            logger.error(f"Erro ao buscar voos específicos: {str(e)}")
+            logger.error(f"❌ Exceção ao buscar voos: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {
                 "error": f"Falha na busca: {str(e)}",
                 "data": []

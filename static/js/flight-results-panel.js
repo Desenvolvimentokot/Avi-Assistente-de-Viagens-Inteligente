@@ -11,14 +11,14 @@ class FlightResultsPanel {
         this.isActive = false;
         this.currentSessionId = null;
         this.selectedFlightData = null; // Para armazenar a escolha do usuário
-        
+
         // Expor a instância globalmente para debug e acesso direto
         window.flightResultsPanel = this;
-        
+
         console.log("Painel de resultados de voos inicializado - Instância global disponível");
-        
+
         this.init();
-        
+
         // Configurar armazenamento compartilhado
         this.setupSharedStorage();
     }
@@ -30,19 +30,19 @@ class FlightResultsPanel {
         } else {
             this.panel = document.querySelector('.flight-results-panel');
         }
-        
+
         // Criar o botão de toggle se ainda não existir
         if (!document.querySelector('.toggle-flight-panel-btn')) {
             this.createToggleButton();
         } else {
             this.toggleButton = document.querySelector('.toggle-flight-panel-btn');
         }
-        
+
         // Esconder o painel inicialmente - não mostrar no carregamento da página
         this.hidePanel();
-        
+
         // Animação de busca será criada quando necessário
-        
+
         // Criar overlay de transição
         if (!document.querySelector('.flight-transition-overlay')) {
             this.createTransitionOverlay();
@@ -60,7 +60,7 @@ class FlightResultsPanel {
                 });
             }
         });
-        
+
         // Adicionar listener para verificar mudanças no localStorage
         window.addEventListener('storage', (event) => {
             if (event.key === 'flightPanelState') {
@@ -74,11 +74,11 @@ class FlightResultsPanel {
                 }
             }
         });
-        
+
         // NÃO restaurar estado - não queremos que o painel abra automaticamente
         // this.restoreState();
     }
-    
+
     setupSharedStorage() {
         // Criar objeto global para compartilhar dados entre componentes
         if (!window.flightSharedData) {
@@ -89,7 +89,7 @@ class FlightResultsPanel {
             };
         }
     }
-    
+
     // Salvar estado no localStorage para persistência
     saveState() {
         const state = {
@@ -98,14 +98,14 @@ class FlightResultsPanel {
             selectedFlight: this.selectedFlightData
         };
         localStorage.setItem('flightPanelState', JSON.stringify(state));
-        
+
         // Atualizar também o objeto compartilhado
         if (window.flightSharedData) {
             window.flightSharedData.selectedFlight = this.selectedFlightData;
             window.flightSharedData.lastSessionId = this.currentSessionId;
         }
     }
-    
+
     // Restaurar estado do localStorage
     restoreState() {
         try {
@@ -114,7 +114,7 @@ class FlightResultsPanel {
                 // Se estava ativo, mostrar novamente
                 this.currentSessionId = savedState.sessionId;
                 this.selectedFlightData = savedState.selectedFlight;
-                
+
                 // Se tivermos um ID de sessão, tentar carregar os dados novamente
                 if (this.currentSessionId) {
                     this.loadAndShowResults(this.currentSessionId);
@@ -122,7 +122,7 @@ class FlightResultsPanel {
                     this.showPanel();
                 }
             }
-            
+
             // Atualizar objeto compartilhado
             if (window.flightSharedData) {
                 window.flightSharedData.selectedFlight = this.selectedFlightData;
@@ -132,22 +132,22 @@ class FlightResultsPanel {
             console.error('Erro ao restaurar estado do painel:', error);
         }
     }
-    
+
     // Criar botão flutuante para toggle do painel
     createToggleButton() {
         this.toggleButton = document.createElement('button');
         this.toggleButton.className = 'toggle-flight-panel-btn';
         this.toggleButton.innerHTML = '<i class="fas fa-plane"></i><span>Ver Voos</span>';
-        
+
         // Adicionar ao body
         document.body.appendChild(this.toggleButton);
-        
+
         // Adicionar evento de clique
         this.toggleButton.addEventListener('click', () => {
             this.togglePanel();
         });
     }
-    
+
     // Criar overlay de transição
     createTransitionOverlay() {
         this.transitionOverlay = document.createElement('div');
@@ -161,7 +161,7 @@ class FlightResultsPanel {
                 <p>A Avi está consultando a API Amadeus para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
             </div>
         `;
-        
+
         // Adicionar CSS para o overlay
         if (!document.getElementById('flight-overlay-style')) {
             const style = document.createElement('style');
@@ -182,12 +182,12 @@ class FlightResultsPanel {
                     visibility: hidden;
                     transition: opacity 0.3s ease, visibility 0.3s ease;
                 }
-                
+
                 .flight-transition-overlay.active {
                     opacity: 1;
                     visibility: visible;
                 }
-                
+
                 .flight-transition-message {
                     background: white;
                     border-radius: 8px;
@@ -197,22 +197,22 @@ class FlightResultsPanel {
                     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
                     animation: messageAppear 0.5s ease;
                 }
-                
+
                 .flight-transition-icon {
                     font-size: 48px;
                     color: #4a90e2;
                     margin-bottom: 20px;
                 }
-                
+
                 @keyframes messageAppear {
                     from { transform: translateY(-30px); opacity: 0; }
                     to { transform: translateY(0); opacity: 1; }
                 }
-                
+
                 .fa-bounce {
                     animation: bounce 1s infinite;
                 }
-                
+
                 @keyframes bounce {
                     0%, 100% { transform: translateY(0); }
                     50% { transform: translateY(-20px); }
@@ -220,15 +220,15 @@ class FlightResultsPanel {
             `;
             document.head.appendChild(style);
         }
-        
+
         // Adicionar ao body
         document.body.appendChild(this.transitionOverlay);
     }
-    
+
     // Mostrar mensagem de transição por alguns segundos antes de mostrar os resultados
     showTransitionMessage(callback) {
         this.transitionOverlay.classList.add('active');
-        
+
         // Esconder após 2.5 segundos
         setTimeout(() => {
             this.transitionOverlay.classList.remove('active');
@@ -268,13 +268,13 @@ class FlightResultsPanel {
     showPanel() {
         this.panel.classList.add('active');
         this.isActive = true;
-        
+
         // Mostrar o botão de toggle
         if (this.toggleButton) {
             this.toggleButton.style.display = 'block';
             this.toggleButton.classList.add('panel-visible');
         }
-        
+
         // Salvar o estado
         this.saveState();
     }
@@ -282,12 +282,12 @@ class FlightResultsPanel {
     hidePanel() {
         this.panel.classList.remove('active');
         this.isActive = false;
-        
+
         // Reposicionar o botão de toggle
         if (this.toggleButton) {
             this.toggleButton.classList.remove('panel-visible');
         }
-        
+
         // Salvar o estado
         this.saveState();
     }
@@ -318,7 +318,7 @@ class FlightResultsPanel {
                 </div>
             </div>
         `;
-        
+
         // Adicionar CSS de animação para o avião
         if (!document.getElementById('plane-animation-style')) {
             const style = document.createElement('style');
@@ -365,7 +365,7 @@ class FlightResultsPanel {
             `;
             document.head.appendChild(style);
         }
-        
+
         // Animar a barra de progresso
         let progress = 0;
         this.loadingInterval = setInterval(() => {
@@ -403,29 +403,29 @@ class FlightResultsPanel {
     loadTestResults() {
         // Mostrar o painel
         this.showPanel();
-        
+
         console.log("Modo de teste desativado - apenas dados reais disponíveis");
-        
+
         // Exibir mensagem explicativa diretamente sem fazer requisição
         this.showError(
             "Modo de teste desativado. O sistema Flai agora utiliza exclusivamente dados reais da API Amadeus. " +
             "Para ver resultados de voos, converse com a Avi e forneça detalhes sobre sua viagem."
         );
     }
-    
+
     loadAndShowResults(sessionId) {
         // VERIFICAÇÃO E REGISTRO DETALHADO
         console.log("loadAndShowResults chamado com sessionId:", sessionId);
         console.log("Tipo do sessionId:", typeof sessionId);
-        
+
         // Verificar se temos um sessionId válido
         if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
             console.warn("SessionId inválido, não podemos buscar resultados");
-            
+
             // Tentar recuperar do localStorage como último recurso
             const savedSessionId = localStorage.getItem('currentSessionId');
             console.log("Tentando recuperar sessionId do localStorage:", savedSessionId);
-            
+
             if (savedSessionId && savedSessionId !== 'undefined' && savedSessionId !== 'null') {
                 console.log("Usando sessionId do localStorage:", savedSessionId);
                 sessionId = savedSessionId;
@@ -436,30 +436,30 @@ class FlightResultsPanel {
                 return;
             }
         }
-        
+
         // Forçar remoção de overlay de transição se estiver visível
         if (this.transitionOverlay) {
             this.transitionOverlay.classList.remove('active');
         }
-        
+
         // Salvar o ID da sessão atual
         this.currentSessionId = sessionId;
-        
+
         // Salvar no localStorage também para persistência
         localStorage.setItem('currentSessionId', sessionId);
         console.log("Session ID salvo no localStorage:", sessionId);
-        
+
         // Atualizar o objeto compartilhado
         if (window.flightSharedData) {
             window.flightSharedData.lastSessionId = sessionId;
         }
-        
+
         // Mostrar o painel e indicar carregamento
         this.showPanel();
         this.showLoading();
-        
+
         console.log(`Buscando resultados de voos para a sessão ${sessionId}...`);
-        
+
         // Chamar a API para obter os resultados de voo
         fetch(`/api/flight_results/${sessionId}`)
             .then(response => {
@@ -490,7 +490,7 @@ class FlightResultsPanel {
             clearInterval(this.loadingInterval);
             this.loadingInterval = null;
         }
-        
+
         // Verificar se temos dados para mostrar
         if (data.error) {
             this.showError(data.error);
@@ -503,7 +503,7 @@ class FlightResultsPanel {
             this.showNoResults();
             return;
         }
-        
+
         // Usar o método principal de renderização
         this.renderResults(data);
     }
@@ -514,7 +514,7 @@ class FlightResultsPanel {
             clearInterval(this.loadingInterval);
             this.loadingInterval = null;
         }
-        
+
         // Verificar se temos dados para mostrar
         if (data.error) {
             this.showError(data.error);
@@ -544,16 +544,16 @@ class FlightResultsPanel {
                 const lastSegment = itinerary.segments[itinerary.segments.length - 1];
                 const price = offer.price.total;
                 const currency = offer.price.currency;
-                
+
                 // Formatar a duração total
                 const duration = this.formatDuration(itinerary.duration);
-                
+
                 // Contar o número de conexões
                 const stops = itinerary.segments.length - 1;
                 const stopsText = stops === 0 ? 'Voo Direto' : 
                                   stops === 1 ? '1 Conexão' : 
                                   `${stops} Conexões`;
-                
+
                 // Construir o card do voo
                 resultsHtml += `
                     <div class="flight-card">
@@ -621,20 +621,20 @@ class FlightResultsPanel {
             .then(data => {
                 const offers = data.data || [];
                 const selectedOffer = offers.find(offer => offer.id === offerId);
-                
+
                 if (selectedOffer) {
                     // Salvar a oferta selecionada
                     this.selectedFlightData = selectedOffer;
                     this.saveState();
-                    
+
                     // Atualizar objeto compartilhado
                     if (window.flightSharedData) {
                         window.flightSharedData.selectedFlight = selectedOffer;
                     }
-                    
+
                     // Criar modal com detalhes do voo
                     this.showFlightDetailsModal(selectedOffer);
-                    
+
                     // Disparar evento para informar o chat que um voo foi selecionado
                     document.dispatchEvent(new CustomEvent('flightSelected', {
                         detail: {
@@ -648,13 +648,13 @@ class FlightResultsPanel {
                 alert('Não foi possível obter os detalhes deste voo. Tente novamente.');
             });
     }
-    
+
     showFlightDetailsModal(flightData) {
         // Extrair informações do voo
         const itinerary = flightData.itineraries[0];
         const price = flightData.price.total;
         const currency = flightData.price.currency;
-        
+
         // Criar modal com animação
         const modal = document.createElement('div');
         modal.className = 'flight-details-modal';
@@ -681,36 +681,36 @@ class FlightResultsPanel {
                 </div>
             </div>
         `;
-        
+
         // Adicionar modal ao DOM
         document.body.appendChild(modal);
-        
+
         // Adicionar evento de fechar
         modal.querySelector('.close-modal-btn').addEventListener('click', () => {
             modal.remove();
         });
-        
+
         // Adicionar evento de seleção
         modal.querySelector('.select-flight-btn').addEventListener('click', () => {
             this.bookFlight(flightData.id);
             modal.remove();
         });
-        
+
         // Exibir modal com animação
         setTimeout(() => {
             modal.style.opacity = '1';
         }, 50);
     }
-    
+
     // Renderizar segmentos do voo
     renderSegments(segments) {
         let html = '';
-        
+
         segments.forEach((segment, index) => {
             const departure = segment.departure;
             const arrival = segment.arrival;
             const duration = this.formatDuration(segment.duration);
-            
+
             html += `
                 <div class="flight-segment-details">
                     <div class="segment-header">
@@ -730,7 +730,7 @@ class FlightResultsPanel {
                     </div>
                 </div>
             `;
-            
+
             // Adicionar indicador de conexão entre segmentos
             if (index < segments.length - 1) {
                 const connectionTime = this.calculateConnectionTime(segment.arrival.at, segments[index + 1].departure.at);
@@ -748,19 +748,19 @@ class FlightResultsPanel {
                 `;
             }
         });
-        
+
         return html;
     }
-    
+
     // Calcular tempo de conexão entre segmentos
     calculateConnectionTime(arrivalTime, departureTime) {
         const arrival = new Date(arrivalTime);
         const departure = new Date(departureTime);
-        
+
         const diffMs = departure - arrival;
         const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
         const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         return diffHrs > 0 ? `${diffHrs}h ${diffMins}m` : `${diffMins}m`;
     }
 
@@ -771,20 +771,20 @@ class FlightResultsPanel {
             .then(data => {
                 const offers = data.data || [];
                 const selectedOffer = offers.find(offer => offer.id === offerId);
-                
+
                 if (selectedOffer) {
                     // Salvar a oferta selecionada
                     this.selectedFlightData = selectedOffer;
                     this.saveState();
-                    
+
                     // Atualizar objeto compartilhado
                     if (window.flightSharedData) {
                         window.flightSharedData.selectedFlight = selectedOffer;
                     }
-                    
+
                     // Fechar o painel
                     this.hidePanel();
-                    
+
                     // Disparar evento para informar o chat que um voo foi selecionado
                     document.dispatchEvent(new CustomEvent('flightSelected', {
                         detail: {
@@ -792,7 +792,7 @@ class FlightResultsPanel {
                             message: "Voo selecionado com sucesso"
                         }
                     }));
-                    
+
                     // Mostrar mensagem de confirmação
                     alert('Voo selecionado com sucesso! Agora você pode continuar a conversa com a Avi.');
                 }
@@ -810,7 +810,7 @@ class FlightResultsPanel {
         const minutes = date.getMinutes().toString().padStart(2, '0');
         const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        
+
         return `${hours}:${minutes} · ${day}/${month}`;
     }
 
@@ -818,7 +818,7 @@ class FlightResultsPanel {
         // Formato PT2H30M => 2h 30m
         const hours = durationString.match(/(\d+)H/);
         const minutes = durationString.match(/(\d+)M/);
-        
+
         let formatted = '';
         if (hours && hours[1]) {
             formatted += `${hours[1]}h `;
@@ -826,7 +826,7 @@ class FlightResultsPanel {
         if (minutes && minutes[1]) {
             formatted += `${minutes[1]}m`;
         }
-        
+
         return formatted.trim();
     }
 }
@@ -837,3 +837,119 @@ document.addEventListener('DOMContentLoaded', () => {
     window.flightResultsPanel = new FlightResultsPanel();
     console.log('Painel de resultados de voos inicializado');
 });
+
+// Inicializar painel com uma sessão específica
+function initFlightResultsPanel(sessionId) {
+    console.log("Novo painel de voos inicializado com sucesso");
+
+    if (!sessionId) {
+        console.error("Session ID não fornecido para o painel de voos");
+        displayErrorMessage("Erro de sessão: ID não fornecido");
+
+        // Tentar recuperar do localStorage como fallback
+        const savedSessionId = localStorage.getItem('flai_flight_session_id');
+        if (savedSessionId) {
+            console.log("Usando session ID do localStorage: " + savedSessionId);
+            currentSessionId = savedSessionId;
+            loadFlightResults(savedSessionId);
+            return;
+        }
+
+        return;
+    }
+
+    // Salvar a sessão no localStorage para persistência
+    localStorage.setItem('flai_flight_session_id', sessionId);
+
+    currentSessionId = sessionId;
+    console.log("Inicializando painel de voos com session ID: " + sessionId);
+    loadFlightResults(sessionId);
+}
+
+// Carregar resultados de voos para a sessão atual
+function loadFlightResults(sessionId) {
+    const resultsContainer = document.getElementById('flight-results-container');
+    const loadingSpinner = document.getElementById('flight-results-loading');
+
+    if (!sessionId) {
+        console.error("Tentativa de carregar resultados sem session ID");
+        displayErrorMessage("Erro: ID de sessão não fornecido");
+        return;
+    }
+
+    console.log("Carregando resultados para sessão: " + sessionId);
+
+    if (loadingSpinner) loadingSpinner.style.display = 'flex';
+    if (resultsContainer) resultsContainer.innerHTML = '';
+
+    // Adicionar headers e método específico para garantir que seja uma requisição nova
+    const requestOptions = {
+        method: 'GET',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-Session-ID': sessionId
+        },
+    };
+
+    // Adicionar timestamp para evitar cache
+    const timestamp = new Date().getTime();
+
+    // Adicionar endpoint específico para a sessão com timestamp
+    fetch(`/api/flight_results/${sessionId}?_=${timestamp}`, requestOptions)
+        .then(response => {
+            console.log("Status da resposta:", response.status);
+
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (loadingSpinner) loadingSpinner.style.display = 'none';
+
+            // Log para ajudar na depuração
+            console.log(`Recebidos ${data.data?.length || 0} resultados da fonte: ${data.source || 'desconhecida'}`);
+
+            if (data.error) {
+                displayErrorMessage(data.error);
+                return;
+            }
+
+            if (!data.data || data.data.length === 0) {
+                displayErrorMessage("Não encontramos voos para sua busca. Tente outros parâmetros.");
+                return;
+            }
+
+            // Salvar session ID se ele estiver nos dados recebidos
+            if (data.session_id) {
+                currentSessionId = data.session_id;
+                localStorage.setItem('flai_flight_session_id', data.session_id);
+            }
+
+            displayFlightResults(data);
+        })
+        .catch(error => {
+            console.error('Erro ao carregar resultados de voos:', error);
+            if (loadingSpinner) loadingSpinner.style.display = 'none';
+            displayErrorMessage("Erro ao carregar resultados: " + error.message);
+
+            // Tentar novamente após um tempo
+            setTimeout(() => {
+                console.log("Tentando novamente após erro...");
+                loadFlightResults(sessionId);
+            }, 5000);
+        });
+}
+
+// Função auxiliar para exibir mensagens de erro
+function displayErrorMessage(message) {
+    console.error("Mensagem de erro:", message);
+    // Implemente aqui a lógica para exibir a mensagem de erro no painel
+}
+
+// Função auxiliar para exibir os resultados de voos (implemente aqui a lógica para renderizar os dados)
+function displayFlightResults(data) {
+    console.log("Resultados de voos:", data);
+    // Implemente aqui a lógica para exibir os resultados de voos no painel
+}
