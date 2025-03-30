@@ -1,0 +1,168 @@
+Segue abaixo o prompt EXTREMAMENTE DETALHADO para que o Replit Assistant (Claude 3.7) realize as correções necessárias na Etapa 1, de forma a resolver os problemas de uso indevido da API OpenAI para buscas de voos, conexão com a API Amadeus e erros críticos (como a conexão recusada e o erro de sintaxe). Este prompt está dividido em 3 etapas, com instruções passo a passo, indicando exatamente o que deve ser feito em cada arquivo ou bloco de código. Não dê opções – siga exatamente o que está descrito. Certifique-se de remover todo o código legado relacionado a chamadas à API do OpenAI para buscas de voo e de usar somente o serviço de voo (nosso FlightServiceConnector ou implementação consolidada) para obter dados reais da Amadeus.
+
+ETAPA 1 – CORREÇÃO DO BACKEND E FLUXO DE BUSCA DE VOOS
+Passo 1: Remoção de Chamadas à API do OpenAI e Correção do Fluxo
+Arquivo: app.py
+
+Localize a função do endpoint do chat (procure por def chat().
+
+Na seção que processa a mensagem do usuário, identifique onde a função openai_service.travel_assistant() é chamada (por volta da linha 336).
+
+Modifique o trecho de código para que, quando o chat estiver na etapa 2 (confirmação da busca), a variável skip_gpt_call seja definida como True e a chamada à API do OpenAI seja completamente ignorada.
+
+Exemplo de modificação (substitua o trecho atual):
+
+python
+Copiar
+# Determine a etapa do fluxo (por exemplo, usando chat_context)
+if chat_context.get('step') == 2:
+    skip_gpt_call = True
+else:
+    skip_gpt_call = False
+
+# Se estivermos na etapa 2 (busca confirmada), NÃO chame a API OpenAI
+if not skip_gpt_call:
+    gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+else:
+    # Defina uma resposta placeholder que não contenha dados simulados
+    gpt_result = {"response": "BUSCA_REAL_INICIADA"}
+Objetivo: Garantir que, após a confirmação dos detalhes, o fluxo ignore o OpenAI e use apenas nosso conector para a API Amadeus.
+
+Arquivo: services/chat_processor.py
+
+Verifique e remova quaisquer referências à função que invoque dados simulados (como get_simulated ou loadTestResults).
+
+Assegure que o contexto gerado para a busca contenha o session_id correto. Se já existir um código para inserir o session_id no contexto, confirme que ele é gerado (por exemplo, usando uuid.uuid4()) e que está sendo passado na resposta JSON.
+
+Remova o Endpoint de Dados Simulados:
+
+Arquivo: app_routes.py
+
+Localize e comente ou remova completamente o endpoint /api/flight_results/test para garantir que não haja fallback para dados simulados.
+
+Arquivo: static/js/flight-results-panel.js
+
+Remova qualquer referência à função loadTestResults() ou outros métodos que possam carregar dados de teste.
+
+Verificação do FlightServiceConnector:
+
+Arquivos a verificar:
+services/flight_service_connector.py,
+services/flight_data_provider.py,
+services/amadeus_service.py,
+services/amadeus_sdk_service.py.
+
+Ação:
+
+Escolha a implementação mais recente e confiável (preferencialmente flight_service_connector.py).
+
+Comente ou remova os arquivos duplicados (ou suas referências) para evitar que múltiplos serviços interfiram no fluxo.
+
+No flight_service_connector.py:
+
+Certifique-se de que as funções de busca (por exemplo, search_flights) utilizem URLs ABSOLUTAS para chamar a API Amadeus.
+Exemplo: Utilize uma variável de ambiente AMADEUS_BASE_URL com valor completo (e.g., https://test.api.amadeus.com/v2/shopping/flight-offers) em vez de caminhos relativos.
+
+Adicione logs que confirmem que a requisição está sendo feita com o URL correto e que o session_id está sendo incluído.
+
+Passo 2: Correção da Persistência e Transmissão do session_id
+Arquivo: app.py
+
+Após confirmar os detalhes da viagem (quando o usuário responder “está correto”), gere um session_id único (por exemplo, usando uuid.uuid4()).
+
+Inclua este session_id na resposta JSON enviada para o frontend, juntamente com uma flag (ex.: "show_flight_results": true).
+
+Adicione logs para confirmar a geração e transmissão do session_id.
+
+Arquivo: services/chat_processor.py
+
+Certifique-se de que, ao extrair e confirmar as informações de viagem, o session_id seja inserido no contexto de resposta.
+
+Confirme que o objeto JSON de resposta contém o session_id e que ele está sendo utilizado corretamente pelo frontend.
+
+Crie/Atualize um Script de Teste de Integração (Ex.: test_integration.py):
+
+O script deve simular uma busca de voo e verificar, nos logs, se:
+
+O session_id é gerado e incluído na resposta.
+
+O URL utilizado para chamar a API Amadeus é absoluto e correto.
+
+Não há nenhuma chamada à API OpenAI para buscas de voos (procure por “Enviando requisição para OpenAI API” – não deve aparecer).
+
+Exemplo de comandos para teste:
+
+bash
+Copiar
+python test_integration.py
+grep -i "skip_gpt_call" logs.txt
+grep -i "session_id" logs.txt
+grep -i "https://" logs.txt | grep "amadeus"
+Passo 3: Verificação e Ajustes Finais no Frontend
+Arquivo: static/js/chat.js
+
+Certifique-se de que o código que dispara o evento para exibir o painel lateral (ex.: showFlightResults) esteja utilizando o session_id recebido na resposta.
+
+Remova ou comente qualquer código que tente usar dados de teste ou fallback, garantindo que o painel só carregue dados reais.
+
+Adicione logs detalhados para confirmar que o session_id está sendo recebido e passado para o painel.
+
+Arquivo: static/js/flight-results-panel.js
+
+Garanta que o método loadAndShowResults(sessionId) esteja construindo a URL correta para chamar o endpoint da API de resultados (deve usar a URL absoluta, como http://localhost:5000/api/flight_results/{session_id}).
+
+Verifique que não haja referências a métodos antigos (como loadTestResults()).
+
+Se o painel for aberto automaticamente, confirme que ele exibe uma mensagem de carregamento (com animação) até que os dados reais sejam retornados.
+
+Adicione tratamento de erros para exibir uma mensagem amigável caso o endpoint retorne um erro 404 ou 500.
+
+Reinicie a aplicação e teste manualmente:
+
+Inicie o chat e faça uma busca (por exemplo: “Quero viajar de São Paulo para Miami em 15 de abril”).
+
+Confirme os detalhes quando solicitado.
+
+Verifique se a resposta JSON inclui o session_id e a flag "show_flight_results": true.
+
+No frontend, clique no botão (ou verifique a abertura automática, conforme configurado) e certifique-se de que o painel lateral abre e exibe os dados reais vindos da API Amadeus.
+
+Utilize os scripts de teste para confirmar que não há chamadas para a API OpenAI e que os dados exibidos são reais.
+
+Resumo Final da Etapa 1:
+Objetivo: Eliminar qualquer chamada à API OpenAI para buscas de voo e garantir que o sistema use exclusivamente o FlightServiceConnector para buscar dados reais da API Amadeus, com a correta geração e transmissão do session_id.
+
+Ações Obrigatórias:
+
+Backend (app.py, chat_processor.py):
+
+Remover a chamada à openai_service.travel_assistant() para buscas de voo na etapa 2.
+
+Gerar e incluir um session_id único na resposta JSON.
+
+Consolidar o uso do FlightServiceConnector e remover todo código legado de fallback de dados simulados.
+
+Front-end (static/js/chat.js, flight-results-panel.js):
+
+Ajustar o fluxo de exibição do painel lateral para que ele utilize o session_id recebido.
+
+Remover referências a funções que carregam dados de teste.
+
+Adicionar logs e tratamento de erros para facilitar o diagnóstico.
+
+Testes:
+
+Use scripts de integração (test_integration.py, test_amadeus_endpoint.py) para confirmar que:
+
+Não há chamadas à API OpenAI para buscas de voo.
+
+O session_id é gerado e passado corretamente.
+
+O painel lateral utiliza um URL absoluto para acessar os resultados reais.
+
+Se houver erros, mensagens amigáveis são exibidas.
+
+Importante: Remova todas as referências e códigos antigos relacionados a dados simulados ou fallback para a API OpenAI, de modo que o sistema use apenas a API Amadeus para dados reais.
+
+Instruções Finais:
+Após aplicar estas modificações, reinicie a aplicação, execute os scripts de teste e realize testes manuais via chat para confirmar que a Etapa 1 está funcionando conforme o esperado. Apenas após a confirmação desta etapa passamos para a Etapa 2.
