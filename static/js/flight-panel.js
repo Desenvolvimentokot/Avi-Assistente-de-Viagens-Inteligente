@@ -517,22 +517,7 @@ class FlightPanel {
         }
     }
     
-    // Criar botão para mostrar/esconder o painel
-    createToggleButton() {
-        // Se já existe, remover
-        const existingButton = document.querySelector('.toggle-panel-btn');
-        if (existingButton) {
-            existingButton.remove();
-        }
-        
-        // Criar o botão
-        this.toggleButton = document.createElement('button');
-        this.toggleButton.className = 'toggle-panel-btn';
-        this.toggleButton.innerHTML = '<i class="fas fa-plane"></i> Ver Voos';
-        
-        // Adicionar ao documento
-        document.body.appendChild(this.toggleButton);
-    }
+    // Método removido: Não usamos mais um botão flutuante, mas o botão do header
     
     // Configurar listeners de eventos
     setupEventListeners() {
@@ -595,7 +580,7 @@ class FlightPanel {
         // Aplica as classes para mostrar
         this.panel.classList.add('visible');
         this.overlay.classList.add('visible');
-        this.toggleButton.classList.add('panel-visible');
+        // Remover referência ao toggleButton que não existe mais
         this.isVisible = true;
         
         // Adiciona efeito de pulso à borda ao abrir
@@ -618,7 +603,7 @@ class FlightPanel {
         // Remove classes de visibilidade
         this.panel.classList.remove('visible');
         this.overlay.classList.remove('visible');
-        this.toggleButton.classList.remove('panel-visible');
+        // Remover referência ao toggleButton que não existe mais
         this.isVisible = false;
         
         // Dispara evento personalizado para notificar que o painel foi fechado
