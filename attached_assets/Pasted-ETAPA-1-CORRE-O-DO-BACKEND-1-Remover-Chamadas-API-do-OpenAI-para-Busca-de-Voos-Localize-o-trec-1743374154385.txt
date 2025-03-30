@@ -1,0 +1,124 @@
+ETAPA 1 – CORREÇÃO DO BACKEND
+1. Remover Chamadas à API do OpenAI para Busca de Voos
+Localize o trecho de código responsável por processar as buscas de voo no fluxo do chat.
+
+Abra o arquivo app.py e localize a função de endpoint do chat (procure por def chat().
+
+Remova ou condicione para que não sejam feitas chamadas à função openai_service.travel_assistant() quando se trata de busca de voos.
+
+Encontre a linha (aproximadamente na linha 336) onde é feita a chamada:
+
+python
+Copiar
+if not skip_gpt_call:
+    gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+Ação: Modifique esse trecho para que, se a etapa do chat indicar “busca confirmada” (por exemplo, etapa 2), o sistema não chame openai_service.travel_assistant(). Em vez disso, o código deve invocar diretamente o método do FlightServiceConnector.
+
+Exemplo de alteração:
+
+python
+Copiar
+# Se estamos na etapa de busca confirmada, não chamar o OpenAI, forçando o skip
+if chat_context.get('step') == 2:
+    skip_gpt_call = True
+if not skip_gpt_call:
+    gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+else:
+    gpt_result = {"response": "BUSCA_REAL_INICIADA"}  # Mensagem placeholder para indicar que a busca real será feita
+Objetivo: Garantir que, em buscas de voo confirmadas, o fluxo utilize somente o FlightServiceConnector.
+
+2. Consolidar e Garantir o Uso Exclusivo do FlightServiceConnector
+Verifique os arquivos de serviço de voo:
+
+Abra os arquivos services/flight_service_connector.py, services/flight_data_provider.py, services/amadeus_service.py e services/amadeus_sdk_service.py.
+
+Selecione a implementação mais recente e confiável (preferencialmente a do FlightServiceConnector).
+
+Remova (ou desative via comentários) as outras implementações para evitar duplicidade.
+
+Garanta que todas as chamadas para busca de voos no backend utilizem apenas o FlightServiceConnector.
+
+No FlightServiceConnector, certifique-se de que a função search_flights():
+
+Construa um URL absoluto para a chamada à API Amadeus. Por exemplo, use uma variável de ambiente AMADEUS_BASE_URL que contenha o domínio completo (exemplo: https://test.api.amadeus.com/v2/shopping/flight-offers).
+
+Não use caminhos relativos como "/api/amadeus/flights".
+
+Adicione logs detalhados para confirmar que o URL construído está correto e que o session_id é gerado.
+
+Remova qualquer referência a fallback ou dados simulados:
+
+Pesquise por termos como get_simulated, simulate ou mock dentro dos arquivos de serviço e remova essas funcionalidades.
+
+Verifique o endpoint de resultados:
+
+Em app_routes.py, certifique-se de que o endpoint destinado a retornar os resultados de voo (por exemplo, /api/amadeus/flights ou similar) esteja configurado com um URL absoluto e não retorne dados de teste.
+
+3. Garantir Persistência e Correta Transmissão do session_id
+No fluxo do endpoint de chat em app.py:
+
+Após confirmar os detalhes da viagem, garanta que o backend gere um session_id único (por exemplo, via uuid.uuid4()).
+
+Assegure-se de que o JSON de resposta inclua o session_id e uma flag (por exemplo, show_flight_results: true) para indicar que a busca real foi iniciada.
+
+Adicione logs para mostrar:
+
+O session_id gerado.
+
+Mensagens de “skip_gpt_call = True” quando a busca real é iniciada.
+
+No arquivo services/chat_processor.py:
+
+Confirme que, ao extrair e confirmar as informações de viagem, o session_id seja inserido no contexto e passado na resposta.
+
+Teste a persistência do session_id:
+
+Crie um script de teste (por exemplo, test_integration.py) para simular uma busca e verificar nos logs se:
+
+O session_id é gerado e transmitido.
+
+A chamada à API Amadeus usa o URL correto (verifique se começa com https://).
+
+Não há nenhuma chamada à API do OpenAI para busca de voos.
+
+Exemplo de comando para teste:
+
+bash
+Copiar
+python test_integration.py
+grep -i "skip_gpt_call" logs.txt
+grep -i "session_id" logs.txt
+Desative o endpoint de teste de dados simulados:
+
+No arquivo app_routes.py, remova ou desative o endpoint /api/flight_results/test para garantir que somente os dados reais sejam retornados.
+
+Resumo e Instruções Finais para a Etapa 1
+Objetivo: Eliminar qualquer chamada à API do OpenAI para buscas de voo e garantir que o sistema utilize somente o FlightServiceConnector para obter dados reais da API Amadeus.
+
+Ações Obrigatórias:
+
+Modificar app.py para condicionar a chamada ao OpenAI apenas quando NÃO estivermos na etapa de busca confirmada; definir skip_gpt_call = True na etapa 2.
+
+Consolidar o uso de serviço de voo, removendo referências duplicadas e garantindo uso exclusivo do FlightServiceConnector.
+
+Ajustar a construção do URL para chamadas à API Amadeus para que seja absoluto e correto.
+
+Garantir que o session_id seja gerado, incluído na resposta e utilizado pelo frontend.
+
+Remover qualquer funcionalidade de fallback ou dados simulados (desabilitar endpoint /api/flight_results/test e remover funções como loadTestResults() do frontend).
+
+Adicionar logs detalhados para verificar a execução e testar com scripts de integração.
+
+Testes:
+
+Execute python test_integration.py e verifique os logs para confirmar que:
+
+Não há chamadas à API OpenAI para buscas de voo.
+
+O session_id é gerado e passado corretamente.
+
+O URL de chamada à API Amadeus está correto.
+
+Teste manualmente o fluxo de busca via chat e confirme que o painel de resultados exibe dados reais.
+
+Por favor, aplique estas modificações na ETAPA 1 e depois execute os testes. Só após confirmar que essa etapa está funcionando corretamente avançamos para a ETAPA 2. Certifique-se de remover completamente todas as referências e códigos antigos relacionados à chamada do OpenAI para busca de voo. Não deixe nenhuma ambiguidade.
