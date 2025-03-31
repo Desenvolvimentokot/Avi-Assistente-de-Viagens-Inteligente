@@ -427,23 +427,55 @@
             
             // Função para formatar data e hora
             function formatDateTime(dateTimeStr) {
-                const date = new Date(dateTimeStr);
-                return {
-                    time: date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                    date: date.toLocaleDateString('pt-BR')
-                };
+                try {
+                    if (!dateTimeStr) {
+                        console.warn('⚠️ Tentativa de formatar uma data/hora nula ou indefinida');
+                        return { time: '--:--', date: '--/--/----' };
+                    }
+                    
+                    const date = new Date(dateTimeStr);
+                    
+                    // Verificar se a data é válida
+                    if (isNaN(date.getTime())) {
+                        console.warn('⚠️ Data/hora inválida:', dateTimeStr);
+                        return { time: '--:--', date: '--/--/----' };
+                    }
+                    
+                    return {
+                        time: date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                        date: date.toLocaleDateString('pt-BR')
+                    };
+                } catch (error) {
+                    console.error('❌ Erro ao formatar data/hora:', error, dateTimeStr);
+                    return { time: '--:--', date: '--/--/----' };
+                }
             }
             
             // Função para calcular duração
             function formatDuration(durationStr) {
-                // Formato PT10H15M (10 horas e 15 minutos)
-                const hourMatch = durationStr.match(/(\d+)H/);
-                const minuteMatch = durationStr.match(/(\d+)M/);
-                
-                const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
-                const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
-                
-                return `${hours}h ${minutes}m`;
+                try {
+                    if (!durationStr) {
+                        console.warn('⚠️ Tentativa de formatar uma duração nula ou indefinida');
+                        return '-- h -- m';
+                    }
+                    
+                    // Formato PT10H15M (10 horas e 15 minutos)
+                    const hourMatch = durationStr.match(/(\d+)H/);
+                    const minuteMatch = durationStr.match(/(\d+)M/);
+                    
+                    const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+                    const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+                    
+                    if (hours === 0 && minutes === 0) {
+                        // Se não encontrou horas nem minutos, pode ser um formato inválido
+                        console.warn('⚠️ Formato de duração não reconhecido:', durationStr);
+                    }
+                    
+                    return `${hours}h ${minutes}m`;
+                } catch (error) {
+                    console.error('❌ Erro ao formatar duração:', error, durationStr);
+                    return '-- h -- m';
+                }
             }
             
             // Função para contar escalas
@@ -461,35 +493,71 @@
             // Função para obter os dados de voos
             async function fetchFlightData() {
                 try {
+                    console.log('🔍 Iniciando busca de voos...');
                     document.getElementById('loading-spinner').style.display = 'block';
                     
                     // URL única para API de resultados - o cookie flai_session_id 
                     // será enviado automaticamente com a solicitação
                     const url = `/amadeus-test`;
+                    console.log('🌐 Fazendo requisição para:', url);
+                    
+                    // Verificando o cookie para debug
+                    console.log('🍪 Cookies disponíveis:', document.cookie);
                     
                     const response = await fetch(url);
+                    console.log('📡 Status da resposta:', response.status, response.statusText);
+                    
                     const data = await response.json();
+                    console.log('📊 Dados recebidos:', data);
                     
                     document.getElementById('loading-spinner').style.display = 'none';
                     
+                    // Verificação mais detalhada da resposta
                     if (data.error) {
+                        console.error('❌ Erro retornado pela API:', data.error);
                         showError(data.error);
                         return;
                     }
                     
-                    if (!data.data || data.data.length === 0) {
+                    // Verificar formato completo dos dados
+                    console.log('📋 Estrutura de dados completa:', JSON.stringify(data, null, 2));
+                    
+                    // Verificação mais robusta da estrutura de dados
+                    if (!data.data) {
+                        console.error('⚠️ Dados recebidos sem propriedade "data"');
                         showNoResults();
                         return;
                     }
                     
+                    if (!Array.isArray(data.data)) {
+                        console.error('⚠️ Propriedade "data" não é um array:', typeof data.data);
+                        showError("Formato de dados inválido. Por favor, tente novamente.");
+                        return;
+                    }
+                    
+                    if (data.data.length === 0) {
+                        console.log('ℹ️ Array de voos vazio');
+                        showNoResults();
+                        return;
+                    }
+                    
+                    console.log(`✅ Dados válidos recebidos: ${data.data.length} voos`);
+                    console.log('🔍 Exemplo do primeiro voo:', data.data[0]);
+                    
+                    // Renderizar resultados
+                    console.log('🖌️ Renderizando resultados...');
                     renderFlightResults(data.data);
+                    console.log('🎨 Renderizando sugestões de economia...');
                     renderSavingsSuggestions(data.data);
+                    console.log('🏷️ Populando filtros de companhias aéreas...');
                     populateAirlineFilters(data.data);
+                    console.log('✅ Renderização concluída com sucesso');
                     
                 } catch (error) {
                     document.getElementById('loading-spinner').style.display = 'none';
+                    console.error('❌ Erro inesperado ao buscar voos:', error);
+                    console.error('Stack trace:', error.stack);
                     showError("Ocorreu um erro ao buscar os voos. Tente novamente mais tarde.");
-                    console.error('Erro ao buscar voos:', error);
                 }
             }
             
@@ -517,34 +585,92 @@
             
             // Função para renderizar os resultados
             function renderFlightResults(flights) {
+                console.log('🖌️ Renderizando resultados de voos...');
                 const container = document.getElementById('results-container');
                 container.innerHTML = '';
                 
-                flights.forEach(flight => {
-                    const priceTotal = parseFloat(flight.price.total);
-                    const currencyCode = flight.price.currency;
+                try {
+                    // Verificar se temos voos para renderizar
+                    if (!flights || flights.length === 0) {
+                        showNoResults();
+                        return;
+                    }
                     
-                    // Para cada itinerário (ida)
-                    flight.itineraries.forEach((itinerary, index) => {
-                        const isReturn = index > 0;
-                        const segments = itinerary.segments;
-                        const firstSegment = segments[0];
-                        const lastSegment = segments[segments.length - 1];
-                        
-                        // Dados de origem
-                        const departure = firstSegment.departure;
-                        const departureDateTime = formatDateTime(departure.at);
-                        const originCode = departure.iataCode;
-                        
-                        // Dados de destino
-                        const arrival = lastSegment.arrival;
-                        const arrivalDateTime = formatDateTime(arrival.at);
-                        const destinationCode = arrival.iataCode;
-                        
-                        // Duração e escalas
-                        const duration = formatDuration(itinerary.duration);
-                        const stopCount = countStops(segments);
-                        const stopText = formatStops(stopCount);
+                    // Contador para rastrear quantos voos foram renderizados com sucesso
+                    let successfulRenders = 0;
+                    
+                    flights.forEach((flight, flightIndex) => {
+                        try {
+                            // Verificar se o voo tem a estrutura de preço esperada
+                            if (!flight.price || !flight.price.total) {
+                                console.warn(`⚠️ Voo ${flightIndex} sem informação de preço válida:`, flight);
+                                return;
+                            }
+                            
+                            const priceTotal = parseFloat(flight.price.total);
+                            const currencyCode = flight.price.currency || 'BRL';
+                            
+                            // Verificar se o voo tem itinerários
+                            if (!flight.itineraries || !Array.isArray(flight.itineraries) || flight.itineraries.length === 0) {
+                                console.warn(`⚠️ Voo ${flightIndex} sem itinerários válidos:`, flight);
+                                return;
+                            }
+                            
+                            // Para cada itinerário (ida)
+                            flight.itineraries.forEach((itinerary, index) => {
+                                try {
+                                    const isReturn = index > 0;
+                                    
+                                    // Verificar se o itinerário tem segmentos
+                                    if (!itinerary.segments || !Array.isArray(itinerary.segments) || itinerary.segments.length === 0) {
+                                        console.warn(`⚠️ Itinerário ${index} do voo ${flightIndex} sem segmentos válidos:`, itinerary);
+                                        return;
+                                    }
+                                    
+                                    const segments = itinerary.segments;
+                                    const firstSegment = segments[0];
+                                    const lastSegment = segments[segments.length - 1];
+                                    
+                                    // Verificar segmentos de origem e destino
+                                    if (!firstSegment || !firstSegment.departure) {
+                                        console.warn(`⚠️ Primeiro segmento do itinerário ${index} do voo ${flightIndex} inválido:`, firstSegment);
+                                        return;
+                                    }
+                                    
+                                    if (!lastSegment || !lastSegment.arrival) {
+                                        console.warn(`⚠️ Último segmento do itinerário ${index} do voo ${flightIndex} inválido:`, lastSegment);
+                                        return;
+                                    }
+                                    
+                                    // Dados de origem
+                                    const departure = firstSegment.departure;
+                                    if (!departure.at || !departure.iataCode) {
+                                        console.warn(`⚠️ Dados de partida incompletos para o itinerário ${index} do voo ${flightIndex}:`, departure);
+                                        return;
+                                    }
+                                    
+                                    const departureDateTime = formatDateTime(departure.at);
+                                    const originCode = departure.iataCode;
+                                    
+                                    // Dados de destino
+                                    const arrival = lastSegment.arrival;
+                                    if (!arrival.at || !arrival.iataCode) {
+                                        console.warn(`⚠️ Dados de chegada incompletos para o itinerário ${index} do voo ${flightIndex}:`, arrival);
+                                        return;
+                                    }
+                                    
+                                    const arrivalDateTime = formatDateTime(arrival.at);
+                                    const destinationCode = arrival.iataCode;
+                                    
+                                    // Duração e escalas
+                                    if (!itinerary.duration) {
+                                        console.warn(`⚠️ Duração ausente para o itinerário ${index} do voo ${flightIndex}`);
+                                        return;
+                                    }
+                                    
+                                    const duration = formatDuration(itinerary.duration);
+                                    const stopCount = countStops(segments);
+                                    const stopText = formatStops(stopCount);
                         
                         // Companhias aéreas
                         const mainAirline = firstSegment.carrierCode;
@@ -666,91 +792,177 @@
                                 details.style.display = 'none';
                             }
                         });
-                    });
-                });
+                                        
+                                        // Incrementar contador de renderizações bem-sucedidas
+                                        successfulRenders++;
+                                    } catch (segmentError) {
+                                        console.error(`❌ Erro ao renderizar segmento do itinerário ${index} do voo ${flightIndex}:`, segmentError);
+                                    }
+                                });
+                            } catch (flightError) {
+                                console.error(`❌ Erro ao processar voo ${flightIndex}:`, flightError);
+                            }
+                        });
+                    
+                    // Verificar se algum voo foi renderizado com sucesso
+                    if (successfulRenders === 0) {
+                        console.warn('⚠️ Nenhum voo pôde ser renderizado com sucesso');
+                        showNoResults();
+                    } else {
+                        console.log(`✅ ${successfulRenders} voos renderizados com sucesso`);
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao renderizar resultados:', error);
+                    showError("Ocorreu um erro ao processar os resultados. Por favor, tente novamente.");
+                }
             }
             
             // Função para renderizar sugestões de economia
             function renderSavingsSuggestions(flights) {
+                console.log('💰 Renderizando sugestões de economia...');
                 const container = document.getElementById('savings-container');
                 container.innerHTML = '';
                 
-                // Ordenar voos por preço
-                const sortedFlights = [...flights].sort((a, b) => {
-                    return parseFloat(a.price.total) - parseFloat(b.price.total);
-                });
-                
-                // Pegar o voo mais barato
-                const cheapestFlight = sortedFlights[0];
-                
-                // Formatar data de exemplo alternativa com descontos fictícios
-                const departureDate = new Date(departureDate);
-                const dayBefore = new Date(departureDate);
-                dayBefore.setDate(departureDate.getDate() - 1);
-                const dayAfter = new Date(departureDate);
-                dayAfter.setDate(departureDate.getDate() + 1);
-                
-                const dayBeforeStr = dayBefore.toLocaleDateString('pt-BR');
-                const dayAfterStr = dayAfter.toLocaleDateString('pt-BR');
-                
-                const cheapestPrice = parseFloat(cheapestFlight.price.total);
-                const discountPrice1 = (cheapestPrice * 0.85).toFixed(2);
-                const discountPrice2 = (cheapestPrice * 0.80).toFixed(2);
-                
-                container.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6 mb-2">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h6>Viaje um dia antes e economize!</h6>
-                                    <p class="mb-1">Data: ${dayBeforeStr}</p>
-                                    <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice1)}</span></p>
-                                    <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice1)}</p>
+                try {
+                    // Ordenar voos por preço
+                    const sortedFlights = [...flights].sort((a, b) => {
+                        return parseFloat(a.price.total) - parseFloat(b.price.total);
+                    });
+                    
+                    // Pegar o voo mais barato
+                    const cheapestFlight = sortedFlights[0];
+                    console.log('📉 Voo mais barato encontrado:', cheapestFlight);
+                    
+                    // Obter a data de partida dos parâmetros
+                    const params = new URLSearchParams(window.location.search);
+                    const departureDateStr = params.get('departure_date') || '{{ departure_date }}';
+                    console.log('🗓️ Data de partida (string):', departureDateStr);
+                    
+                    // Converter string de data para objeto Date
+                    // Formato esperado: DD/MM/YYYY
+                    const dateParts = departureDateStr.split('/');
+                    let departureDate;
+                    
+                    if (dateParts.length === 3) {
+                        departureDate = new Date(dateParts[2], dateParts[1]-1, dateParts[0]);
+                    } else {
+                        // Tentar interpretar como ISO ou outro formato
+                        departureDate = new Date(departureDateStr);
+                    }
+                    
+                    console.log('📅 Data de partida (objeto):', departureDate);
+                    
+                    // Verificar se a data é válida
+                    if (isNaN(departureDate.getTime())) {
+                        console.error('❌ Data de partida inválida:', departureDateStr);
+                        // Usar data atual como fallback
+                        departureDate = new Date();
+                    }
+                    
+                    // Calcular dias adjacentes
+                    const dayBefore = new Date(departureDate);
+                    dayBefore.setDate(departureDate.getDate() - 1);
+                    
+                    const dayAfter = new Date(departureDate);
+                    dayAfter.setDate(departureDate.getDate() + 1);
+                    
+                    console.log('⬅️ Dia anterior:', dayBefore);
+                    console.log('➡️ Dia posterior:', dayAfter);
+                    
+                    const dayBeforeStr = dayBefore.toLocaleDateString('pt-BR');
+                    const dayAfterStr = dayAfter.toLocaleDateString('pt-BR');
+                    
+                    const cheapestPrice = parseFloat(cheapestFlight.price.total);
+                    const discountPrice1 = (cheapestPrice * 0.85).toFixed(2);
+                    const discountPrice2 = (cheapestPrice * 0.80).toFixed(2);
+                    
+                    container.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6>Viaje um dia antes e economize!</h6>
+                                        <p class="mb-1">Data: ${dayBeforeStr}</p>
+                                        <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice1)}</span></p>
+                                        <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice1)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6>Viaje um dia depois e economize!</h6>
+                                        <p class="mb-1">Data: ${dayAfterStr}</p>
+                                        <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice2)}</span></p>
+                                        <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice2)}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h6>Viaje um dia depois e economize!</h6>
-                                    <p class="mb-1">Data: ${dayAfterStr}</p>
-                                    <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice2)}</span></p>
-                                    <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice2)}</p>
-                                </div>
-                            </div>
+                    `;
+                } catch (error) {
+                    console.error('❌ Erro ao renderizar sugestões de economia:', error);
+                    container.innerHTML = `
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Compare datas próximas para encontrar melhores preços para sua viagem.
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
             
             // Função para preencher filtros de companhias aéreas
             function populateAirlineFilters(flights) {
-                const airlinesSet = new Set();
-                
-                flights.forEach(flight => {
-                    flight.itineraries.forEach(itinerary => {
-                        itinerary.segments.forEach(segment => {
-                            if (segment.carrierCode) {
-                                airlinesSet.add(segment.carrierCode);
+                console.log('🏷️ Populando filtros de companhias aéreas...');
+                try {
+                    const airlinesSet = new Set();
+                    
+                    flights.forEach(flight => {
+                        if (!flight.itineraries || !Array.isArray(flight.itineraries)) {
+                            console.warn('⚠️ Flight sem itineraries válido:', flight);
+                            return;
+                        }
+                        
+                        flight.itineraries.forEach(itinerary => {
+                            if (!itinerary.segments || !Array.isArray(itinerary.segments)) {
+                                console.warn('⚠️ Itinerary sem segments válido:', itinerary);
+                                return;
                             }
+                            
+                            itinerary.segments.forEach(segment => {
+                                if (segment.carrierCode) {
+                                    airlinesSet.add(segment.carrierCode);
+                                }
+                            });
                         });
                     });
-                });
-                
-                const container = document.getElementById('airlines-container');
-                container.innerHTML = '';
-                
-                airlinesSet.forEach(airline => {
-                    const checkboxDiv = document.createElement('div');
-                    checkboxDiv.className = 'form-check';
-                    checkboxDiv.innerHTML = `
-                        <input class="form-check-input" type="checkbox" id="airline-${airline}" checked>
-                        <label class="form-check-label" for="airline-${airline}">
-                            ${airline}
-                        </label>
-                    `;
-                    container.appendChild(checkboxDiv);
-                });
+                    
+                    console.log('✅ Companhias aéreas encontradas:', Array.from(airlinesSet));
+                    
+                    const container = document.getElementById('airlines-container');
+                    container.innerHTML = '';
+                    
+                    if (airlinesSet.size === 0) {
+                        container.innerHTML = '<p>Nenhuma companhia aérea disponível para filtrar.</p>';
+                        return;
+                    }
+                    
+                    airlinesSet.forEach(airline => {
+                        const checkboxDiv = document.createElement('div');
+                        checkboxDiv.className = 'form-check';
+                        checkboxDiv.innerHTML = `
+                            <input class="form-check-input" type="checkbox" id="airline-${airline}" checked>
+                            <label class="form-check-label" for="airline-${airline}">
+                                ${airline}
+                            </label>
+                        `;
+                        container.appendChild(checkboxDiv);
+                    });
+                } catch (error) {
+                    console.error('❌ Erro ao popular filtros de companhias aéreas:', error);
+                    const container = document.getElementById('airlines-container');
+                    container.innerHTML = '<p>Não foi possível carregar os filtros de companhias aéreas.</p>';
+                }
             }
             
             // Evento para filtro de preço
