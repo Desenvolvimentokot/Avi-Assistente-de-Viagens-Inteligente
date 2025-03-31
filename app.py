@@ -19,6 +19,7 @@ from services.busca_rapida_service import BuscaRapidaService
 from services.chat_processor import ChatProcessor
 from services.openai_service import OpenAIService
 from services.pdf_service import PDFService
+from services.response_analyzer import ResponseAnalyzer
 from models import db, User, Conversation, Message, TravelPlan, FlightBooking, Accommodation, PriceMonitor, PriceHistory, PriceAlert
 
 # Configure logging
@@ -480,6 +481,22 @@ def chat():
                     'gpt_response': gpt_response
                 }
 
+            # Analisar a resposta do assistente em busca de informações estruturadas
+            if step == 1 and any(phrase in message.lower() for phrase in ["sim", "confirmo", "está correto", "proceda", "ok", "certo"]):
+                # Verificar se há informações de viagem estruturadas na resposta do GPT
+                logger.info("🔍 Verificando bloco de dados estruturados na resposta do GPT")
+                extracted_travel_info = ResponseAnalyzer.extract_travel_info_from_response(response_text)
+                
+                if extracted_travel_info:
+                    logger.info(f"✅ Informações de viagem extraídas com sucesso: {extracted_travel_info}")
+                    # Atualizar as informações de viagem com os dados estruturados
+                    current_travel_info.update(extracted_travel_info)
+                    # Marcar como etapa 2 e confirmado
+                    current_travel_info['step'] = 2
+                    current_travel_info['confirmed'] = True
+                else:
+                    logger.warning("⚠️ Nenhuma informação estruturada encontrada na resposta do GPT")
+            
             # Armazena a resposta no histórico
             history.append({'assistant': response_text})
 
