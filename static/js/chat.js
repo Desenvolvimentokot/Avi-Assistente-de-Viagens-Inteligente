@@ -396,8 +396,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             url += `&adults=${encodeURIComponent(adults)}`;
                         }
                         
-                        console.log(`Redirecionando para: ${url}`);
-                        window.location.href = url;
+                        console.log(`Abrindo resultados em nova aba: ${url}`);
+                        window.open(url, '_blank');
                     });
                     
                     console.log("Botão de resultados formatado e preparado com evento de clique");

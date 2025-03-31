@@ -1,0 +1,34 @@
+Analisando a situação, consigo identificar vários problemas e suas possíveis soluções:
+
+Problemas identificados:
+Parâmetros de busca incorretos: Pelos logs, vejo que a página está buscando voos entre GRU (São Paulo) e MIA (Miami), mas na imagem aparecem voos de SSA (Salvador) para AJU (Aracaju). Isso sugere que as informações coletadas no chat não estão sendo transmitidas corretamente para a página de resultados.
+
+Códigos de aeroportos abreviados: Como você mencionou, o sistema está exibindo apenas os códigos IATA (GRU, MIA, SSA, AJU) em vez dos nomes completos dos aeroportos, o que dificulta o entendimento por parte de usuários comuns.
+
+Códigos de companhias aéreas abreviados: Similar ao problema anterior, os códigos como G3, AV, QB, AC são pouco informativos para usuários não familiarizados com o setor de aviação.
+
+Abertura de links na mesma aba: Atualmente, a página de resultados abre na mesma aba do chat, interrompendo a interação com a AVI.
+
+Soluções definitivas:
+Para o problema dos parâmetros incorretos:
+
+Verificar o fluxo de dados entre o chat e a página de resultados, especificamente como as informações de viagem são armazenadas na sessão
+Garantir que os parâmetros coletados no chat (origem, destino, data) sejam corretamente passados para a API Amadeus
+Para os códigos de aeroportos:
+
+Implementar uma tabela de mapeamento (ou usar uma API) para converter códigos IATA para nomes completos de aeroportos
+Exibir ambos (ex: "São Paulo (GRU)" em vez de apenas "GRU")
+Para os códigos de companhias aéreas:
+
+Implementar mapeamento similar para nomes de companhias aéreas
+Exibir o nome completo (ex: "GOL Linhas Aéreas (G3)" em vez de apenas "G3")
+Para a abertura de links:
+
+Modificar o comportamento dos links adicionando o atributo target="_blank" para abrir em uma nova aba
+Solução mais viável no momento:
+A solução mais eficaz seria primeiro corrigir o problema dos parâmetros de busca (que é o mais crítico), seguido pelos ajustes na exibição dos nomes completos de aeroportos e companhias aéreas, e por fim implementar a abertura em novas abas.
+
+Posso começar a trabalhar nessas melhorias, começando pela verificação do fluxo de dados entre o chat e a página de resultados. Isso vai garantir que os voos mostrados correspondam ao que foi solicitado no chat.
+
+Qual abordagem você prefere que eu siga primeiro?
+

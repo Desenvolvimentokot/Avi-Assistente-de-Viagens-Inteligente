@@ -254,12 +254,19 @@ def amadeus_results_page():
                 travel_info = conversation_store[session_id].get('travel_info', {})
                 logger.warning(f"✅ Usando informações de viagem da sessão {session_id} para página de resultados")
             
-        # Usar dados da conversa ou cair para os parâmetros da URL/padrões
-        origin = travel_info.get('origin') or request.args.get('origin', 'GRU')
-        destination = travel_info.get('destination') or request.args.get('destination', 'MIA')
-        departure_date = travel_info.get('departure_date') or request.args.get(
-            'departure_date', (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
-        adults = travel_info.get('adults', 1) or request.args.get('adults', '1')
+        # Usar dados da conversa ou parâmetros da URL, sem valores padrão
+        origin = travel_info.get('origin') or request.args.get('origin')
+        destination = travel_info.get('destination') or request.args.get('destination')
+        departure_date = travel_info.get('departure_date') or request.args.get('departure_date')
+        adults = travel_info.get('adults') or request.args.get('adults')
+        
+        # Verificar se temos os parâmetros necessários - não usar padrões
+        if not (origin and destination and departure_date):
+            logger.warning("⚠️ Parâmetros insuficientes para busca. Redirecionando para página inicial.")
+            return render_template(
+                'error.html', 
+                message="Parâmetros insuficientes para busca. Por favor, forneça origem, destino e data na conversa com a AVI."
+            )
         
         # Renderizar a página com os parâmetros obtidos
         resp = make_response(render_template(
@@ -353,12 +360,20 @@ def amadeus_test():
                     
                     return jsonify(search_results)
                     
-        # Se não temos dados da sessão, usar parâmetros da URL ou valores padrão
-        origin = request.args.get('origin', 'GRU')
-        destination = request.args.get('destination', 'MIA')
-        departure_date = request.args.get('departure_date', 
-                                          (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
-        adults = request.args.get('adults', '1')
+        # Se não temos dados da sessão, usar apenas parâmetros da URL (sem valores padrão)
+        origin = request.args.get('origin')
+        destination = request.args.get('destination')
+        departure_date = request.args.get('departure_date')
+        adults = request.args.get('adults')
+        
+        # Verificar se temos parâmetros suficientes
+        if not (origin and destination and departure_date):
+            logger.error("❌ TESTE AMADEUS: Parâmetros insuficientes para busca")
+            return jsonify({
+                "error": "Parâmetros insuficientes. Por favor, forneça origem, destino e data na conversa com a AVI.",
+                "data": [],
+                "success": False
+            }), 400
         
         # Preparar dados para teste
         search_data = {

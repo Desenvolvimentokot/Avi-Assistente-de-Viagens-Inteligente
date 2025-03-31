@@ -105,6 +105,6 @@ function handleResultsButtonClick(event) {
     
     console.log(`[Amadeus Redirect] Redirecionando para: ${url}`);
     
-    // Redirecionar para a página de resultados
-    window.location.href = url;
+    // Abrir a página de resultados em uma nova aba para manter a conversa com a AVI
+    window.open(url, '_blank');
 }
