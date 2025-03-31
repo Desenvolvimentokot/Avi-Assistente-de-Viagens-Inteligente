@@ -1,45 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Adicionar evento para o botão do mural de voos
-    const flightsMuralButton = document.getElementById('openFlightsMuralButton');
-    if (flightsMuralButton) {
-        flightsMuralButton.addEventListener('click', function() {
-            console.log("Botão do Mural de Voos clicado");
-
-            // Verificar se o NOVO painel está disponível
-            if (window.flightPanel) {
-                console.log("Usando o novo painel de voos");
-
-                // Mostrar o painel
-                window.flightPanel.show();
-
-                // Se tivermos um ID de sessão, carregar resultados
-                if (sessionId) {
-                    console.log("Buscando resultados com sessionId:", sessionId);
-                    // Salvar sessionId no localStorage para persistência
-                    localStorage.setItem('currentSessionId', sessionId);
-                    // Carregar resultados
-                    window.flightPanel.loadFlightResults(sessionId);
-                } else {
-                    console.log("Sem sessionId válido");
-                    // Tentar recuperar do localStorage
-                    const savedSessionId = localStorage.getItem('currentSessionId');
-                    if (savedSessionId) {
-                        console.log("Usando sessionId do localStorage:", savedSessionId);
-                        window.flightPanel.loadFlightResults(savedSessionId);
-                    } else {
-                        // Mostrar mensagem informativa
-                        window.flightPanel.showMessage("Para ver resultados reais de voos, inicie uma conversa com a Avi e forneça os detalhes da sua viagem.");
-                    }
-                }
-            } else {
-                console.error("Novo painel de voos não disponível!");
-                // Mensagem de alerta no chat
-                addMessage("⚠️ O sistema de exibição de voos está sendo carregado. Por favor, recarregue a página ou inicie uma nova conversa com a Avi.", false);
-            }
-        });
-    } else {
-        console.error("Botão do Mural de Voos não encontrado");
-    }
+    // Código para botão do mural removido - agora usamos o redirecionamento para página de resultados
+    console.log("Inicializando chat.js - Novo fluxo: redirecionamento para página de resultados");
 
     // Listener para evento de seleção de voo
     document.addEventListener('flightSelected', (event) => {
