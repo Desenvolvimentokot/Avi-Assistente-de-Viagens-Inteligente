@@ -24,6 +24,8 @@ class AmadeusSDKService:
         self.api_key = os.environ.get('AMADEUS_API_KEY')
         self.api_secret = os.environ.get('AMADEUS_API_SECRET')
         self.client = None
+        self.auth_token = None
+        self.token_expiry = None
         
         # Inicializar o cliente Amadeus com o SDK oficial
         if self.api_key and self.api_secret:
@@ -40,6 +42,57 @@ class AmadeusSDKService:
                 logger.error(f"Erro ao inicializar cliente Amadeus SDK: {str(e)}")
         else:
             logger.error("Credenciais da API Amadeus não encontradas nas variáveis de ambiente")
+            
+    def get_auth_token(self):
+        """
+        Obtém um token de autenticação para a API Amadeus.
+        Reutiliza o token existente se ainda for válido.
+        
+        Returns:
+            str: Token de autenticação ou None em caso de erro
+        """
+        try:
+            # Verificar se já temos um token válido
+            if self.auth_token and self.token_expiry and datetime.now() < self.token_expiry:
+                logger.info("Usando token de autenticação existente")
+                return self.auth_token
+                
+            # Verificar se temos credenciais
+            if not self.api_key or not self.api_secret:
+                logger.error("Credenciais ausentes para obtenção de token")
+                return None
+                
+            # Requisição para obter token via API REST
+            import requests
+            
+            auth_url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+            payload = {
+                "grant_type": "client_credentials",
+                "client_id": self.api_key,
+                "client_secret": self.api_secret
+            }
+            
+            response = requests.post(
+                auth_url,
+                data=payload,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                self.auth_token = token_data.get("access_token")
+                expires_in = token_data.get("expires_in", 1800)  # Padrão 30 minutos
+                self.token_expiry = datetime.now() + timedelta(seconds=expires_in)
+                
+                logger.info(f"Novo token obtido, válido até {self.token_expiry}")
+                return self.auth_token
+            else:
+                logger.error(f"Erro ao obter token: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Exceção ao obter token de autenticação: {str(e)}")
+            return None
     
     def search_flights(self, params):
         """

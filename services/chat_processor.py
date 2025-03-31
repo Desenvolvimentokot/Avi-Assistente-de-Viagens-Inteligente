@@ -2,7 +2,6 @@
 Processador de mensagens do chat para extração de informações de viagem e interação com APIs
 """
 
-import os
 import json
 import logging
 import uuid
@@ -24,7 +23,7 @@ class ChatProcessor:
     
     def __init__(self):
         """Inicializa o processador de chat"""
-        self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+        # Removida dependência da OpenAI API
         self.sessions = {}  # Armazena informações das sessões de chat
         
     def validate_travel_info(self, travel_info):
@@ -165,9 +164,10 @@ class ChatProcessor:
                     
                     return response
             
-            # Se não pudermos buscar voos ou ocorrer um erro, usar o GPT para gerar uma resposta
-            gpt_response = self._generate_gpt_response(message, travel_info, session_id)
-            return gpt_response
+            # Se não pudermos buscar voos ou ocorrer um erro, retornar uma mensagem clara para o usuário
+            return {
+                "message": "Preciso de mais informações para buscar voos reais. Por favor, informe origem, destino e data de viagem."
+            }
             
         except Exception as e:
             logger.error(f"Erro ao processar mensagem: {str(e)}")
@@ -429,42 +429,8 @@ class ChatProcessor:
             logger.error(f"Erro ao buscar melhores preços: {str(e)}")
             return {"error": f"Erro ao buscar melhores preços: {str(e)}"}
     
-    def _generate_gpt_response(self, message, travel_info, session_id):
-        """
-        Gera uma resposta usando a API do GPT quando não podemos 
-        ou não precisamos buscar dados reais
-        
-        Args:
-            message: Mensagem original do usuário
-            travel_info: Informações de viagem extraídas
-            session_id: ID da sessão
-            
-        Returns:
-            dict: Resposta gerada para o chat
-        """
-        try:
-            # Verificar se temos a chave da API
-            if not self.openai_api_key:
-                return {
-                    "message": "Estou com um problema para processar seu pedido agora. "
-                               "Por favor, tente novamente mais tarde."
-                }
-            
-            # Para este exemplo, retornamos uma resposta estática
-            # Em um sistema real, você chamaria a API do GPT aqui
-            return {
-                "message": "Entendi seu pedido! Para eu poder ajudar com informações de voos, "
-                           "preciso de alguns detalhes específicos como a cidade de origem, "
-                           "destino e data da viagem. Por favor, me informe esses dados para "
-                           "que eu possa buscar as melhores opções para você."
-            }
-            
-        except Exception as e:
-            logger.error(f"Erro ao gerar resposta GPT: {str(e)}")
-            return {
-                "message": "Desculpe, tive um problema ao processar sua solicitação. "
-                           "Por favor, tente novamente."
-            }
+# Removida função _generate_gpt_response que usava a OpenAI para gerar respostas
+# Agora usamos apenas respostas diretas para o usuário com base nos dados reais da API Amadeus
 
 
 # Instância global para uso em toda a aplicação

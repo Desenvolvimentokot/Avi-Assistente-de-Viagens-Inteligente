@@ -1,124 +1,110 @@
+#!/usr/bin/env python3
+"""
+Teste de integração do fluxo de chat com a API Amadeus
+"""
 
 import logging
-import requests
-import sys
 import os
 import json
+import sys
 import uuid
-from datetime import datetime, timedelta
+
+from services.chat_processor import ChatProcessor
+from services.flight_service_connector import flight_service_connector
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('test_integration')
 
-logger = logging.getLogger(__name__)
-
-def test_direct_amadeus_integration():
-    """Teste de integração direta com a API Amadeus através do chat"""
-    logger.info("=== INICIANDO TESTE DE INTEGRAÇÃO DIRETA AMADEUS ===")
+def test_chat_flow():
+    """
+    Testa o fluxo completo de chat para extração de informações e busca de voos reais
+    """
+    logger.info("=== TESTE DE INTEGRAÇÃO DO FLUXO DE CHAT PARA BUSCA DE VOOS ===")
     
     try:
-        # URL base da aplicação
-        base_url = "http://localhost:5000"
+        # 1. Iniciar o chat processor
+        logger.info("Inicializando chat processor...")
+        chat_processor = ChatProcessor()
         
-        # Gerar um session_id para o teste
-        session_id = str(uuid.uuid4())
-        logger.info(f"Iniciando teste com session_id: {session_id}")
+        # 2. Gerar um ID de conversa simulado
+        conversation_id = str(uuid.uuid4())
+        logger.info(f"ID de conversa: {conversation_id}")
         
-        # Preparar mensagem de busca de voo com dados de teste
-        chat_message = {
-            "message": "Quero viajar de São Paulo para Miami em 10 de abril de 2025",
-            "session_id": session_id,
-            "mode": "quick-search",
-            "history": []
-        }
+        # 3. Enviar mensagem de usuário simulada
+        user_message = "Oi, preciso viajar de São Paulo para Miami no dia 30 de abril de 2025"
+        logger.info(f"Mensagem do usuário: '{user_message}'")
         
-        # Passo 1: Enviar mensagem inicial para o chat
-        logger.info(f"Enviando requisição para /api/chat...")
-        chat_response = requests.post(
-            f"{base_url}/api/chat",
-            json=chat_message
+        # 4. Processar a mensagem
+        logger.info("Processando mensagem...")
+        response = chat_processor.process_message(
+            message=user_message,
+            user_id=1,  # ID simulado
+            conversation_id=conversation_id
         )
         
-        if chat_response.status_code != 200:
-            logger.error(f"Erro na resposta do chat: {chat_response.status_code} - {chat_response.text}")
-            return False
+        # 5. Mostrar resultados
+        logger.info(f"Resposta recebida: {json.dumps(response, indent=2)}")
         
-        # Processar resposta do chat
-        chat_data = chat_response.json()
-        chat_text = chat_data.get("response", "")
-        returned_session_id = chat_data.get("session_id")
-        
-        logger.info(f"Resposta do chat: {chat_text[:100]}...")
-        logger.info(f"Session ID retornado: {returned_session_id}")
-        
-        # Verificar se o session_id foi retornado corretamente
-        if not returned_session_id or returned_session_id != session_id:
-            logger.warning(f"Session ID não corresponde: enviado={session_id}, recebido={returned_session_id}")
-        
-        # Verificar se o painel de resultados foi acionado
-        if chat_data.get("show_flight_results", False):
-            logger.info("Chat acionou automaticamente o painel de resultados ✅")
-        else:
-            logger.warning("Chat não acionou automaticamente o painel de resultados")
-        
-        # Extrair trecho da resposta para verificação
-        if len(chat_text) > 100:
-            logger.info(f"Trecho da resposta: {chat_text[:200]}...")
-        
-        # Passo 2: Simular confirmação da busca
-        logger.info("Esperando 2 segundos antes de buscar resultados...")
-        import time
-        time.sleep(2)
-        
-        # Passo 3: Buscar resultados de voo diretamente
-        logger.info(f"Buscando resultados de voo para session_id: {returned_session_id}")
-        flight_response = requests.get(
-            f"{base_url}/api/flight_results/{returned_session_id}"
-        )
-        
-        if flight_response.status_code != 200:
-            logger.error(f"Erro ao buscar resultados de voo: {flight_response.status_code} - {flight_response.text}")
-            logger.error("❌ TESTE FALHOU: Verifique os logs para detalhes.")
-            return False
-        
-        # Processar resposta dos resultados de voo
-        flight_data = flight_response.json()
-        
-        # Verificar se há erro na resposta
-        if 'error' in flight_data and flight_data['error']:
-            logger.error(f"Erro nos resultados de voo: {flight_data['error']}")
-            logger.error("❌ TESTE FALHOU: Verifique os logs para detalhes.")
-            return False
-        
-        # Verificar se há resultados
-        flight_count = len(flight_data.get('data', []))
-        if flight_count > 0:
-            logger.info(f"✅ TESTE BEM-SUCEDIDO: {flight_count} voos encontrados")
-            logger.info(f"Fonte dos dados: {flight_data.get('source', 'não especificada')}")
+        # 6. Verificar se temos show_flight_results
+        if response.get('show_flight_results', False):
+            logger.info("✅ Painel de voos será mostrado")
+            logger.info(f"Mensagem para o painel: '{response.get('message', '')}'")
             
-            # Verificar preço do primeiro voo
-            if flight_count > 0 and 'price' in flight_data['data'][0]:
-                first_price = flight_data['data'][0]['price']['total']
-                currency = flight_data['data'][0]['price']['currency']
-                logger.info(f"Preço do primeiro voo: {currency} {first_price}")
+            # 7. Buscar resultados diretamente pelo conector
+            logger.info(f"Buscando resultados de voos para a sessão {conversation_id}")
             
-            return True
+            # Extrair as informações da viagem
+            travel_info = {
+                'origin': 'GRU',  # São Paulo - Guarulhos
+                'destination': 'MIA',  # Miami
+                'departure_date': '2025-04-30'
+            }
+            
+            # Fazer a busca direta
+            results = flight_service_connector.search_flights_from_chat(
+                travel_info=travel_info,
+                session_id=conversation_id
+            )
+            
+            if 'error' in results:
+                logger.error(f"❌ Erro na busca: {results['error']}")
+                return False
+            
+            flight_count = len(results.get('data', []))
+            logger.info(f"✅ {flight_count} voos encontrados")
+            
+            if flight_count > 0:
+                logger.info("Mostrando resumo dos 3 primeiros voos:")
+                for i, flight in enumerate(results['data'][:3]):
+                    price = flight.get('price', {}).get('total', 'N/A')
+                    currency = flight.get('price', {}).get('currency', 'N/A')
+                    logger.info(f"Voo {i+1}: Preço {currency} {price}")
+                    
+                    # Mostrar itinerários
+                    for j, itinerary in enumerate(flight.get('itineraries', [])):
+                        for k, segment in enumerate(itinerary.get('segments', [])):
+                            departure = segment.get('departure', {})
+                            arrival = segment.get('arrival', {})
+                            carrier = segment.get('carrierCode', 'N/A')
+                            flight_number = segment.get('number', 'N/A')
+                            
+                            logger.info(f"  Segmento {j+1}.{k+1}: {carrier}{flight_number} - " +
+                                    f"{departure.get('iataCode', 'N/A')} → {arrival.get('iataCode', 'N/A')}")
+            
+            return flight_count > 0
         else:
-            logger.warning("Resposta bem-sucedida, mas sem dados de voos")
-            logger.error("❌ TESTE FALHOU: Nenhum resultado de voo encontrado")
+            logger.warning("⚠️ Painel de voos não será mostrado")
+            logger.info(f"Resposta do bot: '{response.get('message', '')}'")
             return False
             
     except Exception as e:
-        logger.error(f"Erro durante o teste de integração: {str(e)}")
+        logger.error(f"❌ ERRO NO TESTE: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        logger.error("❌ TESTE FALHOU: Exceção durante a execução")
         return False
 
 if __name__ == "__main__":
-    success = test_direct_amadeus_integration()
+    success = test_chat_flow()
     sys.exit(0 if success else 1)

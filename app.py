@@ -344,6 +344,12 @@ def chat():
                 current_travel_info['step'] = 2
                 current_travel_info['confirmed'] = True
                 step = 2
+            
+            # ADICIONAL: Para garantir que o GPT nunca seja usado para gerar resultados de voos
+            # independente de qualquer condição anterior
+            if step == 2:
+                logger.warning("🚫 INTERCEPÇÃO DE SEGURANÇA: Etapa de busca de voos, GPT será pulado obrigatoriamente")
+                skip_gpt_call = True
 
             # Qualquer caso em que devemos pular o GPT:
             chat_context = {

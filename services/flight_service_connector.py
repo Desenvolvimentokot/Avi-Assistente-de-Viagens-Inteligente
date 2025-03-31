@@ -93,22 +93,64 @@ class FlightServiceConnector:
                         "data": []
                     }
 
-            # Preparar dados para a requisição
+            # Preparar dados para a requisição no formato V2 da API Amadeus
             search_data = {
-                "originLocationCode": travel_info.get('origin'),
-                "destinationLocationCode": travel_info.get('destination'),
-                "departureDate": travel_info.get('departure_date'),
-                "adults": travel_info.get('adults', 1),
                 "currencyCode": travel_info.get('currency', 'BRL'),
-                "max": 20  # Obter mais resultados para melhor comparação
+                "originDestinations": [
+                    {
+                        "id": "1",
+                        "originLocationCode": travel_info.get('origin'),
+                        "destinationLocationCode": travel_info.get('destination'),
+                        "departureDateTimeRange": {
+                            "date": travel_info.get('departure_date')
+                        }
+                    }
+                ],
+                "travelers": [
+                    {
+                        "id": "1",
+                        "travelerType": "ADULT"
+                    }
+                ],
+                "sources": ["GDS"],
+                "searchCriteria": {
+                    "maxFlightOffers": 20,
+                    "flightFilters": {
+                        "cabinRestrictions": [
+                            {
+                                "cabin": "ECONOMY",
+                                "coverage": "MOST_SEGMENTS",
+                                "originDestinationIds": ["1"]
+                            }
+                        ]
+                    }
+                }
             }
-
-            # Adicionar data de retorno se disponível
+            
+            # Adicionar origem/destino de retorno se houver data de retorno
             if travel_info.get('return_date'):
-                search_data["returnDate"] = travel_info.get('return_date')
-
-            # Adicionar o session_id para rastreamento
-            search_data["session_id"] = session_id
+                search_data["originDestinations"].append({
+                    "id": "2",
+                    "originLocationCode": travel_info.get('destination'),
+                    "destinationLocationCode": travel_info.get('origin'),
+                    "departureDateTimeRange": {
+                        "date": travel_info.get('return_date')
+                    }
+                })
+                # Atualizar restrições de cabine para incluir o retorno
+                search_data["searchCriteria"]["flightFilters"]["cabinRestrictions"][0]["originDestinationIds"].append("2")
+            
+            # Adicionar passageiros adicionais se houver
+            if travel_info.get('adults', 1) > 1:
+                # Adicionar adultos adicionais
+                for i in range(2, travel_info.get('adults', 1) + 1):
+                    search_data["travelers"].append({
+                        "id": str(i),
+                        "travelerType": "ADULT"
+                    })
+            
+            # Adicionar o session_id para rastreamento (metadado nosso)
+            search_data["_session_id"] = session_id
 
             # Fazer a requisição para o endpoint da API Amadeus
             logger.warning(f"📡 Requisitando dados reais da API Amadeus: {json.dumps(search_data)}")
@@ -119,11 +161,24 @@ class FlightServiceConnector:
             logger.warning(f"URL absoluto para API Amadeus: {url}")
 
 
-            # Incluir cabeçalhos específicos para identificar a solicitação
+            # Obter token de autenticação do Amadeus
+            from services.amadeus_sdk_service import AmadeusSDKService
+            amadeus_service = AmadeusSDKService()
+            auth_token = amadeus_service.get_auth_token()
+            
+            if not auth_token:
+                logger.error("❌ Falha ao obter token de autenticação da API Amadeus")
+                return {
+                    "error": "Falha de autenticação com a API Amadeus",
+                    "data": []
+                }
+            
+            # Incluir cabeçalhos específicos para identificar a solicitação, incluindo autenticação
             headers = {
                 "X-Session-ID": session_id,
                 "X-Request-Source": "flight_service_connector",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {auth_token}"
             }
 
             # Registrar tempo de início para medição
@@ -191,25 +246,95 @@ class FlightServiceConnector:
             dict: Resultados da busca
         """
         try:
-            # Preparar dados para a requisição
+            # Preparar dados para a requisição no formato V2 da API Amadeus
             search_data = {
-                "originLocationCode": travel_info.get('origin'),
-                "destinationLocationCode": travel_info.get('destination'),
-                "departureDate": travel_info.get('date_range_start'),
-                "returnDate": travel_info.get('date_range_end'),
-                "adults": travel_info.get('adults', 1),
-                "currencyCode": travel_info.get('currency', 'BRL')
+                "currencyCode": travel_info.get('currency', 'BRL'),
+                "originDestinations": [
+                    {
+                        "id": "1",
+                        "originLocationCode": travel_info.get('origin'),
+                        "destinationLocationCode": travel_info.get('destination'),
+                        "departureDateTimeRange": {
+                            "date": travel_info.get('date_range_start')
+                        }
+                    }
+                ],
+                "travelers": [
+                    {
+                        "id": "1",
+                        "travelerType": "ADULT"
+                    }
+                ],
+                "sources": ["GDS"],
+                "searchCriteria": {
+                    "maxFlightOffers": 20,
+                    "flightFilters": {
+                        "cabinRestrictions": [
+                            {
+                                "cabin": "ECONOMY",
+                                "coverage": "MOST_SEGMENTS",
+                                "originDestinationIds": ["1"]
+                            }
+                        ]
+                    }
+                }
+            }
+            
+            # Adicionar origem/destino de retorno se houver data de retorno
+            if travel_info.get('date_range_end'):
+                search_data["originDestinations"].append({
+                    "id": "2",
+                    "originLocationCode": travel_info.get('destination'),
+                    "destinationLocationCode": travel_info.get('origin'),
+                    "departureDateTimeRange": {
+                        "date": travel_info.get('date_range_end')
+                    }
+                })
+                # Atualizar restrições de cabine para incluir o retorno
+                search_data["searchCriteria"]["flightFilters"]["cabinRestrictions"][0]["originDestinationIds"].append("2")
+            
+            # Adicionar passageiros adicionais se houver
+            if travel_info.get('adults', 1) > 1:
+                # Adicionar adultos adicionais
+                for i in range(2, travel_info.get('adults', 1) + 1):
+                    search_data["travelers"].append({
+                        "id": str(i),
+                        "travelerType": "ADULT"
+                    })
+                    
+            # Adicionar período flexível
+            search_data["searchCriteria"]["additionalProperties"] = {
+                "flexibleDates": True
             }
 
             # Fazer a requisição para o nosso endpoint de melhores preços do Amadeus
             logger.info(f"Fazendo requisição para API de melhores preços com {search_data}")
 
+            # Obter token de autenticação do Amadeus
+            from services.amadeus_sdk_service import AmadeusSDKService
+            amadeus_service = AmadeusSDKService()
+            auth_token = amadeus_service.get_auth_token()
+            
+            if not auth_token:
+                logger.error("❌ Falha ao obter token de autenticação da API Amadeus")
+                return {
+                    "error": "Falha de autenticação com a API Amadeus",
+                    "data": []
+                }
+            
             # URL relativa para evitar problemas com portas
             url = "/api/amadeus/best-prices"
             logger.info(f"URL de conexão para melhores preços: {url}")
-
+            
+            # Incluir cabeçalhos de autenticação
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+                "Content-Type": "application/json"
+            }
+            
             response = requests.post(
                 url,
+                headers=headers,
                 json=search_data,
                 timeout=30
             )

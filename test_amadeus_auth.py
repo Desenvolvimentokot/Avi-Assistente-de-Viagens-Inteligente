@@ -1,25 +1,39 @@
 #!/usr/bin/env python3
-import json
-from services.amadeus_service_optimized import AmadeusService
+"""
+Teste de autenticação com a API Amadeus usando o token bearer
+"""
+import logging
+import sys
+from services.amadeus_sdk_service import AmadeusSDKService
 
-def main():
-    print("=== TESTE DE AUTENTICAÇÃO AMADEUS ===")
-    service = AmadeusService()
-    result = service.test_connection()
+# Configurar logging
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('test_amadeus_auth')
+
+def test_auth_token():
+    """Testa obtenção de token de autenticação"""
+    logger.info("=== TESTE DE AUTENTICAÇÃO COM API AMADEUS ===")
     
-    # Exibir resultado formatado
-    print(json.dumps(result, indent=2))
-    
-    # Status simplificado
-    if result["success"]:
-        print("\n✅ Conexão estabelecida com sucesso!")
-        print(f"Token: {result['token']['value']}")
-        print(f"Expira em: {result['token']['expires_in']} segundos")
-    else:
-        print("\n❌ Falha na conexão!")
-        if result["errors"]:
-            for error in result["errors"]:
-                print(f"- {error}")
+    try:
+        # Inicializar serviço
+        service = AmadeusSDKService()
+        
+        # Obter token
+        token = service.get_auth_token()
+        
+        if token:
+            logger.info(f"✅ TOKEN OBTIDO COM SUCESSO: {token[:10]}...{token[-10:]}")
+            logger.info(f"Válido até: {service.token_expiry}")
+            return True
+        else:
+            logger.error("❌ FALHA AO OBTER TOKEN")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ ERRO NO TESTE: {str(e)}")
+        return False
 
 if __name__ == "__main__":
-    main()
+    success = test_auth_token()
+    sys.exit(0 if success else 1)

@@ -2,18 +2,27 @@
 Rotas da API para o painel de resultados de voos reais
 Este módulo contém as rotas necessárias para fornecer dados reais 
 da API Amadeus para exibição no frontend.
+
+IMPORTANTE: Este módulo garante que apenas dados reais da API Amadeus
+sejam retornados, nunca usando dados simulados ou falsos.
 """
-import logging
+
+import os
 import json
+import logging
 import uuid
-from flask import Blueprint, jsonify, request
+import traceback
+import requests
+from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, current_app
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Importar os serviços necessários
 from services.amadeus_sdk_service import AmadeusSDKService
 from services.flight_service_connector import flight_service_connector
-
-# Configurar logger
-logger = logging.getLogger(__name__)
 
 # Criar blueprint para as rotas da API de resultados de voos
 api_blueprint = Blueprint('flight_results_api', __name__)
@@ -108,8 +117,7 @@ def get_flight_results(session_id):
         # Usar o serviço FlightServiceConnector para buscar resultados novos
         logger.warning(f"🔄 Buscando NOVOS resultados reais da API Amadeus para sessão {session_id}")
         
-        # Importar o connector antes de usá-lo
-        from services.flight_service_connector import flight_service_connector
+        # Connector já está disponível no topo do arquivo
         
         # Realizar a busca com o conector direto
         search_results = flight_service_connector.search_flights_from_chat(
@@ -143,7 +151,6 @@ def get_flight_results(session_id):
         # Adicionar metadados para diagnóstico
         search_results['source'] = 'api_direct'
         search_results['session_id'] = session_id
-        from datetime import datetime
         search_results['timestamp'] = datetime.utcnow().isoformat()
         
         # Salvar os resultados em todos os lugares relevantes
