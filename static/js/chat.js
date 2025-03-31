@@ -42,6 +42,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let chatMode = 'quick-search'; // Modo padrão
     let currentConversationId = null;
     let sessionId = null; // Para manter a sessão com o servidor
+    
+    // Expor a variável de sessão globalmente para que outros scripts possam acessá-la
+    window.chatSessionId = null;
+    
     let chatHistory = []; // Para manter o histórico da conversa
     let awaitingFlightSelection = false; // Flag para controlar se estamos esperando o usuário selecionar um voo
     let chatContext = {
@@ -172,7 +176,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Armazena o session_id retornado pelo servidor
             if (data.session_id) {
                 sessionId = data.session_id;
+                
+                // ATUALIZAÇÃO CRÍTICA: Expor o ID de sessão globalmente para que outros scripts possam acessá-lo
+                window.chatSessionId = sessionId;
+                
+                // Salvar no localStorage para uso posterior
+                localStorage.setItem('chat_session_id', sessionId);
+                
                 console.log("Sessão ativa:", sessionId);
+                console.log("ID de sessão global atualizado e salvo no localStorage");
             }
 
             // Verificar se estamos recebendo resposta de fallback do OpenAI
@@ -205,11 +217,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.session_id) {
                     // Atualizar a variável global sessionId
                     sessionId = data.session_id;
+                    
+                    // ATUALIZAÇÃO CRÍTICA: Atualizar a variável global
+                    window.chatSessionId = sessionId;
+                    
                     console.log("Session ID atualizado para:", sessionId);
 
                     // Salvar no localStorage para persistência entre reloads
                     localStorage.setItem('currentSessionId', sessionId);
-                    console.log("Session ID salvo no localStorage");
+                    localStorage.setItem('chat_session_id', sessionId); // CORREÇÃO: Garantir consistência com a variável anterior
+                    console.log("Session ID salvo no localStorage (ambas as chaves)");
                 } else {
                     console.warn("ALERTA: Não recebemos session_id do servidor!");
                 }
@@ -360,9 +377,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         const destination = this.getAttribute('data-destination');
                         const departureDate = this.getAttribute('data-departure');
                         const adults = this.getAttribute('data-adults');
-                        const sessionId = this.getAttribute('data-session');
                         
                         console.log(`Clique no botão de resultados! Parâmetros: ${origin} → ${destination}`);
+                        
+                        // CORREÇÃO CRÍTICA: Usar o sessionId do chat atual ou do localStorage
+                        // em vez do atributo do botão que pode ser inválido
+                        let currentSessionId = window.chatSessionId || localStorage.getItem('chat_session_id') || sessionId;
+                        
+                        // Verificar se o sessionId é válido
+                        if (!currentSessionId || currentSessionId === 'null' || 
+                            currentSessionId === 'undefined' || currentSessionId === 'SESSION_ID_ATUAL' || 
+                            currentSessionId === '12345') {
+                            // Usar o ID da sessão atual se disponível
+                            currentSessionId = window.chatSessionId || sessionId;
+                            
+                            // Em último caso, gerar um novo ID
+                            if (!currentSessionId || currentSessionId === 'null' || 
+                                currentSessionId === 'undefined' || currentSessionId === 'SESSION_ID_ATUAL' || 
+                                currentSessionId === '12345') {
+                                currentSessionId = 'session-' + Math.random().toString(36).substring(2, 15);
+                                console.log("⚠️ Gerando novo ID de sessão para o botão: " + currentSessionId);
+                            }
+                        }
+                        
+                        console.log(`✓ Usando ID de sessão confiável: ${currentSessionId}`);
                         
                         // Construir a URL para a página de resultados
                         let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
@@ -375,9 +413,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             url += `&adults=${encodeURIComponent(adults)}`;
                         }
                         
-                        if (sessionId) {
-                            url += `&session_id=${encodeURIComponent(sessionId)}`;
-                        }
+                        // SEMPRE usar o ID de sessão atual
+                        url += `&session_id=${encodeURIComponent(currentSessionId)}`;
                         
                         console.log(`Redirecionando para: ${url}`);
                         window.location.href = url;

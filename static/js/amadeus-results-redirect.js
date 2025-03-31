@@ -67,10 +67,27 @@ function handleResultsButtonClick(event) {
     const destination = button.getAttribute('data-destination');
     const departureDate = button.getAttribute('data-departure');
     const adults = button.getAttribute('data-adults');
-    const sessionId = button.getAttribute('data-session');
+    
+    // CORREÇÃO CRÍTICA: Ignorar o sessionId do botão e usar o que está armazenado no localStorage
+    // Isso garante que usamos sempre o ID de sessão correto independente do que a AVI retornar
+    let sessionId = localStorage.getItem('chat_session_id');
+    
+    // Usar ID de sessão do chat armazenado no localStorage ou gerar um se não existir
+    if (!sessionId) {
+        // Se não encontrar no localStorage, tentar obter do contexto do chat
+        sessionId = window.chatSessionId;
+    }
+    
+    // Garantia final: se mesmo assim não tivermos um ID, gerar um novo
+    if (!sessionId || sessionId === 'undefined' || sessionId === 'null' || 
+        sessionId === '12345' || sessionId === 'SESSION_ID_ATUAL') {
+        sessionId = 'session-' + Math.random().toString(36).substring(2, 12);
+        console.log('[Amadeus Redirect] Gerado novo ID de sessão: ' + sessionId);
+    }
     
     console.log('[Amadeus Redirect] Clique em botão de resultados detectado.');
-    console.log(`[Amadeus Redirect] Parâmetros: ${origin} → ${destination}, Data: ${departureDate}, Adultos: ${adults}, Sessão: ${sessionId}`);
+    console.log(`[Amadeus Redirect] Parâmetros: ${origin} → ${destination}, Data: ${departureDate}, Adultos: ${adults}`);
+    console.log(`[Amadeus Redirect] Usando session_id confiável: ${sessionId}`);
     
     // Construir a URL para a página de resultados
     let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
@@ -83,9 +100,8 @@ function handleResultsButtonClick(event) {
         url += `&adults=${encodeURIComponent(adults)}`;
     }
     
-    if (sessionId) {
-        url += `&session_id=${encodeURIComponent(sessionId)}`;
-    }
+    // SEMPRE usar o sessionId validado
+    url += `&session_id=${encodeURIComponent(sessionId)}`;
     
     console.log(`[Amadeus Redirect] Redirecionando para: ${url}`);
     
