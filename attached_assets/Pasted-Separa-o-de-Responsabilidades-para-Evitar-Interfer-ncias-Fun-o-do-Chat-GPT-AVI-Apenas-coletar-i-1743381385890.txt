@@ -1,0 +1,230 @@
+Separação de Responsabilidades para Evitar Interferências
+
+Função do Chat GPT/AVI:
+
+Apenas coletar informações do cliente (origem, destino, datas, passageiros)
+Organizar essas informações de forma estruturada
+Apresentar um resumo para confirmação
+Oferecer o botão/link para avançar para a página de resultados
+
+
+Papel do Backend do Sistema:
+
+Interceptar e ler as informações organizadas pelo chat GPT
+Processar essas informações sem que o GPT tente interferir novamente
+Realizar as requisições necessárias à API do Amadeus
+Realizar buscas adicionais para opções alternativas mais econômicas
+Enviar os resultados para exibição na página frontend
+
+
+Prevenção de Interferências:
+
+O GPT não deve tentar buscar passagens diretamente
+O GPT não deve tentar apresentar resultados no formato de chat
+O sistema backend assume o controle após a confirmação do cliente
+A transição para a página de resultados remove o controle do GPT sobre o processo
+
+
+
+Essa arquitetura de separação clara de responsabilidades assegura que o GPT faça apenas o que é esperado dele (coletar e organizar dados) e não tente assumir funções que comprometam a experiência do usuário ou a funcionalidade do sistema como um todo.Tentar novamenteGjunte tudo e me mande completoEditarSistema de Busca de Passagens Aéreas com AVI
+Fluxo Completo de Interação
+1. Entrada e Coleta de Dados
+
+Cliente acessa a página e inicia conversa com a AVI (assistente virtual inteligente)
+AVI solicita informações necessárias para busca de passagens:
+
+Origem
+Destino
+Data de ida
+Data de volta
+Número de passageiros
+
+
+O GPT conduz esta conversa, interpretando diferentes formatos de resposta do cliente
+
+2. Processamento e Confirmação
+
+GPT organiza os dados coletados de forma estruturada
+AVI apresenta um resumo das informações para confirmação
+Após confirmação, apresenta o botão "Clique aqui para ver as Suas Melhores Opções"
+
+3. Transição para Página de Resultados
+
+Cliente clica no botão que ativa a transição para a página Amadeus Test
+Os dados estruturados são transferidos do chat GPT para o sistema de busca
+
+4. Processamento da Requisição
+
+Sistema backend faz requisição à API do Amadeus com os parâmetros fornecidos
+Simultaneamente, realiza buscas adicionais para encontrar opções alternativas mais econômicas:
+
+Voos até 10 dias antes ou depois da data solicitada
+Variações na duração da estadia (1-2 dias a mais ou a menos)
+
+
+
+5. Visualização dos Resultados
+A página frontend do Amadeus deve ter:
+Design e Usabilidade:
+
+Interface visualmente atraente e profissional
+Layout responsivo para diferentes dispositivos
+Navegação intuitiva e bem organizada
+
+Seções de Conteúdo:
+
+Resultados primários (correspondentes aos critérios exatos)
+Seção "Sugestões para Economizar" (opções alternativas mais baratas)
+Detalhamento completo dos voos selecionados
+
+Funcionalidades Interativas:
+
+Filtros por preço, horário, companhia aérea e escalas
+Botões de seleção de voos e continuação do processo
+Opção para retornar à conversa com a AVI
+Ferramentas para refinamento da busca
+
+Informações Detalhadas:
+
+Políticas de bagagem
+Termos de cancelamento
+Detalhes sobre escalas e conexões
+
+Separação de Responsabilidades para Evitar Interferências
+
+Função do Chat GPT/AVI:
+
+Apenas coletar informações do cliente
+Organizar essas informações de forma estruturada
+Apresentar um resumo para confirmação
+Oferecer o botão/link para avançar para a página de resultados
+
+
+Papel do Backend do Sistema:
+
+Interceptar e ler as informações organizadas pelo chat GPT
+Processar essas informações sem que o GPT tente interferir novamente
+Realizar as requisições necessárias à API do Amadeus
+Realizar buscas adicionais para opções alternativas mais econômicas
+Enviar os resultados para exibição na página frontend
+
+
+Prevenção de Interferências:
+
+O GPT não deve tentar buscar passagens diretamente
+O GPT não deve tentar apresentar resultados no formato de chat
+O sistema backend assume o controle após a confirmação do cliente
+A transição para a página de resultados remove o controle do GPT sobre o processo
+
+
+
+Benefícios desta Abordagem
+
+Resolve o problema de interferência do GPT na apresentação visual dos resultados
+Proporciona uma experiência de usuário adequada para comparação de opções
+Oferece diferencial competitivo com sugestões inteligentes de economia
+Mantém clara a separação entre fase de coleta de dados e apresentação de resultados
+Permite uma visualização completa e organizada das opções disponíveis
+
+Esta estrutura integrada permite que o cliente tenha uma experiência fluida, começando com uma conversa natural com a AVI e culminando em uma página de resultados rica em informações e opções.Tentar novamenteGavi e gpt sao a mesma coisa... a avi é operada pelo gptEditarVocê está certo. Vou corrigir esse ponto no documento:
+Sistema de Busca de Passagens Aéreas com AVI
+Fluxo Completo de Interação
+1. Entrada e Coleta de Dados
+
+Cliente acessa a página e inicia conversa com a AVI (assistente virtual inteligente operada pelo GPT)
+AVI solicita informações necessárias para busca de passagens:
+
+Origem
+Destino
+Data de ida
+Data de volta
+Número de passageiros
+
+
+A AVI (GPT) conduz esta conversa, interpretando diferentes formatos de resposta do cliente
+
+2. Processamento e Confirmação
+
+AVI organiza os dados coletados de forma estruturada
+AVI apresenta um resumo das informações para confirmação
+Após confirmação, apresenta o botão "Clique aqui para ver as Suas Melhores Opções"
+
+3. Transição para Página de Resultados
+
+Cliente clica no botão que ativa a transição para a página Amadeus Test
+Os dados estruturados são transferidos da conversa da AVI para o sistema de busca
+
+4. Processamento da Requisição
+
+Sistema backend faz requisição à API do Amadeus com os parâmetros fornecidos
+Simultaneamente, realiza buscas adicionais para encontrar opções alternativas mais econômicas:
+
+Voos até 10 dias antes ou depois da data solicitada
+Variações na duração da estadia (1-2 dias a mais ou a menos)
+
+
+
+5. Visualização dos Resultados
+A página frontend do Amadeus deve ter:
+Design e Usabilidade:
+
+Interface visualmente atraente e profissional
+Layout responsivo para diferentes dispositivos
+Navegação intuitiva e bem organizada
+
+Seções de Conteúdo:
+
+Resultados primários (correspondentes aos critérios exatos)
+Seção "Sugestões para Economizar" (opções alternativas mais baratas)
+Detalhamento completo dos voos selecionados
+
+Funcionalidades Interativas:
+
+Filtros por preço, horário, companhia aérea e escalas
+Botões de seleção de voos e continuação do processo
+Opção para retornar à conversa com a AVI
+Ferramentas para refinamento da busca
+
+Informações Detalhadas:
+
+Políticas de bagagem
+Termos de cancelamento
+Detalhes sobre escalas e conexões
+
+Separação de Responsabilidades para Evitar Interferências
+
+Função da AVI (GPT):
+
+Apenas coletar informações do cliente
+Organizar essas informações de forma estruturada
+Apresentar um resumo para confirmação
+Oferecer o botão/link para avançar para a página de resultados
+
+
+Papel do Backend do Sistema:
+
+Interceptar e ler as informações organizadas pela AVI
+Processar essas informações sem que a AVI tente interferir novamente
+Realizar as requisições necessárias à API do Amadeus
+Realizar buscas adicionais para opções alternativas mais econômicas
+Enviar os resultados para exibição na página frontend
+
+
+Prevenção de Interferências:
+
+A AVI não deve tentar buscar passagens diretamente
+A AVI não deve tentar apresentar resultados no formato de chat
+O sistema backend assume o controle após a confirmação do cliente
+A transição para a página de resultados remove o controle da AVI sobre o processo
+
+
+
+Benefícios desta Abordagem
+
+Resolve o problema de interferência da AVI na apresentação visual dos resultados
+Proporciona uma experiência de usuário adequada para comparação de opções
+Oferece diferencial competitivo com sugestões inteligentes de economia
+Mantém clara a separação entre fase de coleta de dados e apresentação de resultados
+Permite uma visualização completa e organizada das opções disponíveis
+
+Esta estrutura integrada permite que o cliente tenha uma experiência fluida, começando com uma conversa natural com a AVI e culminando em uma página de resultados rica em informações e opções.

@@ -13,6 +13,8 @@
     <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
     <!-- Script do novo painel de voos -->
     <script src="{{ url_for('static', filename='js/flight-panel.js') }}" defer></script>
+    <!-- Script para redirecionamento para resultados Amadeus -->
+    <script src="{{ url_for('static', filename='js/amadeus-results-redirect.js') }}" defer></script>
 </head>
 <body>
     <div class="container">
@@ -54,10 +56,10 @@
                 <div class="header">
                     <div class="chat-title">Chat com Avi</div>
                     <div class="header-actions">
-                        <div class="header-action flights-panel-button" id="openFlightsMuralButton">
+                        <a href="/amadeus-results" class="header-action" id="amadeusResultsButton">
                             <i class="fas fa-plane"></i>
-                            <span>Mural de Ofertas</span>
-                        </div>
+                            <span>Buscar Voos</span>
+                        </a>
                         <div class="header-action">
                             <i class="fas fa-bell"></i>
                         </div>

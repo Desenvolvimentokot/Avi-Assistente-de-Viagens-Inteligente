@@ -16,3 +16,47 @@
     background-color: rgba(46, 134, 222, 0.05);
     border-radius: 0 4px 4px 0;
 }
+
+/* Estilo para botão de redirecionamento para página de resultados Amadeus */
+.amadeus-results-btn {
+    display: inline-block;
+    background-color: #7761ff;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 12px 24px;
+    margin: 15px 0;
+    font-weight: 600;
+    font-size: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(119, 97, 255, 0.2);
+    text-decoration: none;
+    animation: pulse 2s infinite;
+}
+
+.amadeus-results-btn:hover {
+    background-color: #5e4acc;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(119, 97, 255, 0.3);
+    animation: none;
+}
+
+.amadeus-results-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(119, 97, 255, 0.2);
+}
+
+/* Animação de pulse para chamar atenção para o botão */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(119, 97, 255, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(119, 97, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(119, 97, 255, 0);
+    }
+}

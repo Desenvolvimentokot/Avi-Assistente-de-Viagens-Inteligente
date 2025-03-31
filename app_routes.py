@@ -14,7 +14,7 @@ import uuid
 import traceback
 import requests
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -225,22 +225,58 @@ def direct_flight_search():
         }), 500
 
 
-# Endpoint de teste para verificar a conexão com a API Amadeus
+# Página de resultados da API Amadeus
+@api_blueprint.route('/amadeus-results', methods=['GET'])
+def amadeus_results_page():
+    """
+    Renderiza a página de resultados de voos com base nos parâmetros fornecidos.
+    Esta página é o destino do botão "Clique aqui para ver suas melhores opções"
+    mostrado pela AVI após a coleta de informações.
+    """
+    try:
+        # Obter parâmetros da URL
+        origin = request.args.get('origin', 'GRU')
+        destination = request.args.get('destination', 'MIA')
+        departure_date = request.args.get('departure_date', (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        adults = request.args.get('adults', '1')
+        session_id = request.args.get('session_id', '')
+        
+        # Renderizar a página com os parâmetros fornecidos
+        return render_template(
+            'amadeus_results.html',
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+            adults=adults,
+            session_id=session_id
+        )
+    except Exception as e:
+        logger.error(f"Erro ao renderizar página de resultados: {str(e)}")
+        return render_template('error.html', message=f"Erro ao carregar resultados: {str(e)}")
+
+# Endpoint de API para busca de voos para a página de resultados
 @api_blueprint.route('/amadeus-test', methods=['GET'])
 def amadeus_test():
     """
-    Endpoint para testar a conexão direta com a API Amadeus.
-    Retorna os resultados reais de uma busca padrão.
+    Endpoint para buscar dados reais de voos da API Amadeus.
+    Usado pela página de resultados para obter dados via JavaScript.
     """
     try:
         logger.warning("📡 TESTE AMADEUS: Iniciando teste de conexão direta")
         
+        # Obter parâmetros da URL, se fornecidos
+        origin = request.args.get('origin', 'GRU')
+        destination = request.args.get('destination', 'MIA')
+        departure_date = request.args.get('departure_date', 
+                                          (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        adults = request.args.get('adults', '1')
+        
         # Preparar dados para teste
         search_data = {
-            "origin": "GRU",
-            "destination": "MIA",
-            "departure_date": (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'),
-            "adults": 1,
+            "origin": origin,
+            "destination": destination,
+            "departure_date": departure_date,
+            "adults": int(adults),
             "session_id": str(uuid.uuid4())
         }
         
@@ -265,6 +301,12 @@ def amadeus_test():
         search_results['success'] = True
         search_results['test_timestamp'] = datetime.utcnow().isoformat()
         search_results['flight_count'] = flight_count
+        search_results['search_params'] = {
+            'origin': origin,
+            'destination': destination,
+            'departure_date': departure_date,
+            'adults': adults
+        }
         
         logger.warning(f"✅ TESTE AMADEUS: Conexão bem-sucedida - {flight_count} voos encontrados")
         return jsonify(search_results)

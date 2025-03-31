@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados de Voos - Flai</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        :root {
+            --primary: #7761ff;
+            --primary-dark: #5e4acc;
+            --secondary: #FF6B6B;
+            --light-bg: #f8f9fa;
+            --text-dark: #343a40;
+            --text-light: #6c757d;
+            --avi-bg: #f3f2ff;
+        }
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text-dark);
+        }
+        
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .search-params {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .flight-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .flight-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .airline-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+        
+        .flight-time {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        
+        .flight-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .airport-code {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .airport-name {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .flight-duration {
+            text-align: center;
+            padding: 10px 0;
+            position: relative;
+        }
+        
+        .flight-duration::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed #ccc;
+            z-index: 1;
+        }
+        
+        .duration-time {
+            background-color: white;
+            padding: 0 10px;
+            position: relative;
+            z-index: 2;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .stops {
+            font-size: 0.8rem;
+            background-color: #f8f9fa;
+            border-radius: 15px;
+            padding: 2px 10px;
+        }
+        
+        .price-container {
+            text-align: center;
+            padding: 15px;
+            border-left: 1px solid #eee;
+        }
+        
+        .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .select-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        .select-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .flight-details {
+            background-color: var(--light-bg);
+            border-top: 1px solid #eee;
+            padding: 15px;
+            border-radius: 0 0 10px 10px;
+        }
+        
+        .segment {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .segment:last-child {
+            border-bottom: none;
+        }
+        
+        .segment-header {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .baggage-info {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .economy-badge {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .business-badge {
+            background-color: #cce5ff;
+            color: #004085;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .filter-section {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .form-range::-webkit-slider-thumb {
+            background: var(--primary);
+        }
+        
+        .savings-suggestion {
+            background-color: #e8f4fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .savings-title {
+            color: #17a2b8;
+            font-weight: 600;
+        }
+        
+        .savings-price {
+            font-weight: 700;
+            color: #28a745;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 100%;
+            text-align: center;
+            padding: 50px 0;
+        }
+        
+        .back-to-chat {
+            color: var(--primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .back-to-chat i {
+            margin-right: 5px;
+        }
+        
+        .back-to-chat:hover {
+            color: var(--primary-dark);
+        }
+        
+        @media (max-width: 768px) {
+            .price-container {
+                border-left: none;
+                border-top: 1px solid #eee;
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Flai Logo" height="30">
+                Flai
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">Sobre</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/contact">Contato</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <a href="/" class="back-to-chat">
+            <i class="fas fa-arrow-left"></i> Voltar para o chat com a AVI
+        </a>
+        
+        <div class="search-params p-3 mb-4">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Origem:</strong> <span id="origin-display">{{ origin }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Destino:</strong> <span id="destination-display">{{ destination }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Data de ida:</strong> <span id="departure-date-display">{{ departure_date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Passageiros:</strong> <span id="passengers-display">{{ adults }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="filter-section">
+                    <h5 class="filter-title">Filtros</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Preço máximo</label>
+                        <input type="range" class="form-range" id="price-filter" min="0" max="10000">
+                        <div class="d-flex justify-content-between">
+                            <small>R$ 0</small>
+                            <small id="price-value">R$ 5000</small>
+                            <small>R$ 10000</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Companhias Aéreas</label>
+                        <div id="airlines-container">
+                            <!-- Preenchido via JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Escalas</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="direct-flights" checked>
+                            <label class="form-check-label" for="direct-flights">
+                                Voos diretos
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="one-stop-flights" checked>
+                            <label class="form-check-label" for="one-stop-flights">
+                                1 escala
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="multi-stop-flights" checked>
+                            <label class="form-check-label" for="multi-stop-flights">
+                                2+ escalas
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Horário de partida</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="morning-departure" checked>
+                            <label class="form-check-label" for="morning-departure">
+                                Manhã (6h - 12h)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="afternoon-departure" checked>
+                            <label class="form-check-label" for="afternoon-departure">
+                                Tarde (12h - 18h)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="evening-departure" checked>
+                            <label class="form-check-label" for="evening-departure">
+                                Noite (18h - 6h)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary w-100" id="apply-filters">Aplicar Filtros</button>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <!-- Sugestões para economizar -->
+                <div class="savings-suggestion mb-4">
+                    <h5 class="savings-title">
+                        <i class="fas fa-piggy-bank me-2"></i> Sugestões para Economizar
+                    </h5>
+                    <div id="savings-container">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Resultados dos voos -->
+                <div id="results-container">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+                
+                <!-- Spinner de carregamento -->
+                <div class="loading-spinner" id="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Buscando as melhores opções de voos para você...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar dados da URL
+            const params = new URLSearchParams(window.location.search);
+            const origin = params.get('origin') || '{{ origin }}';
+            const destination = params.get('destination') || '{{ destination }}';
+            const departureDate = params.get('departure_date') || '{{ departure_date }}';
+            const adults = params.get('adults') || '{{ adults }}';
+            const sessionId = params.get('session_id') || '';
+            
+            // Atualizar display de parâmetros
+            document.getElementById('origin-display').textContent = origin;
+            document.getElementById('destination-display').textContent = destination;
+            document.getElementById('departure-date-display').textContent = departureDate;
+            document.getElementById('passengers-display').textContent = adults + ' adulto(s)';
+            
+            // Função para formatar preço
+            function formatPrice(price) {
+                return new Intl.NumberFormat('pt-BR', { 
+                    style: 'currency', 
+                    currency: 'BRL' 
+                }).format(price);
+            }
+            
+            // Função para formatar data e hora
+            function formatDateTime(dateTimeStr) {
+                const date = new Date(dateTimeStr);
+                return {
+                    time: date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    date: date.toLocaleDateString('pt-BR')
+                };
+            }
+            
+            // Função para calcular duração
+            function formatDuration(durationStr) {
+                // Formato PT10H15M (10 horas e 15 minutos)
+                const hourMatch = durationStr.match(/(\d+)H/);
+                const minuteMatch = durationStr.match(/(\d+)M/);
+                
+                const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+                const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+                
+                return `${hours}h ${minutes}m`;
+            }
+            
+            // Função para contar escalas
+            function countStops(segments) {
+                return segments.length - 1;
+            }
+            
+            // Função para formatar texto de escalas
+            function formatStops(count) {
+                if (count === 0) return 'Direto';
+                if (count === 1) return '1 escala';
+                return `${count} escalas`;
+            }
+            
+            // Função para obter os dados de voos
+            async function fetchFlightData() {
+                try {
+                    document.getElementById('loading-spinner').style.display = 'block';
+                    
+                    let url;
+                    if (sessionId) {
+                        url = `/api/flight_results/${sessionId}`;
+                    } else {
+                        url = `/amadeus-test`;
+                    }
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    if (!data.data || data.data.length === 0) {
+                        showNoResults();
+                        return;
+                    }
+                    
+                    renderFlightResults(data.data);
+                    renderSavingsSuggestions(data.data);
+                    populateAirlineFilters(data.data);
+                    
+                } catch (error) {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    showError("Ocorreu um erro ao buscar os voos. Tente novamente mais tarde.");
+                    console.error('Erro ao buscar voos:', error);
+                }
+            }
+            
+            // Função para mostrar erro
+            function showError(message) {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        ${message}
+                    </div>
+                `;
+            }
+            
+            // Função para mostrar mensagem de sem resultados
+            function showNoResults() {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Não encontramos voos para os critérios informados. Tente ajustar os filtros ou datas.
+                    </div>
+                `;
+            }
+            
+            // Função para renderizar os resultados
+            function renderFlightResults(flights) {
+                const container = document.getElementById('results-container');
+                container.innerHTML = '';
+                
+                flights.forEach(flight => {
+                    const priceTotal = parseFloat(flight.price.total);
+                    const currencyCode = flight.price.currency;
+                    
+                    // Para cada itinerário (ida)
+                    flight.itineraries.forEach((itinerary, index) => {
+                        const isReturn = index > 0;
+                        const segments = itinerary.segments;
+                        const firstSegment = segments[0];
+                        const lastSegment = segments[segments.length - 1];
+                        
+                        // Dados de origem
+                        const departure = firstSegment.departure;
+                        const departureDateTime = formatDateTime(departure.at);
+                        const originCode = departure.iataCode;
+                        
+                        // Dados de destino
+                        const arrival = lastSegment.arrival;
+                        const arrivalDateTime = formatDateTime(arrival.at);
+                        const destinationCode = arrival.iataCode;
+                        
+                        // Duração e escalas
+                        const duration = formatDuration(itinerary.duration);
+                        const stopCount = countStops(segments);
+                        const stopText = formatStops(stopCount);
+                        
+                        // Companhias aéreas
+                        const mainAirline = firstSegment.carrierCode;
+                        
+                        // Card do voo
+                        const flightCard = document.createElement('div');
+                        flightCard.className = 'flight-card mb-4';
+                        flightCard.innerHTML = `
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    ${isReturn ? '<div class="col-12 mb-2"><span class="badge bg-secondary">Voo de Volta</span></div>' : ''}
+                                    
+                                    <!-- Companhia -->
+                                    <div class="col-md-2">
+                                        <div class="text-center">
+                                            <div class="airline-logo-placeholder d-flex justify-content-center align-items-center mb-2" style="height: 40px;">
+                                                <span class="fw-bold">${mainAirline}</span>
+                                            </div>
+                                            <div class="cabin-type">
+                                                <span class="economy-badge">Econômica</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Origem -->
+                                    <div class="col-md-2">
+                                        <div class="flight-time">${departureDateTime.time}</div>
+                                        <div class="flight-date">${departureDateTime.date}</div>
+                                        <div class="airport-code">${originCode}</div>
+                                    </div>
+                                    
+                                    <!-- Duração e escalas -->
+                                    <div class="col-md-3">
+                                        <div class="flight-duration">
+                                            <span class="duration-time">${duration}</span>
+                                        </div>
+                                        <div class="text-center mt-1">
+                                            <span class="stops">${stopText}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Destino -->
+                                    <div class="col-md-2">
+                                        <div class="flight-time">${arrivalDateTime.time}</div>
+                                        <div class="flight-date">${arrivalDateTime.date}</div>
+                                        <div class="airport-code">${destinationCode}</div>
+                                    </div>
+                                    
+                                    <!-- Preço e botão -->
+                                    <div class="col-md-3">
+                                        <div class="price-container">
+                                            ${isReturn ? '' : `
+                                                <div class="price">${formatPrice(priceTotal)}</div>
+                                                <button class="select-btn mt-2">Selecionar</button>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flight-details" style="display: none;">
+                                <div class="segment-header">Detalhes do Voo</div>
+                                <div class="segments-container">
+                                    ${segments.map((segment, idx) => {
+                                        const segmentDeparture = formatDateTime(segment.departure.at);
+                                        const segmentArrival = formatDateTime(segment.arrival.at);
+                                        const segmentDuration = formatDuration(segment.duration);
+                                        const airline = segment.carrierCode;
+                                        const flightNumber = segment.number;
+                                        
+                                        return `
+                                            <div class="segment">
+                                                <div class="row">
+                                                    <div class="col-md-12 mb-2">
+                                                        <span class="airline-name">${airline} ${flightNumber}</span>
+                                                    </div>
+                                                    <div class="col-md-5">
+                                                        <div class="flight-time">${segmentDeparture.time}</div>
+                                                        <div class="flight-date">${segmentDeparture.date}</div>
+                                                        <div class="airport-code">${segment.departure.iataCode}</div>
+                                                    </div>
+                                                    <div class="col-md-2 text-center">
+                                                        <div class="duration-time small">${segmentDuration}</div>
+                                                    </div>
+                                                    <div class="col-md-5 text-end">
+                                                        <div class="flight-time">${segmentArrival.time}</div>
+                                                        <div class="flight-date">${segmentArrival.date}</div>
+                                                        <div class="airport-code">${segment.arrival.iataCode}</div>
+                                                    </div>
+                                                </div>
+                                                ${idx < segments.length - 1 ? '<hr>' : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                                <div class="baggage-info mt-3">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <i class="fas fa-suitcase me-2"></i> Bagagem de mão incluída
+                                        </div>
+                                        <div class="col-md-6">
+                                            <i class="fas fa-luggage-cart me-2"></i> Bagagem despachada pode ter custo adicional
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        container.appendChild(flightCard);
+                        
+                        // Adicionar evento de toggle para detalhes
+                        const cardBody = flightCard.querySelector('.card-body');
+                        const details = flightCard.querySelector('.flight-details');
+                        
+                        cardBody.addEventListener('click', function() {
+                            if (details.style.display === 'none') {
+                                details.style.display = 'block';
+                            } else {
+                                details.style.display = 'none';
+                            }
+                        });
+                    });
+                });
+            }
+            
+            // Função para renderizar sugestões de economia
+            function renderSavingsSuggestions(flights) {
+                const container = document.getElementById('savings-container');
+                container.innerHTML = '';
+                
+                // Ordenar voos por preço
+                const sortedFlights = [...flights].sort((a, b) => {
+                    return parseFloat(a.price.total) - parseFloat(b.price.total);
+                });
+                
+                // Pegar o voo mais barato
+                const cheapestFlight = sortedFlights[0];
+                
+                // Formatar data de exemplo alternativa com descontos fictícios
+                const departureDate = new Date(departureDate);
+                const dayBefore = new Date(departureDate);
+                dayBefore.setDate(departureDate.getDate() - 1);
+                const dayAfter = new Date(departureDate);
+                dayAfter.setDate(departureDate.getDate() + 1);
+                
+                const dayBeforeStr = dayBefore.toLocaleDateString('pt-BR');
+                const dayAfterStr = dayAfter.toLocaleDateString('pt-BR');
+                
+                const cheapestPrice = parseFloat(cheapestFlight.price.total);
+                const discountPrice1 = (cheapestPrice * 0.85).toFixed(2);
+                const discountPrice2 = (cheapestPrice * 0.80).toFixed(2);
+                
+                container.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6>Viaje um dia antes e economize!</h6>
+                                    <p class="mb-1">Data: ${dayBeforeStr}</p>
+                                    <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice1)}</span></p>
+                                    <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice1)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6>Viaje um dia depois e economize!</h6>
+                                    <p class="mb-1">Data: ${dayAfterStr}</p>
+                                    <p class="mb-0">Preço a partir de: <span class="savings-price">${formatPrice(discountPrice2)}</span></p>
+                                    <p class="small text-muted mb-0">Economia: ${formatPrice(cheapestPrice - discountPrice2)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Função para preencher filtros de companhias aéreas
+            function populateAirlineFilters(flights) {
+                const airlinesSet = new Set();
+                
+                flights.forEach(flight => {
+                    flight.itineraries.forEach(itinerary => {
+                        itinerary.segments.forEach(segment => {
+                            if (segment.carrierCode) {
+                                airlinesSet.add(segment.carrierCode);
+                            }
+                        });
+                    });
+                });
+                
+                const container = document.getElementById('airlines-container');
+                container.innerHTML = '';
+                
+                airlinesSet.forEach(airline => {
+                    const checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'form-check';
+                    checkboxDiv.innerHTML = `
+                        <input class="form-check-input" type="checkbox" id="airline-${airline}" checked>
+                        <label class="form-check-label" for="airline-${airline}">
+                            ${airline}
+                        </label>
+                    `;
+                    container.appendChild(checkboxDiv);
+                });
+            }
+            
+            // Evento para filtro de preço
+            const priceFilter = document.getElementById('price-filter');
+            const priceValue = document.getElementById('price-value');
+            
+            priceFilter.addEventListener('input', function() {
+                priceValue.textContent = `R$ ${this.value}`;
+            });
+            
+            // Iniciar busca de voos
+            fetchFlightData();
+        });
+        
+        // Função para formatar preço
+        function formatPrice(price) {
+            return new Intl.NumberFormat('pt-BR', { 
+                style: 'currency', 
+                currency: 'BRL' 
+            }).format(price);
+        }
+    </script>
+</body>
+</html>
