@@ -351,7 +351,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     const buttonText = button.textContent;
                     button.innerHTML = `<i class="fas fa-plane-departure"></i> ${buttonText}`;
                     
-                    console.log("Botão de resultados formatado e preparado");
+                    // CORREÇÃO: Adiciona o event listener diretamente aqui
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        
+                        // Extrair os parâmetros do botão
+                        const origin = this.getAttribute('data-origin');
+                        const destination = this.getAttribute('data-destination');
+                        const departureDate = this.getAttribute('data-departure');
+                        const adults = this.getAttribute('data-adults');
+                        const sessionId = this.getAttribute('data-session');
+                        
+                        console.log(`Clique no botão de resultados! Parâmetros: ${origin} → ${destination}`);
+                        
+                        // Construir a URL para a página de resultados
+                        let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                        
+                        if (departureDate) {
+                            url += `&departure_date=${encodeURIComponent(departureDate)}`;
+                        }
+                        
+                        if (adults) {
+                            url += `&adults=${encodeURIComponent(adults)}`;
+                        }
+                        
+                        if (sessionId) {
+                            url += `&session_id=${encodeURIComponent(sessionId)}`;
+                        }
+                        
+                        console.log(`Redirecionando para: ${url}`);
+                        window.location.href = url;
+                    });
+                    
+                    console.log("Botão de resultados formatado e preparado com evento de clique");
                 });
             }
         } else {
