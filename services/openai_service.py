@@ -71,7 +71,7 @@ class OpenAIService:
     
     # Função antiga removida para evitar duplicação
     
-    def travel_assistant(self, user_message, conversation_history=None, system_context=""):
+    def travel_assistant(self, user_message, conversation_history=None, system_context="", session_id=None):
         """
         Especialização do assistente para planejamento de viagens
         
@@ -79,6 +79,7 @@ class OpenAIService:
         - user_message: mensagem do usuário
         - conversation_history: histórico da conversa
         - system_context: contexto adicional para o sistema
+        - session_id: ID da sessão atual para substituir no prompt
         """
         if conversation_history is None:
             conversation_history = []
@@ -90,8 +91,14 @@ class OpenAIService:
         from services.prompts.busca_rapida_prompt import BUSCA_RAPIDA_PROMPT
         from services.prompts.planejamento_completo_prompt import PLANEJAMENTO_COMPLETO_PROMPT
         
+        # Substituir SESSION_ID_ATUAL pelo ID de sessão real
+        custom_prompt = AVI_SYSTEM_PROMPT
+        if session_id:
+            custom_prompt = AVI_SYSTEM_PROMPT.replace('SESSION_ID_ATUAL', session_id)
+            logging.info(f"Prompt personalizado com session_id: {session_id}")
+        
         # Identificar o contexto atual com base na mensagem e histórico
-        current_prompt = AVI_SYSTEM_PROMPT
+        current_prompt = custom_prompt
         
         # Verificar se há um contexto específico de modo de busca
         if "planejamento completo" in user_message.lower() or any("planejamento completo" in msg.get('content', '').lower() for msg in conversation_history if msg.get('is_user', False)):

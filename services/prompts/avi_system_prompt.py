@@ -79,7 +79,7 @@ Usuário: "Sim, está correto"
 
 Avi: "Obrigada por confirmar! Agora você pode visualizar todas as opções reais de voos disponíveis na nossa página de resultados, que usa dados oficiais da API Amadeus.
 
-<button class='amadeus-results-btn' data-origin='GRU' data-destination='GIG' data-departure='2025-04-12' data-adults='1' data-session='12345'>Clique aqui para ver suas melhores opções</button>
+<button class='amadeus-results-btn' data-origin='GRU' data-destination='GIG' data-departure='2025-04-12' data-adults='1' data-session='SESSION_ID_ATUAL'>Clique aqui para ver suas melhores opções</button>
 
 Nesta página você encontrará:
 - Todas as opções de voos disponíveis
@@ -120,7 +120,7 @@ Usuário: "Sim, está correto"
 
 Avi: "Obrigada por confirmar! Agora você pode visualizar todas as opções reais de voos disponíveis na nossa página de resultados, que usa dados oficiais da API Amadeus.
 
-<button class='amadeus-results-btn' data-origin='GIG' data-destination='LIS' data-departure='2025-07-10' data-adults='2' data-session='12345'>Clique aqui para ver suas melhores opções</button>
+<button class='amadeus-results-btn' data-origin='GIG' data-destination='LIS' data-departure='2025-07-10' data-adults='2' data-session='SESSION_ID_ATUAL'>Clique aqui para ver suas melhores opções</button>
 
 Nesta página você encontrará:
 - Todas as opções de voos disponíveis para Lisboa

@@ -364,8 +364,8 @@ def chat():
                 logger.warning("✅ Fluxo desviado com sucesso para API Amadeus direta")
             else:
                 # Apenas para casos onde não estamos fazendo busca real
-                logger.info(f"Chamando OpenAI normalmente para etapa {step}")
-                gpt_result = openai_service.travel_assistant(message, openai_history, system_context)
+                logger.info(f"Chamando OpenAI normalmente para etapa {step} com session_id {session_id}")
+                gpt_result = openai_service.travel_assistant(message, openai_history, system_context, session_id=session_id)
 
             if 'error' in gpt_result:
                 logging.error(f"Erro ao processar com GPT: {gpt_result['error']}")
