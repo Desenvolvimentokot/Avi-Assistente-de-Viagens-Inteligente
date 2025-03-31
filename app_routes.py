@@ -262,10 +262,25 @@ def amadeus_results_page():
         
         # Verificar se temos os parâmetros necessários - não usar padrões
         if not (origin and destination and departure_date):
-            logger.warning("⚠️ Parâmetros insuficientes para busca. Redirecionando para página inicial.")
+            logger.warning(f"⚠️ ERRO: Parâmetros insuficientes para busca. Travel info: {travel_info}")
+            
+            # Log detalhado para depuração
+            if travel_info:
+                logger.warning(f"🔎 CONTEÚDO DE TRAVEL_INFO: {json.dumps(travel_info, default=str)}")
+            else:
+                logger.warning("❌ TRAVEL_INFO está vazio ou não existe")
+                
+            logger.warning(f"🔎 URL PARAMS: origin={request.args.get('origin')}, dest={request.args.get('destination')}, date={request.args.get('departure_date')}")
+            
+            # Se tivermos o objeto travel_info mas faltarem campos específicos
+            missing = []
+            if not origin: missing.append("origem")
+            if not destination: missing.append("destino") 
+            if not departure_date: missing.append("data de partida")
+            
             return render_template(
                 'error.html', 
-                message="Parâmetros insuficientes para busca. Por favor, forneça origem, destino e data na conversa com a AVI."
+                message=f"Parâmetros insuficientes: faltam {', '.join(missing)}. Por favor, forneça todas as informações necessárias na conversa com a AVI."
             )
         
         # Renderizar a página com os parâmetros obtidos

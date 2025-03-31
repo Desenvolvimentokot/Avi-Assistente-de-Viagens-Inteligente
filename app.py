@@ -482,20 +482,70 @@ def chat():
                 }
 
             # Analisar a resposta do assistente em busca de informações estruturadas
-            if step == 1 and any(phrase in message.lower() for phrase in ["sim", "confirmo", "está correto", "proceda", "ok", "certo"]):
-                # Verificar se há informações de viagem estruturadas na resposta do GPT
-                logger.info("🔍 Verificando bloco de dados estruturados na resposta do GPT")
-                extracted_travel_info = ResponseAnalyzer.extract_travel_info_from_response(response_text)
+            # CASO 1: Resposta direta da AVI com bloco de dados (resposta esperada no etapa 1)
+            # CASO 2: Resposta do usuário confirmando após ver dados (sim, confirmo, etc.)
+            
+            # Sempre verificar se há um bloco de dados, independente da etapa ou mensagem
+            logger.warning("🔍 VERIFICANDO BLOCO DE DADOS ESTRUTURADOS NA RESPOSTA")
+            extracted_travel_info = ResponseAnalyzer.extract_travel_info_from_response(response_text)
+            
+            # Se encontrou dados estruturados na resposta atual
+            if extracted_travel_info:
+                logger.warning(f"✅ EXTRAÇÃO BEM-SUCEDIDA! Dados extraídos: {extracted_travel_info}")
                 
-                if extracted_travel_info:
-                    logger.info(f"✅ Informações de viagem extraídas com sucesso: {extracted_travel_info}")
-                    # Atualizar as informações de viagem com os dados estruturados
-                    current_travel_info.update(extracted_travel_info)
-                    # Marcar como etapa 2 e confirmado
-                    current_travel_info['step'] = 2
-                    current_travel_info['confirmed'] = True
-                else:
-                    logger.warning("⚠️ Nenhuma informação estruturada encontrada na resposta do GPT")
+                # Atualizar as informações de viagem com os dados estruturados
+                current_travel_info.update(extracted_travel_info)
+                
+                # Marcar como confirmado para ativar busca de voos
+                current_travel_info['step'] = 2
+                current_travel_info['confirmed'] = True
+                
+                # Registrar o momento da extração bem-sucedida para debug
+                current_travel_info['extraction_timestamp'] = datetime.utcnow().isoformat()
+                
+                # Log detalhado para depuração
+                logger.warning(f"📊 TRAVEL_INFO ATUALIZADO: {json.dumps(current_travel_info, indent=2, default=str)}")
+            
+            # Caso 2: Resposta de confirmação do usuário após ver os dados
+            elif step == 1 and any(phrase in message.lower() for phrase in ["sim", "confirmo", "está correto", "proceda", "ok", "certo"]):
+                logger.warning("🔄 Usuário confirmou, mas sem bloco de dados na mensagem atual.")
+                logger.warning("🔍 Verificando mensagem anterior do assistente...")
+                
+                # Tentar buscar nos últimos 3 mensagens do chat
+                found_data = False
+                
+                try:
+                    # Buscar conversas anteriores
+                    previous_messages = []
+                    if session_id in conversation_store:
+                        previous_messages = conversation_store[session_id].get('messages', [])
+                    
+                    # Procurar nas últimas mensagens da AVI (não do usuário)
+                    for prev_msg in reversed(previous_messages[-5:]):  # Últimas 5 mensagens
+                        if not prev_msg.get('is_user', True):  # Mensagem da AVI
+                            prev_content = prev_msg.get('content', '')
+                            if '[DADOS_VIAGEM]' in prev_content:
+                                logger.warning("✅ Encontrado bloco de dados em mensagem anterior!")
+                                prev_extracted = ResponseAnalyzer.extract_travel_info_from_response(prev_content)
+                                
+                                if prev_extracted:
+                                    logger.warning(f"✅ Extraídos dados de mensagem anterior: {prev_extracted}")
+                                    current_travel_info.update(prev_extracted)
+                                    current_travel_info['step'] = 2
+                                    current_travel_info['confirmed'] = True
+                                    current_travel_info['extraction_timestamp'] = datetime.utcnow().isoformat()
+                                    found_data = True
+                                    
+                                    # Log detalhado para depuração
+                                    logger.warning(f"📊 TRAVEL_INFO DE MENSAGEM ANTERIOR: {json.dumps(current_travel_info, indent=2, default=str)}")
+                                    break
+                    
+                    if not found_data:
+                        logger.warning("⚠️ Não foram encontrados dados estruturados nas mensagens anteriores")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao buscar em mensagens anteriores: {str(e)}")
+            else:
+                logger.debug("ℹ️ Nenhum dado estruturado encontrado nesta etapa da conversa")
             
             # Armazena a resposta no histórico
             history.append({'assistant': response_text})
