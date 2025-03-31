@@ -705,9 +705,12 @@
                         return;
                     }
                     
+                    console.log(`📊 Processando ${flights.length} ofertas de voos`);
+                    
                     // Contador para rastrear quantos voos foram renderizados com sucesso
                     let successfulRenders = 0;
                     
+                    // Processando cada oferta de voo (uma oferta = ida + volta quando aplicável)
                     flights.forEach((flight, flightIndex) => {
                         try {
                             // Verificar se o voo tem a estrutura de preço esperada
@@ -716,202 +719,337 @@
                                 return;
                             }
                             
-                            const priceTotal = parseFloat(flight.price.total);
-                            const currencyCode = flight.price.currency || 'BRL';
-                            
                             // Verificar se o voo tem itinerários
                             if (!flight.itineraries || !Array.isArray(flight.itineraries) || flight.itineraries.length === 0) {
                                 console.warn(`⚠️ Voo ${flightIndex} sem itinerários válidos:`, flight);
                                 return;
                             }
                             
-                            // Para cada itinerário (ida)
-                            flight.itineraries.forEach((itinerary, index) => {
-                                try {
-                                    const isReturn = index > 0;
-                                    
-                                    // Verificar se o itinerário tem segmentos
-                                    if (!itinerary.segments || !Array.isArray(itinerary.segments) || itinerary.segments.length === 0) {
-                                        console.warn(`⚠️ Itinerário ${index} do voo ${flightIndex} sem segmentos válidos:`, itinerary);
-                                        return;
-                                    }
-                                    
-                                    const segments = itinerary.segments;
-                                    const firstSegment = segments[0];
-                                    const lastSegment = segments[segments.length - 1];
-                                    
-                                    // Verificar segmentos de origem e destino
-                                    if (!firstSegment || !firstSegment.departure) {
-                                        console.warn(`⚠️ Primeiro segmento do itinerário ${index} do voo ${flightIndex} inválido:`, firstSegment);
-                                        return;
-                                    }
-                                    
-                                    if (!lastSegment || !lastSegment.arrival) {
-                                        console.warn(`⚠️ Último segmento do itinerário ${index} do voo ${flightIndex} inválido:`, lastSegment);
-                                        return;
-                                    }
-                                    
-                                    // Dados de origem
-                                    const departure = firstSegment.departure;
-                                    if (!departure.at || !departure.iataCode) {
-                                        console.warn(`⚠️ Dados de partida incompletos para o itinerário ${index} do voo ${flightIndex}:`, departure);
-                                        return;
-                                    }
-                                    
-                                    const departureDateTime = formatDateTime(departure.at);
-                                    const originCode = departure.iataCode;
-                                    
-                                    // Dados de destino
-                                    const arrival = lastSegment.arrival;
-                                    if (!arrival.at || !arrival.iataCode) {
-                                        console.warn(`⚠️ Dados de chegada incompletos para o itinerário ${index} do voo ${flightIndex}:`, arrival);
-                                        return;
-                                    }
-                                    
-                                    const arrivalDateTime = formatDateTime(arrival.at);
-                                    const destinationCode = arrival.iataCode;
-                                    
-                                    // Duração e escalas
-                                    if (!itinerary.duration) {
-                                        console.warn(`⚠️ Duração ausente para o itinerário ${index} do voo ${flightIndex}`);
-                                        return;
-                                    }
-                                    
-                                    const duration = formatDuration(itinerary.duration);
-                                    const stopCount = countStops(segments);
-                                    const stopText = formatStops(stopCount);
-                        
-                        // Companhias aéreas
-                        const mainAirline = firstSegment.carrierCode;
-                        
-                        // Card do voo
-                        const flightCard = document.createElement('div');
-                        flightCard.className = 'flight-card mb-4';
-                        flightCard.innerHTML = `
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    ${isReturn ? '<div class="col-12 mb-2"><span class="badge bg-secondary">Voo de Volta</span></div>' : ''}
-                                    
-                                    <!-- Companhia -->
-                                    <div class="col-md-2">
-                                        <div class="text-center">
-                                            <div class="airline-logo-placeholder d-flex justify-content-center align-items-center mb-2" style="height: 40px;">
-                                                <span class="fw-bold">${getAirlineDisplayName(mainAirline)}</span>
+                            // Criar um único card para a oferta completa (ida + volta quando aplicável)
+                            const flightCard = document.createElement('div');
+                            flightCard.className = 'flight-card mb-4';
+                            
+                            const priceTotal = parseFloat(flight.price.total);
+                            const currencyCode = flight.price.currency || 'BRL';
+                            
+                            // Flag para viagem de ida e volta
+                            const isRoundTrip = flight.itineraries.length > 1;
+                            
+                            // Processando o voo de ida (itinerário 0)
+                            const outboundItinerary = flight.itineraries[0];
+                            
+                            // Verificar se o itinerário tem segmentos
+                            if (!outboundItinerary || !outboundItinerary.segments || outboundItinerary.segments.length === 0) {
+                                console.warn(`⚠️ Itinerário de ida do voo ${flightIndex} inválido`);
+                                return;
+                            }
+                            
+                            const outboundSegments = outboundItinerary.segments;
+                            const outboundFirstSegment = outboundSegments[0];
+                            const outboundLastSegment = outboundSegments[outboundSegments.length - 1];
+                            
+                            // Verificar dados básicos
+                            if (!outboundFirstSegment || !outboundFirstSegment.departure || 
+                                !outboundLastSegment || !outboundLastSegment.arrival) {
+                                console.warn(`⚠️ Segmentos de ida do voo ${flightIndex} inválidos`);
+                                return;
+                            }
+                            
+                            // Dados de origem no voo de ida
+                            const outboundDeparture = outboundFirstSegment.departure;
+                            if (!outboundDeparture.at || !outboundDeparture.iataCode) {
+                                console.warn(`⚠️ Dados de partida incompletos para o voo de ida ${flightIndex}`);
+                                return;
+                            }
+                            
+                            const outboundDepartureDateTime = formatDateTime(outboundDeparture.at);
+                            const outboundOriginCode = outboundDeparture.iataCode;
+                            
+                            // Dados de destino no voo de ida
+                            const outboundArrival = outboundLastSegment.arrival;
+                            if (!outboundArrival.at || !outboundArrival.iataCode) {
+                                console.warn(`⚠️ Dados de chegada incompletos para o voo de ida ${flightIndex}`);
+                                return;
+                            }
+                            
+                            const outboundArrivalDateTime = formatDateTime(outboundArrival.at);
+                            const outboundDestinationCode = outboundArrival.iataCode;
+                            
+                            // Duração e escalas do voo de ida
+                            if (!outboundItinerary.duration) {
+                                console.warn(`⚠️ Duração ausente para o voo de ida ${flightIndex}`);
+                                return;
+                            }
+                            
+                            const outboundDuration = formatDuration(outboundItinerary.duration);
+                            const outboundStopCount = countStops(outboundSegments);
+                            const outboundStopText = formatStops(outboundStopCount);
+                            
+                            // Companhia aérea principal do voo de ida
+                            const outboundMainAirline = outboundFirstSegment.carrierCode;
+                            
+                            // HTML para detalhes dos segmentos de ida
+                            const outboundSegmentsHTML = outboundSegments.map((segment, idx) => {
+                                const segmentDeparture = formatDateTime(segment.departure.at);
+                                const segmentArrival = formatDateTime(segment.arrival.at);
+                                const segmentDuration = formatDuration(segment.duration);
+                                const airline = segment.carrierCode;
+                                const flightNumber = segment.number;
+                                
+                                return `
+                                    <div class="segment">
+                                        <div class="row">
+                                            <div class="col-md-12 mb-2">
+                                                <span class="airline-name">${getAirlineDisplayName(airline)} ${flightNumber}</span>
                                             </div>
-                                            <div class="cabin-type">
-                                                <span class="economy-badge">Econômica</span>
+                                            <div class="col-md-5">
+                                                <div class="flight-time">${segmentDeparture.time}</div>
+                                                <div class="flight-date">${segmentDeparture.date}</div>
+                                                <div class="airport-code">${getAirportDisplayName(segment.departure.iataCode)}</div>
+                                            </div>
+                                            <div class="col-md-2 text-center">
+                                                <div class="duration-time small">${segmentDuration}</div>
+                                            </div>
+                                            <div class="col-md-5 text-end">
+                                                <div class="flight-time">${segmentArrival.time}</div>
+                                                <div class="flight-date">${segmentArrival.date}</div>
+                                                <div class="airport-code">${getAirportDisplayName(segment.arrival.iataCode)}</div>
                                             </div>
                                         </div>
+                                        ${idx < outboundSegments.length - 1 ? '<hr>' : ''}
                                     </div>
+                                `;
+                            }).join('');
+                            
+                            // Variáveis para dados do voo de volta (se for ida e volta)
+                            let returnHTML = '';
+                            let returnDetailsHTML = '';
+                            
+                            // Processar o voo de volta se existir (itinerário 1)
+                            if (isRoundTrip && flight.itineraries.length > 1) {
+                                const returnItinerary = flight.itineraries[1];
+                                
+                                // Verificar se o itinerário de volta é válido
+                                if (returnItinerary && returnItinerary.segments && returnItinerary.segments.length > 0) {
+                                    const returnSegments = returnItinerary.segments;
+                                    const returnFirstSegment = returnSegments[0];
+                                    const returnLastSegment = returnSegments[returnSegments.length - 1];
                                     
-                                    <!-- Origem -->
-                                    <div class="col-md-2">
-                                        <div class="flight-time">${departureDateTime.time}</div>
-                                        <div class="flight-date">${departureDateTime.date}</div>
-                                        <div class="airport-code">${getAirportDisplayName(originCode)}</div>
-                                    </div>
-                                    
-                                    <!-- Duração e escalas -->
-                                    <div class="col-md-3">
-                                        <div class="flight-duration">
-                                            <span class="duration-time">${duration}</span>
+                                    // Verificar dados básicos
+                                    if (returnFirstSegment && returnFirstSegment.departure && 
+                                        returnLastSegment && returnLastSegment.arrival) {
+                                        
+                                        // Dados de origem no voo de volta
+                                        const returnDeparture = returnFirstSegment.departure;
+                                        if (returnDeparture.at && returnDeparture.iataCode) {
+                                            const returnDepartureDateTime = formatDateTime(returnDeparture.at);
+                                            const returnOriginCode = returnDeparture.iataCode;
+                                            
+                                            // Dados de destino no voo de volta
+                                            const returnArrival = returnLastSegment.arrival;
+                                            if (returnArrival.at && returnArrival.iataCode) {
+                                                const returnArrivalDateTime = formatDateTime(returnArrival.at);
+                                                const returnDestinationCode = returnArrival.iataCode;
+                                                
+                                                // Duração e escalas do voo de volta
+                                                if (returnItinerary.duration) {
+                                                    const returnDuration = formatDuration(returnItinerary.duration);
+                                                    const returnStopCount = countStops(returnSegments);
+                                                    const returnStopText = formatStops(returnStopCount);
+                                                    
+                                                    // Companhia aérea principal do voo de volta
+                                                    const returnMainAirline = returnFirstSegment.carrierCode;
+                                                    
+                                                    // HTML para a parte visual do voo de volta
+                                                    returnHTML = `
+                                                        <hr>
+                                                        <div class="mt-3 mb-2"><span class="badge bg-secondary">Voo de Volta</span></div>
+                                                        <div class="row align-items-center">
+                                                            <!-- Companhia -->
+                                                            <div class="col-md-2">
+                                                                <div class="text-center">
+                                                                    <div class="airline-logo-placeholder d-flex justify-content-center align-items-center mb-2" style="height: 40px;">
+                                                                        <span class="fw-bold">${getAirlineDisplayName(returnMainAirline)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- Origem (agora é o destino original) -->
+                                                            <div class="col-md-2">
+                                                                <div class="flight-time">${returnDepartureDateTime.time}</div>
+                                                                <div class="flight-date">${returnDepartureDateTime.date}</div>
+                                                                <div class="airport-code">${getAirportDisplayName(returnOriginCode)}</div>
+                                                            </div>
+                                                            
+                                                            <!-- Duração e escalas -->
+                                                            <div class="col-md-3">
+                                                                <div class="flight-duration">
+                                                                    <span class="duration-time">${returnDuration}</span>
+                                                                </div>
+                                                                <div class="text-center mt-1">
+                                                                    <span class="stops">${returnStopText}</span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- Destino (agora é a origem original) -->
+                                                            <div class="col-md-2">
+                                                                <div class="flight-time">${returnArrivalDateTime.time}</div>
+                                                                <div class="flight-date">${returnArrivalDateTime.date}</div>
+                                                                <div class="airport-code">${getAirportDisplayName(returnDestinationCode)}</div>
+                                                            </div>
+                                                            
+                                                            <!-- Espaço vazio alinhado com o botão de preço -->
+                                                            <div class="col-md-3"></div>
+                                                        </div>
+                                                    `;
+                                                    
+                                                    // HTML para detalhes dos segmentos de volta
+                                                    const returnSegmentsHTML = returnSegments.map((segment, idx) => {
+                                                        const segmentDeparture = formatDateTime(segment.departure.at);
+                                                        const segmentArrival = formatDateTime(segment.arrival.at);
+                                                        const segmentDuration = formatDuration(segment.duration);
+                                                        const airline = segment.carrierCode;
+                                                        const flightNumber = segment.number;
+                                                        
+                                                        return `
+                                                            <div class="segment">
+                                                                <div class="row">
+                                                                    <div class="col-md-12 mb-2">
+                                                                        <span class="airline-name">${getAirlineDisplayName(airline)} ${flightNumber}</span>
+                                                                    </div>
+                                                                    <div class="col-md-5">
+                                                                        <div class="flight-time">${segmentDeparture.time}</div>
+                                                                        <div class="flight-date">${segmentDeparture.date}</div>
+                                                                        <div class="airport-code">${getAirportDisplayName(segment.departure.iataCode)}</div>
+                                                                    </div>
+                                                                    <div class="col-md-2 text-center">
+                                                                        <div class="duration-time small">${segmentDuration}</div>
+                                                                    </div>
+                                                                    <div class="col-md-5 text-end">
+                                                                        <div class="flight-time">${segmentArrival.time}</div>
+                                                                        <div class="flight-date">${segmentArrival.date}</div>
+                                                                        <div class="airport-code">${getAirportDisplayName(segment.arrival.iataCode)}</div>
+                                                                    </div>
+                                                                </div>
+                                                                ${idx < returnSegments.length - 1 ? '<hr>' : ''}
+                                                            </div>
+                                                        `;
+                                                    }).join('');
+                                                    
+                                                    // HTML para a seção de detalhes de volta
+                                                    returnDetailsHTML = `
+                                                        <div class="segment-header mt-4">Detalhes do Voo de Volta</div>
+                                                        <div class="segments-container">
+                                                            ${returnSegmentsHTML}
+                                                        </div>
+                                                    `;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Montar HTML completo para o card
+                            flightCard.innerHTML = `
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <!-- Companhia -->
+                                        <div class="col-md-2">
+                                            <div class="text-center">
+                                                <div class="airline-logo-placeholder d-flex justify-content-center align-items-center mb-2" style="height: 40px;">
+                                                    <span class="fw-bold">${getAirlineDisplayName(outboundMainAirline)}</span>
+                                                </div>
+                                                <div class="cabin-type">
+                                                    <span class="economy-badge">Econômica</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="text-center mt-1">
-                                            <span class="stops">${stopText}</span>
+                                        
+                                        <!-- Origem -->
+                                        <div class="col-md-2">
+                                            <div class="flight-time">${outboundDepartureDateTime.time}</div>
+                                            <div class="flight-date">${outboundDepartureDateTime.date}</div>
+                                            <div class="airport-code">${getAirportDisplayName(outboundOriginCode)}</div>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Destino -->
-                                    <div class="col-md-2">
-                                        <div class="flight-time">${arrivalDateTime.time}</div>
-                                        <div class="flight-date">${arrivalDateTime.date}</div>
-                                        <div class="airport-code">${getAirportDisplayName(destinationCode)}</div>
-                                    </div>
-                                    
-                                    <!-- Preço e botão -->
-                                    <div class="col-md-3">
-                                        <div class="price-container">
-                                            ${isReturn ? '' : `
+                                        
+                                        <!-- Duração e escalas -->
+                                        <div class="col-md-3">
+                                            <div class="flight-duration">
+                                                <span class="duration-time">${outboundDuration}</span>
+                                            </div>
+                                            <div class="text-center mt-1">
+                                                <span class="stops">${outboundStopText}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Destino -->
+                                        <div class="col-md-2">
+                                            <div class="flight-time">${outboundArrivalDateTime.time}</div>
+                                            <div class="flight-date">${outboundArrivalDateTime.date}</div>
+                                            <div class="airport-code">${getAirportDisplayName(outboundDestinationCode)}</div>
+                                        </div>
+                                        
+                                        <!-- Preço e botão -->
+                                        <div class="col-md-3">
+                                            <div class="price-container">
                                                 <div class="price">${formatPrice(priceTotal)}</div>
                                                 <button class="select-btn mt-2">Selecionar</button>
-                                            `}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="flight-details" style="display: none;">
-                                <div class="segment-header">Detalhes do Voo</div>
-                                <div class="segments-container">
-                                    ${segments.map((segment, idx) => {
-                                        const segmentDeparture = formatDateTime(segment.departure.at);
-                                        const segmentArrival = formatDateTime(segment.arrival.at);
-                                        const segmentDuration = formatDuration(segment.duration);
-                                        const airline = segment.carrierCode;
-                                        const flightNumber = segment.number;
-                                        
-                                        return `
-                                            <div class="segment">
-                                                <div class="row">
-                                                    <div class="col-md-12 mb-2">
-                                                        <span class="airline-name">${getAirlineDisplayName(airline)} ${flightNumber}</span>
-                                                    </div>
-                                                    <div class="col-md-5">
-                                                        <div class="flight-time">${segmentDeparture.time}</div>
-                                                        <div class="flight-date">${segmentDeparture.date}</div>
-                                                        <div class="airport-code">${getAirportDisplayName(segment.departure.iataCode)}</div>
-                                                    </div>
-                                                    <div class="col-md-2 text-center">
-                                                        <div class="duration-time small">${segmentDuration}</div>
-                                                    </div>
-                                                    <div class="col-md-5 text-end">
-                                                        <div class="flight-time">${segmentArrival.time}</div>
-                                                        <div class="flight-date">${segmentArrival.date}</div>
-                                                        <div class="airport-code">${getAirportDisplayName(segment.arrival.iataCode)}</div>
-                                                    </div>
-                                                </div>
-                                                ${idx < segments.length - 1 ? '<hr>' : ''}
                                             </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                                <div class="baggage-info mt-3">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <i class="fas fa-suitcase me-2"></i> Bagagem de mão incluída
                                         </div>
-                                        <div class="col-md-6">
-                                            <i class="fas fa-luggage-cart me-2"></i> Bagagem despachada pode ter custo adicional
+                                    </div>
+                                    
+                                    ${returnHTML}
+                                </div>
+                                
+                                <div class="flight-details" style="display: none;">
+                                    <div class="segment-header">Detalhes do Voo de Ida</div>
+                                    <div class="segments-container">
+                                        ${outboundSegmentsHTML}
+                                    </div>
+                                    
+                                    ${returnDetailsHTML}
+                                    
+                                    <div class="baggage-info mt-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <i class="fas fa-suitcase me-2"></i> Bagagem de mão incluída
+                                            </div>
+                                            <div class="col-md-6">
+                                                <i class="fas fa-luggage-cart me-2"></i> Bagagem despachada pode ter custo adicional
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                        
-                        container.appendChild(flightCard);
-                        
-                        // Adicionar evento de toggle para detalhes
-                        const cardBody = flightCard.querySelector('.card-body');
-                        const details = flightCard.querySelector('.flight-details');
-                        
-                        cardBody.addEventListener('click', function() {
-                            if (details.style.display === 'none') {
-                                details.style.display = 'block';
-                            } else {
-                                details.style.display = 'none';
-                            }
-                        });
-                                        
-                                        // Incrementar contador de renderizações bem-sucedidas
-                                        successfulRenders++;
-                                    } catch (segmentError) {
-                                        console.error(`❌ Erro ao renderizar segmento do itinerário ${index} do voo ${flightIndex}:`, segmentError);
-                                    }
-                                });
-                            } catch (flightError) {
-                                console.error(`❌ Erro ao processar voo ${flightIndex}:`, flightError);
-                            }
-                        });
+                            `;
+                            
+                            // Adicionar card ao container
+                            container.appendChild(flightCard);
+                            
+                            // Adicionar evento de toggle para detalhes
+                            const cardBody = flightCard.querySelector('.card-body');
+                            const details = flightCard.querySelector('.flight-details');
+                            
+                            cardBody.addEventListener('click', function(e) {
+                                // Não expandir se clicar no botão de selecionar
+                                if (e.target.classList.contains('select-btn')) {
+                                    return;
+                                }
+                                
+                                if (details.style.display === 'none') {
+                                    details.style.display = 'block';
+                                } else {
+                                    details.style.display = 'none';
+                                }
+                            });
+                            
+                            // Incrementar contador de renderizações bem-sucedidas
+                            successfulRenders++;
+                            
+                        } catch (flightError) {
+                            console.error(`❌ Erro ao processar voo ${flightIndex}:`, flightError);
+                        }
+                    });
                     
                     // Verificar se algum voo foi renderizado com sucesso
                     if (successfulRenders === 0) {
