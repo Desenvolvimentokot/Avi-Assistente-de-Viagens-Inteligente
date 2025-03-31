@@ -329,7 +329,31 @@ document.addEventListener('DOMContentLoaded', function() {
             text = convertMarkdownBold(text);
             text = convertMarkdownItalic(text);
             text = convertMarkdownLists(text);
+            
+            // Processa os botões da amadeus-results-btn
+            if (text.includes('amadeus-results-btn')) {
+                console.log("Detectado botão de resultados na mensagem");
+            }
+            
             contentElement.innerHTML = text;
+            
+            // Detecta e inicializa botões de resultados da Amadeus
+            const resultButtons = contentElement.querySelectorAll('.amadeus-results-btn');
+            if (resultButtons.length > 0) {
+                console.log(`Encontrados ${resultButtons.length} botões de resultados na mensagem`);
+                resultButtons.forEach(button => {
+                    // Estiliza o botão para destacá-lo melhor
+                    button.style.display = "block";
+                    button.style.margin = "20px auto";
+                    button.style.textAlign = "center";
+                    
+                    // Adiciona um ícone ao botão para torná-lo mais atraente
+                    const buttonText = button.textContent;
+                    button.innerHTML = `<i class="fas fa-plane-departure"></i> ${buttonText}`;
+                    
+                    console.log("Botão de resultados formatado e preparado");
+                });
+            }
         } else {
             contentElement.innerText = text;
         }
