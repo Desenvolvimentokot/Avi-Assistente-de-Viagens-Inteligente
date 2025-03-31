@@ -380,29 +380,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         console.log(`Clique no botão de resultados! Parâmetros: ${origin} → ${destination}`);
                         
-                        // CORREÇÃO CRÍTICA: Usar o sessionId do chat atual ou do localStorage
-                        // em vez do atributo do botão que pode ser inválido
-                        let currentSessionId = window.chatSessionId || localStorage.getItem('chat_session_id') || sessionId;
+                        // Não precisamos mais se preocupar com o session_id na URL
+                        // O cookie flai_session_id é enviado automaticamente pelo navegador
+                        console.log(`✓ Usando cookie flai_session_id para autenticação`);
                         
-                        // Verificar se o sessionId é válido
-                        if (!currentSessionId || currentSessionId === 'null' || 
-                            currentSessionId === 'undefined' || currentSessionId === 'SESSION_ID_ATUAL' || 
-                            currentSessionId === '12345') {
-                            // Usar o ID da sessão atual se disponível
-                            currentSessionId = window.chatSessionId || sessionId;
-                            
-                            // Em último caso, gerar um novo ID
-                            if (!currentSessionId || currentSessionId === 'null' || 
-                                currentSessionId === 'undefined' || currentSessionId === 'SESSION_ID_ATUAL' || 
-                                currentSessionId === '12345') {
-                                currentSessionId = 'session-' + Math.random().toString(36).substring(2, 15);
-                                console.log("⚠️ Gerando novo ID de sessão para o botão: " + currentSessionId);
-                            }
-                        }
-                        
-                        console.log(`✓ Usando ID de sessão confiável: ${currentSessionId}`);
-                        
-                        // Construir a URL para a página de resultados
+                        // Construir a URL para a página de resultados (somente para exibição)
+                        // Os parâmetros serão usados apenas como fallback se o cookie não estiver disponível
                         let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
                         
                         if (departureDate) {
@@ -412,9 +395,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (adults) {
                             url += `&adults=${encodeURIComponent(adults)}`;
                         }
-                        
-                        // SEMPRE usar o ID de sessão atual
-                        url += `&session_id=${encodeURIComponent(currentSessionId)}`;
                         
                         console.log(`Redirecionando para: ${url}`);
                         window.location.href = url;

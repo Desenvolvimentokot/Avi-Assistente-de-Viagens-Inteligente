@@ -6,7 +6,7 @@ import re
 import time
 import sqlalchemy.exc
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 
@@ -168,8 +168,17 @@ def chat():
         data = request.get_json()
         message = data.get('message', '')
         mode = data.get('mode', 'quick-search')
-        session_id = data.get('session_id', str(uuid.uuid4()))
         client_history = data.get('history', [])
+        
+        # Tentar obter session_id do cookie primeiro
+        session_id = request.cookies.get('flai_session_id')
+        
+        # Se não existir cookie, criar novo ID
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            app.logger.info(f"Criando nova sessão: {session_id}")
+        else:
+            app.logger.info(f"Usando sessão existente do cookie: {session_id}")
 
         if not message:
             return jsonify({"error": True, "message": "Mensagem vazia"})
@@ -180,6 +189,9 @@ def chat():
                 'history': [],
                 'travel_info': {}
             }
+            app.logger.info(f"Inicializando nova sessão no servidor: {session_id}")
+        else:
+            app.logger.info(f"Sessão existente encontrada no servidor: {session_id}")
 
         # Usa o histórico armazenado no servidor, ou o enviado pelo cliente se disponível
         history = conversation_store[session_id]['history']
@@ -500,10 +512,25 @@ def chat():
             conversation_store[session_id]['history'] = history
             conversation_store[session_id]['travel_info'] = current_travel_info
 
-            # Adiciona session_id na resposta
+            # Adiciona session_id na resposta para legado
             response['session_id'] = session_id
 
-            return jsonify(response)
+            # Criar resposta com cookie
+            resp = make_response(jsonify(response))
+            
+            # Configurar cookie seguro com o session_id
+            resp.set_cookie(
+                'flai_session_id', 
+                session_id, 
+                httponly=True,       # Não acessível via JavaScript 
+                secure=True,         # Só enviado em HTTPS
+                samesite='Lax',      # Proteção contra CSRF
+                max_age=86400        # Válido por 24 horas
+            )
+            
+            app.logger.info(f"Cookie flai_session_id definido com valor: {session_id}")
+            
+            return resp
         else:
             # Implementar lógica para planejamento completo
             response = {"response": "Modo de planejamento completo em desenvolvimento."}
@@ -511,7 +538,22 @@ def chat():
             conversation_store[session_id]['history'] = history
             response['session_id'] = session_id
 
-            return jsonify(response)
+            # Criar resposta com cookie
+            resp = make_response(jsonify(response))
+            
+            # Configurar cookie seguro com o session_id
+            resp.set_cookie(
+                'flai_session_id', 
+                session_id, 
+                httponly=True,       # Não acessível via JavaScript 
+                secure=True,         # Só enviado em HTTPS
+                samesite='Lax',      # Proteção contra CSRF
+                max_age=86400        # Válido por 24 horas
+            )
+            
+            app.logger.info(f"Cookie flai_session_id definido com valor: {session_id}")
+            
+            return resp
 
     except Exception as e:
         print(f"Erro na API de chat: {str(e)}")

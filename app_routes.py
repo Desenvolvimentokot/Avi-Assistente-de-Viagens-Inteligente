@@ -14,7 +14,7 @@ import uuid
 import traceback
 import requests
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, current_app, render_template
+from flask import Blueprint, request, jsonify, current_app, render_template, make_response
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,8 @@ api_blueprint = Blueprint('flight_results_api', __name__)
 flight_search_sessions = {}
 
 @api_blueprint.route('/api/flight_results/<session_id>', methods=['GET'])
-def get_flight_results(session_id):
+@api_blueprint.route('/api/flight_results', methods=['GET'])
+def get_flight_results(session_id=None):
     """
     ENDPOINT DEFINITIVO PARA MURAL DE VOOS
     
@@ -44,8 +45,13 @@ def get_flight_results(session_id):
     eliminando qualquer caminho que possa mostrar dados não-reais.
     
     Args:
-        session_id: ID da sessão do chat
+        session_id: ID da sessão do chat (opcional, pode vir do cookie)
     """
+    # Tentar obter session_id do cookie se não foi fornecido na URL
+    if not session_id:
+        session_id = request.cookies.get('flai_session_id')
+        logger.warning(f"🍪 Usando ID da sessão do cookie: {session_id}")
+    
     # Mensagem clara de início de processamento para debug
     logger.warning(f"🛫 ENDPOINT REAL: Processando solicitação de voos para sessão {session_id}")
     
@@ -234,22 +240,54 @@ def amadeus_results_page():
     mostrado pela AVI após a coleta de informações.
     """
     try:
-        # Obter parâmetros da URL
-        origin = request.args.get('origin', 'GRU')
-        destination = request.args.get('destination', 'MIA')
-        departure_date = request.args.get('departure_date', (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
-        adults = request.args.get('adults', '1')
-        session_id = request.args.get('session_id', '')
+        # Tentar obter session_id do cookie
+        session_id = request.cookies.get('flai_session_id')
+        travel_info = {}
         
-        # Renderizar a página com os parâmetros fornecidos
-        return render_template(
+        # Se temos um ID de sessão, tentar obter informações da viagem
+        if session_id:
+            # Importar o conversation_store
+            from app import conversation_store
+            
+            if session_id in conversation_store:
+                # Carregar as informações salvas
+                travel_info = conversation_store[session_id].get('travel_info', {})
+                logger.warning(f"✅ Usando informações de viagem da sessão {session_id} para página de resultados")
+            
+        # Usar dados da conversa ou cair para os parâmetros da URL/padrões
+        origin = travel_info.get('origin') or request.args.get('origin', 'GRU')
+        destination = travel_info.get('destination') or request.args.get('destination', 'MIA')
+        departure_date = travel_info.get('departure_date') or request.args.get(
+            'departure_date', (datetime.utcnow() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        adults = travel_info.get('adults', 1) or request.args.get('adults', '1')
+        
+        # Renderizar a página com os parâmetros obtidos
+        resp = make_response(render_template(
             'amadeus_results.html',
             origin=origin,
             destination=destination,
             departure_date=departure_date,
-            adults=adults,
-            session_id=session_id
-        )
+            adults=adults
+        ))
+        
+        # Verificar se precisamos definir um cookie de sessão
+        if not session_id and travel_info:
+            # Criar nova sessão
+            session_id = str(uuid.uuid4())
+            
+            # Configurar cookie
+            resp.set_cookie(
+                'flai_session_id', 
+                session_id, 
+                httponly=True,       # Não acessível via JavaScript 
+                secure=True,         # Só enviado em HTTPS
+                samesite='Lax',      # Proteção contra CSRF
+                max_age=86400        # Válido por 24 horas
+            )
+            
+            logger.warning(f"🍪 Definindo cookie flai_session_id com valor: {session_id}")
+        
+        return resp
     except Exception as e:
         logger.error(f"Erro ao renderizar página de resultados: {str(e)}")
         return render_template('error.html', message=f"Erro ao carregar resultados: {str(e)}")
@@ -264,7 +302,58 @@ def amadeus_test():
     try:
         logger.warning("📡 TESTE AMADEUS: Iniciando teste de conexão direta")
         
-        # Obter parâmetros da URL, se fornecidos
+        # Tentar obter session_id do cookie
+        session_id = request.cookies.get('flai_session_id')
+        
+        # Se não existir cookie, criar um ID novo para o teste
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            logger.warning(f"⚠️ Cookie flai_session_id não encontrado, usando ID temporário: {session_id}")
+        else:
+            logger.warning(f"✅ Encontrado cookie flai_session_id com valor: {session_id}")
+            
+            # Verificar se temos dados salvos da conversa para essa sessão
+            from app import conversation_store
+            if session_id in conversation_store:
+                travel_info = conversation_store[session_id].get('travel_info', {})
+                
+                # Se temos dados salvos da conversa, usar eles
+                if travel_info and (travel_info.get('origin') and travel_info.get('destination')):
+                    logger.warning(f"✅ Usando informações de viagem da sessão {session_id}")
+                    
+                    # Verificar se já temos resultados guardados
+                    if travel_info.get('search_results'):
+                        logger.warning(f"📊 Retornando resultados já salvos para sessão {session_id}")
+                        search_results = travel_info.get('search_results')
+                        # Adicionar metadados
+                        search_results['success'] = True
+                        search_results['source'] = 'session_cache'
+                        search_results['test_timestamp'] = datetime.utcnow().isoformat()
+                        return jsonify(search_results)
+                    
+                    # Usar os dados da conversa para buscar novos resultados
+                    search_data = {
+                        "origin": travel_info.get('origin'),
+                        "destination": travel_info.get('destination'),
+                        "departure_date": travel_info.get('departure_date'),
+                        "adults": travel_info.get('adults', 1),
+                    }
+                    
+                    # Usar o flight_service_connector com a travel_info da sessão
+                    logger.warning(f"🔍 Buscando voos com dados da sessão para {search_data['origin']} → {search_data['destination']}")
+                    
+                    search_results = flight_service_connector.search_flights_from_chat(
+                        travel_info=travel_info,
+                        session_id=session_id
+                    )
+                    
+                    # Salvar resultados na sessão
+                    if search_results and 'error' not in search_results:
+                        travel_info['search_results'] = search_results
+                    
+                    return jsonify(search_results)
+                    
+        # Se não temos dados da sessão, usar parâmetros da URL ou valores padrão
         origin = request.args.get('origin', 'GRU')
         destination = request.args.get('destination', 'MIA')
         departure_date = request.args.get('departure_date', 
@@ -276,14 +365,14 @@ def amadeus_test():
             "origin": origin,
             "destination": destination,
             "departure_date": departure_date,
-            "adults": int(adults),
-            "session_id": str(uuid.uuid4())
+            "adults": int(adults)
         }
         
         # Usar o flight_service_connector para buscar resultados reais
+        logger.warning(f"🔍 Buscando voos com parâmetros diretos para {origin} → {destination}")
         search_results = flight_service_connector.search_flights_from_chat(
             travel_info=search_data,
-            session_id=search_data["session_id"]
+            session_id=session_id
         )
         
         # Verificar resultados

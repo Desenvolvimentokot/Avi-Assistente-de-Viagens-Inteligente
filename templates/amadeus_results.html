@@ -410,7 +410,6 @@
             const destination = params.get('destination') || '{{ destination }}';
             const departureDate = params.get('departure_date') || '{{ departure_date }}';
             const adults = params.get('adults') || '{{ adults }}';
-            const sessionId = params.get('session_id') || '';
             
             // Atualizar display de parâmetros
             document.getElementById('origin-display').textContent = origin;
@@ -464,12 +463,9 @@
                 try {
                     document.getElementById('loading-spinner').style.display = 'block';
                     
-                    let url;
-                    if (sessionId) {
-                        url = `/api/flight_results/${sessionId}`;
-                    } else {
-                        url = `/amadeus-test`;
-                    }
+                    // URL única para API de resultados - o cookie flai_session_id 
+                    // será enviado automaticamente com a solicitação
+                    const url = `/amadeus-test`;
                     
                     const response = await fetch(url);
                     const data = await response.json();
