@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
     const logoContainer = document.querySelector('.logo-container');
+    const navItems = document.querySelectorAll('.nav-item span');
 
     if (sidebarToggle && sidebar) {
         sidebarToggle.addEventListener('click', function() {
@@ -66,6 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     mainContent.style.width = 'calc(100% - 60px)';
                 }
                 
+                // Esconder textos imediatamente para evitar deslocamento
+                navItems.forEach(span => {
+                    span.style.display = 'none';
+                });
+                
                 // Garantir que a logo fique visível e bem posicionada
                 if (logoContainer) {
                     logoContainer.style.zIndex = '30'; 
@@ -76,6 +82,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     mainContent.style.marginLeft = '220px';
                     mainContent.style.width = 'calc(100% - 220px)';
                 }
+                
+                // Mostrar textos novamente
+                navItems.forEach(span => {
+                    span.style.display = 'inline';
+                });
                 
                 // Restaurar posição normal da logo
                 if (logoContainer) {
@@ -91,12 +102,30 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.classList.contains('minimized')) {
                 // Apenas efeitos visuais no hover, sem remover a classe minimized
                 this.style.width = '220px';
+                
+                // Mostrar textos dos itens de navegação ao passar o mouse
+                navItems.forEach(span => {
+                    span.style.display = 'inline';
+                    // Atraso pequeno para suavizar a transição
+                    setTimeout(() => {
+                        span.style.opacity = '1';
+                    }, 100);
+                });
             }
         });
 
         sidebar.addEventListener('mouseleave', function() {
             if (this.classList.contains('minimized')) {
                 this.style.width = '60px';
+                
+                // Esconder textos dos itens de navegação ao sair
+                navItems.forEach(span => {
+                    span.style.opacity = '0';
+                    // Atraso para que o texto desapareça após a animação de largura
+                    setTimeout(() => {
+                        span.style.display = 'none';
+                    }, 200);
+                });
             }
         });
     }

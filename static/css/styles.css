@@ -65,7 +65,7 @@ body {
     border-top-right-radius: 30px;
     border-bottom-right-radius: 30px;
     box-shadow: 0 0 15px rgba(0, 63, 142, 0.3);
-    padding-top: 180px; /* Aumenta o padding superior quando minimizada para contornar a logo */
+    padding-top: 180px; /* Espaço para a logo */
 }
 
 /* Ajuste para o conteúdo principal quando a sidebar é minimizada */
@@ -114,7 +114,6 @@ body {
     border-radius: 50%;
     object-fit: contain;
     transition: all 0.3s ease;
-    box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
     position: absolute;
     top: -20px; /* Ajustado para não cortar a parte superior */
     left: 50%;
@@ -134,11 +133,11 @@ body {
 }
 
 .sidebar.minimized .logo img {
-    width: 200px;
-    height: 200px;
-    position: absolute; /* Muda de fixed para absolute */
+    width: 180px; /* Tamanho reduzido quando minimizado */
+    height: 180px; /* Tamanho reduzido quando minimizado */
+    position: absolute;
     left: 50%;
-    top: -20px;
+    top: -15px;
     transform: translateX(-50%); /* Centraliza na área disponível */
     z-index: 30;
     border: 6px solid white;
