@@ -53,6 +53,7 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 20;
+    min-height: 120px;
 }
 
 /* Logo como botão dropdown */
@@ -62,8 +63,8 @@ body {
 }
 
 .logo-button {
-    width: 90px;
-    height: 90px;
+    width: 110px;
+    height: 110px;
     border-radius: 50%;
     overflow: hidden;
     display: flex;
