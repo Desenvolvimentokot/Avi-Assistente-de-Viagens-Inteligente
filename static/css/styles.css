@@ -59,7 +59,7 @@ body {
 .logo-dropdown {
     position: relative;
     cursor: pointer;
-    margin-top: 45px; /* Permite que a logo se estenda para baixo */
+    margin-top: 30px; /* Ajustado para centralizar a logo na linha do header */
     z-index: 25; /* Garante que a logo fique sobre outros elementos */
 }
 
@@ -77,6 +77,8 @@ body {
     cursor: pointer;
     padding: 0;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    top: 0;
 }
 
 .logo-button img {
