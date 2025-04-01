@@ -59,10 +59,11 @@ body {
 
 /* Sidebar minimizada */
 .sidebar.minimized {
-    width: 80px; /* Aumentado para dar mais espaço para a barra ao redor da logo */
-    overflow: visible; 
+    width: 60px; /* Reduzido para criar um efeito mais minimalista */
+    overflow: visible;
     border-top-right-radius: 30px;
     border-bottom-right-radius: 30px;
+    box-shadow: 0 0 15px rgba(0, 63, 142, 0.3); /* Sombra suave para destacar a barra */
 }
 
 /* Ajuste para o conteúdo principal quando a sidebar é minimizada */
@@ -117,6 +118,9 @@ body {
     transform: translateX(-50%);
     border: 6px solid white;
     background-color: white;
+    /* Adiciona um contorno adicional da mesma cor da sidebar */
+    outline: 8px solid #003f8e;
+    outline-offset: -3px;
 }
 
 .sidebar.minimized .logo-container {
@@ -128,9 +132,11 @@ body {
 .sidebar.minimized .logo img {
     width: 200px;
     height: 200px;
-    position: absolute;
-    left: 50%; /* Mantém centralizado mesmo minimizado */
-    transform: translateX(-50%); /* Mantém centralizado mesmo minimizado */
+    position: fixed;
+    left: 40px; /* Posição fixa à esquerda */
+    transform: none; /* Remove a transformação que estava movendo a logo */
+    z-index: 25; /* Garante que a logo fique acima da sidebar minimizada */
+    border: 6px solid #003f8e; /* Contorno da mesma cor da barra lateral */
 }
 
 .sidebar-toggle {
