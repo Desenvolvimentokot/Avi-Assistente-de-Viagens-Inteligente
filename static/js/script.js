@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
+    const logoContainer = document.querySelector('.logo-container');
 
     if (sidebarToggle && sidebar) {
         sidebarToggle.addEventListener('click', function() {
@@ -61,14 +62,24 @@ document.addEventListener('DOMContentLoaded', function() {
             if (sidebar.classList.contains('minimized')) {
                 icon.style.transform = 'rotate(180deg)';
                 if (mainContent) {
-                    mainContent.style.marginLeft = '60px'; // Atualizado para nova largura da sidebar
+                    mainContent.style.marginLeft = '60px';
                     mainContent.style.width = 'calc(100% - 60px)';
+                }
+                
+                // Garantir que a logo fique visível e bem posicionada
+                if (logoContainer) {
+                    logoContainer.style.zIndex = '30'; 
                 }
             } else {
                 icon.style.transform = 'rotate(0deg)';
                 if (mainContent) {
                     mainContent.style.marginLeft = '220px';
                     mainContent.style.width = 'calc(100% - 220px)';
+                }
+                
+                // Restaurar posição normal da logo
+                if (logoContainer) {
+                    logoContainer.style.zIndex = '30';
                 }
             }
         });
@@ -85,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         sidebar.addEventListener('mouseleave', function() {
             if (this.classList.contains('minimized')) {
-                this.style.width = '60px'; // Atualizado para nova largura da sidebar
+                this.style.width = '60px';
             }
         });
     }

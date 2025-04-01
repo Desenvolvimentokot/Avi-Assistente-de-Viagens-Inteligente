@@ -55,6 +55,7 @@ body {
     border-top-right-radius: 30px;
     border-bottom-right-radius: 30px;
     padding: 0;
+    padding-top: 80px; /* Espaço na parte superior para a logo */
 }
 
 /* Sidebar minimizada */
@@ -63,7 +64,8 @@ body {
     overflow: visible;
     border-top-right-radius: 30px;
     border-bottom-right-radius: 30px;
-    box-shadow: 0 0 15px rgba(0, 63, 142, 0.3); /* Sombra suave para destacar a barra */
+    box-shadow: 0 0 15px rgba(0, 63, 142, 0.3);
+    padding-top: 180px; /* Aumenta o padding superior quando minimizada para contornar a logo */
 }
 
 /* Ajuste para o conteúdo principal quando a sidebar é minimizada */
@@ -90,19 +92,20 @@ body {
 /* Container da logo para gerenciar o espaço e posicionamento */
 .logo-container {
     position: relative;
-    height: 180px; /* Aumentado para dar mais espaço */
+    height: 180px; /* Espaço para a logo */
     margin-bottom: 20px;
     display: flex;
     justify-content: center;
-    padding-top: 30px; /* Aumentado para evitar corte superior */
+    padding-top: 30px;
     overflow: visible;
+    z-index: 30; /* Garante que fique acima da sidebar */
 }
 
 .logo {
     width: 140px;
     height: 140px;
     position: relative;
-    z-index: 20;
+    z-index: 30;
 }
 
 .logo img {
@@ -113,30 +116,35 @@ body {
     transition: all 0.3s ease;
     box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
     position: absolute;
-    top: -30px; /* Ajustado para não cortar a parte superior */
+    top: -20px; /* Ajustado para não cortar a parte superior */
     left: 50%;
     transform: translateX(-50%);
     border: 6px solid white;
     background-color: white;
-    /* Adiciona um contorno adicional da mesma cor da sidebar */
-    outline: 8px solid #003f8e;
+    outline: 8px solid #003f8e; /* Contorno da mesma cor da sidebar */
     outline-offset: -3px;
 }
 
+/* Mantém a posição da logo mesmo quando a sidebar é minimizada */
 .sidebar.minimized .logo-container {
-    height: 180px; /* Mantido consistente com o não-minimizado */
+    height: 180px;
     margin-bottom: 20px;
     overflow: visible;
+    position: relative;
 }
 
 .sidebar.minimized .logo img {
     width: 200px;
     height: 200px;
-    position: fixed;
-    left: 40px; /* Posição fixa à esquerda */
-    transform: none; /* Remove a transformação que estava movendo a logo */
-    z-index: 25; /* Garante que a logo fique acima da sidebar minimizada */
-    border: 6px solid #003f8e; /* Contorno da mesma cor da barra lateral */
+    position: absolute; /* Muda de fixed para absolute */
+    left: 50%;
+    top: -20px;
+    transform: translateX(-50%); /* Centraliza na área disponível */
+    z-index: 30;
+    border: 6px solid white;
+    background-color: white;
+    outline: 8px solid #003f8e;
+    outline-offset: -3px;
 }
 
 .sidebar-toggle {
