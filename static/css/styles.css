@@ -27,155 +27,197 @@ body {
     --success-color: #58b19f;      /* Verde para status positivos */
     --warning-color: #ffda79;      /* Amarelo para avisos */
     --error-color: #ff6b6b;        /* Vermelho para erros */
-    --chat-user-color: #e1f1ff; /* alterado */
-    --chat-bot-color: #e1f5fe; /* adicionado */
+    --chat-user-color: #e1f1ff;    /* alterado */
+    --chat-bot-color: #e1f5fe;     /* adicionado */
+    --header-height: 80px;         /* Altura do cabeçalho com logo */
 }
 
 /* Layout principal */
 .container {
     display: flex;
+    flex-direction: column;
     height: 100vh;
     width: 100%;
     overflow: hidden;
 }
 
-/* Sidebar */
-.sidebar {
-    width: 220px;
-    background-color: #003f8e;
-    color: white;
+/* Header com logo */
+.header-container {
+    height: var(--header-height);
+    background-color: white;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 20;
+}
+
+/* Logo como botão dropdown */
+.logo-dropdown {
+    position: relative;
+    cursor: pointer;
+}
+
+.logo-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    border: 3px solid #003f8e;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    padding: 0;
+}
+
+.logo-button img {
+    width: 100%;
     height: 100%;
+    object-fit: contain;
+}
+
+.logo-button:hover {
+    box-shadow: 0 0 10px rgba(0, 63, 142, 0.3);
+    transform: scale(1.05);
+}
+
+/* Menu dropdown */
+.dropdown-menu {
+    position: absolute;
+    top: calc(var(--header-height) - 10px);
+    left: 0;
+    background-color: #003f8e;
+    min-width: 250px;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    padding: 20px 0;
+    z-index: 15;
+    transform-origin: top left;
+    transform: scaleY(0);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    max-height: calc(100vh - var(--header-height));
+    overflow-y: auto;
+}
+
+.dropdown-menu.show {
+    transform: scaleY(1);
+    opacity: 1;
+}
+
+/* Conteúdo principal */
+.content-wrapper {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Estilos para os itens do menu dropdown */
+.nav-items-dropdown {
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    transition: width 0.4s ease;
-    position: relative;
-    z-index: 10;
-    border-top-right-radius: 30px;
-    border-bottom-right-radius: 30px;
-    padding: 0;
-    padding-top: 80px; /* Espaço na parte superior para a logo */
+    flex-grow: 1;
+    padding: 10px 0;
 }
 
-/* Sidebar minimizada */
-.sidebar.minimized {
-    width: 60px; /* Reduzido para criar um efeito mais minimalista */
-    overflow: visible;
-    border-top-right-radius: 30px;
-    border-bottom-right-radius: 30px;
-    box-shadow: 0 0 15px rgba(0, 63, 142, 0.3);
-    padding-top: 180px; /* Espaço para a logo */
+.nav-item-dropdown {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin: 5px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+    color: white;
 }
 
-/* Ajuste para o conteúdo principal quando a sidebar é minimizada */
-.sidebar.minimized + .main-content {
-    margin-left: 80px;
-    width: calc(100% - 80px);
-    transition: margin-left 0.4s ease, width 0.4s ease;
+.nav-item-dropdown:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(3px);
 }
 
-/* Comportamento de hover para expandir a sidebar quando minimizada */
-.sidebar.minimized:hover {
-    width: 220px;
-    overflow-y: auto;
+.nav-item-dropdown.active {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-left: 4px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item-dropdown i {
+    margin-right: 12px;
+    width: 24px;
+    text-align: center;
+    font-size: 18px;
 }
 
 /* Ajuste do conteúdo principal */
 .main-content {
-    transition: margin-left 0.4s ease;
-    margin-left: 220px;
-    width: calc(100% - 220px);
+    flex: 1;
+    width: 100%;
     padding: 0;
+    overflow: hidden;
 }
 
-/* Container da logo para gerenciar o espaço e posicionamento */
-.logo-container {
-    position: relative;
-    height: 180px; /* Espaço para a logo */
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: center;
-    padding-top: 30px;
-    overflow: visible;
-    z-index: 30; /* Garante que fique acima da sidebar */
+/* Conversas no dropdown */
+.conversations-dropdown {
+    margin-top: 20px;
+    overflow-y: auto;
+    padding: 0 10px;
 }
 
-.logo {
-    width: 140px;
-    height: 140px;
-    position: relative;
-    z-index: 30;
-}
-
-.logo img {
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    object-fit: contain;
-    transition: all 0.3s ease;
-    position: absolute;
-    top: -20px; /* Ajustado para não cortar a parte superior */
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid white;
-    background-color: white;
-    outline: 8px solid #003f8e; /* Contorno da mesma cor da sidebar */
-    outline-offset: -3px;
-}
-
-/* Mantém a posição da logo mesmo quando a sidebar é minimizada */
-.sidebar.minimized .logo-container {
-    height: 180px;
-    margin-bottom: 20px;
-    overflow: visible;
-    position: relative;
-}
-
-.sidebar.minimized .logo img {
-    width: 180px; /* Tamanho reduzido quando minimizado */
-    height: 180px; /* Tamanho reduzido quando minimizado */
-    position: absolute;
-    left: 50%;
-    top: -15px;
-    transform: translateX(-50%); /* Centraliza na área disponível */
-    z-index: 30;
-    border: 6px solid white;
-    background-color: white;
-    outline: 8px solid #003f8e;
-    outline-offset: -3px;
-}
-
-.sidebar-toggle {
-    position: absolute;
-    right: -16px;
-    top: 180px;
-    transform: translateY(-50%);
+.conversation-dropdown {
+    padding: 10px 20px;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    color: white;
+}
+
+.conversation-dropdown:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.conversation-dropdown.active {
+    border-left-color: white;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.conversation-title-dropdown {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conversation-date-dropdown {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Botão para adicionar nova conversa no dropdown */
+.add-conversation-dropdown {
+    padding: 12px 20px;
+    margin: 20px 10px;
+    cursor: pointer;
+    background-color: white;
+    color: var(--primary-color);
+    border-radius: 25px;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    z-index: 100;
-    border: 2px solid rgba(255, 255, 255, 0.9);
 }
 
-.sidebar.minimized .sidebar-toggle {
-    transform: translateY(-50%) rotate(180deg);
-    right: -16px;
-}
-
-.sidebar.minimized:hover .sidebar-toggle {
-    right: -16px;
-}
-
-.sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
+.add-conversation-dropdown:hover {
+    background-color: #f1f5fe;
 }
 
 .nav-items {
@@ -353,8 +395,8 @@ body {
     max-height: 100vh;
 }
 
-/* Cabeçalho */
-.header {
+/* Cabeçalho de seção */
+.section-header {
     padding: 15px 20px;
     border-bottom: 1px solid #e1e4e8;
     display: flex;
