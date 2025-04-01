@@ -52,7 +52,7 @@ body {
     transition: width 0.4s ease;
     position: relative;
     z-index: 10;
-    border-top-right-radius: 20px;
+    border-top-right-radius: 180px 180px;
     border-bottom-right-radius: 20px;
     padding: 0;
 }
@@ -79,13 +79,14 @@ body {
     transition: margin-left 0.4s ease;
     margin-left: 220px;
     width: calc(100% - 220px);
+    padding: 0;
 }
 
 /* Container da logo para gerenciar o espaço e posicionamento */
 .logo-container {
     position: relative;
     height: 160px;
-    margin-bottom: 60px;
+    margin-bottom: 20px;
     display: flex;
     justify-content: center;
     padding-top: 20px;
@@ -99,35 +100,35 @@ body {
 }
 
 .logo img {
-    width: 300px;
-    height: 300px;
+    width: 360px;
+    height: 360px;
     border-radius: 50%;
     object-fit: contain;
     transition: all 0.3s ease;
     box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
     position: absolute;
-    top: -80px;
+    top: -110px;
     left: 50%;
     transform: translateX(-50%);
-    border: 4px solid white;
+    border: 6px solid white;
     background-color: white;
 }
 
 .sidebar.minimized .logo-container {
     height: 140px;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
 }
 
 .sidebar.minimized .logo img {
-    width: 200px;
-    height: 200px;
+    width: 280px;
+    height: 280px;
     left: 100px;
 }
 
 .sidebar-toggle {
     position: absolute;
     right: -16px;
-    top: 120px;
+    top: 180px;
     transform: translateY(-50%);
     cursor: pointer;
     background: rgba(255, 255, 255, 0.7);
@@ -338,6 +339,7 @@ body {
     justify-content: space-between;
     align-items: center;
     background-color: white;
+    margin: 0;
 }
 
 .chat-title {
