@@ -1290,3 +1290,45 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
         padding: 10px;
     }
 }
+
+/* Elemento que cria o contorno ao redor da logo */
+.header-container::before {
+    content: "";
+    position: absolute;
+    left: 25px;  /* Ajustado para começar antes da logo */
+    bottom: 0;
+    width: 230px; /* Largura ajustada para cobrir toda a área da logo */
+    height: 75px; /* Metade da altura da logo que se estende abaixo da linha */
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 115px 115px; /* Cria o arco semicircular mais suave */
+    z-index: 23;
+    background-color: white; /* Mesmo fundo do header para parecer recorte */
+}
+
+/* Linha personalizada no cabeçalho */
+.header-container::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 1px;
+    background-color: var(--border-color);
+    z-index: 22;
+    /* Recortes para a linha não aparecer onde a curva já existe */
+    mask-image: linear-gradient(to right, 
+                 black 0%, 
+                 black 24px, 
+                 transparent 25px, 
+                 transparent 255px, 
+                 black 256px, 
+                 black 100%);
+    -webkit-mask-image: linear-gradient(to right, 
+                 black 0%, 
+                 black 24px, 
+                 transparent 25px, 
+                 transparent 255px, 
+                 black 256px, 
+                 black 100%);
+}
