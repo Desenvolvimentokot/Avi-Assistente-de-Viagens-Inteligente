@@ -59,13 +59,14 @@ body {
 .logo-dropdown {
     position: relative;
     cursor: pointer;
-    margin-top: 15px; /* Reduzido para evitar que a logo seja cortada na parte superior */
+    margin-top: 0; /* Removido margin-top para centralizar verticalmente */
+    top: 45px; /* Posiciona a logo para que seu centro fique na linha do header */
     z-index: 25; /* Garante que a logo fique sobre outros elementos */
 }
 
 .logo-button {
-    width: 140px;
-    height: 140px;
+    width: 130px; /* Reduzido ligeiramente para evitar recortes */
+    height: 130px;
     border-radius: 50%;
     overflow: hidden;
     display: flex;
@@ -415,7 +416,7 @@ body {
 .chat-title {
     font-size: 18px;
     font-weight: 500;
-    margin-top: 25px; /* Ajustar a posição do título para alinhar com a logo */
+    margin-top: 10px; /* Ajustado para melhor alinhamento com a nova posição da logo */
 }
 
 .header-actions {
@@ -1299,8 +1300,8 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
     position: absolute;
     left: 25px;  /* Ajustado para começar antes da logo */
     bottom: 0;
-    width: 210px; /* Reduzido para acompanhar o novo tamanho da logo */
-    height: 70px; /* Reduzido para acompanhar o novo tamanho da logo */
+    width: 200px; /* Ajustado para o novo tamanho da logo */
+    height: 65px; /* Ajustado para metade da altura da logo */
     border: 1px solid var(--border-color);
     border-top: none;
     border-radius: 0 0 115px 115px; /* Cria o arco semicircular mais suave */
@@ -1323,14 +1324,14 @@ button:hover, .button:hover, .send-button:hover, .profile-save-button:hover {
                  black 0%, 
                  black 24px, 
                  transparent 25px, 
-                 transparent 255px, 
-                 black 256px, 
+                 transparent 225px, 
+                 black 226px, 
                  black 100%);
     -webkit-mask-image: linear-gradient(to right, 
                  black 0%, 
                  black 24px, 
                  transparent 25px, 
-                 transparent 255px, 
-                 black 256px, 
+                 transparent 225px, 
+                 black 226px, 
                  black 100%);
 }
