@@ -60,12 +60,14 @@ body {
 /* Sidebar minimizada */
 .sidebar.minimized {
     width: 60px;
-    overflow: hidden;
+    overflow: visible; /* Alterado para visible para permitir que a logo "salte" para fora */
 }
 
 /* Ajuste para o conteúdo principal quando a sidebar é minimizada */
 .sidebar.minimized + .main-content {
     margin-left: 60px;
+    width: calc(100% - 60px);
+    transition: margin-left 0.4s ease, width 0.4s ease;
 }
 
 /* Comportamento de hover para expandir a sidebar quando minimizada */
@@ -118,12 +120,14 @@ body {
 .sidebar.minimized .logo-container {
     height: 140px;
     margin-bottom: 20px;
+    overflow: visible;
 }
 
 .sidebar.minimized .logo img {
     width: 200px;
     height: 200px;
-    left: 130px;
+    position: absolute;
+    left: 30px; /* Ajustado para posicionar melhor quando minimizado */
 }
 
 .sidebar-toggle {
@@ -199,7 +203,7 @@ body {
 .sidebar.minimized .nav-item {
     padding: 14px 0;
     justify-content: center;
-    margin: 5px;
+    margin: 5px auto;
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -209,6 +213,7 @@ body {
     width: 0;
     opacity: 0;
     overflow: hidden;
+    display: none;
     transition: opacity 0.2s ease, width 0.3s ease;
 }
 

@@ -60,23 +60,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const icon = this.querySelector('i');
             if (sidebar.classList.contains('minimized')) {
                 icon.style.transform = 'rotate(180deg)';
+                if (mainContent) {
+                    mainContent.style.marginLeft = '60px';
+                    mainContent.style.width = 'calc(100% - 60px)';
+                }
             } else {
                 icon.style.transform = 'rotate(0deg)';
+                if (mainContent) {
+                    mainContent.style.marginLeft = '220px';
+                    mainContent.style.width = 'calc(100% - 220px)';
+                }
             }
         });
     }
 
-    // Opcionalmente, ativar a expansão no hover
+    // Ativar a expansão no hover
     if (sidebar) {
         sidebar.addEventListener('mouseenter', function() {
             if (this.classList.contains('minimized')) {
-                // this.classList.remove('minimized');
+                // Apenas efeitos visuais no hover, sem remover a classe minimized
+                this.style.width = '220px';
             }
         });
 
         sidebar.addEventListener('mouseleave', function() {
-            if (!this.classList.contains('minimized') && window.innerWidth <= 768) {
-                // this.classList.add('minimized');
+            if (this.classList.contains('minimized')) {
+                this.style.width = '60px';
             }
         });
     }
