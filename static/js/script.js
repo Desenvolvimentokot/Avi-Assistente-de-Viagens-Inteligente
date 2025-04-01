@@ -61,8 +61,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (sidebar.classList.contains('minimized')) {
                 icon.style.transform = 'rotate(180deg)';
                 if (mainContent) {
-                    mainContent.style.marginLeft = '60px';
-                    mainContent.style.width = 'calc(100% - 60px)';
+                    mainContent.style.marginLeft = '80px'; // Atualizado para corresponder ao valor do CSS
+                    mainContent.style.width = 'calc(100% - 80px)';
                 }
             } else {
                 icon.style.transform = 'rotate(0deg)';
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         sidebar.addEventListener('mouseleave', function() {
             if (this.classList.contains('minimized')) {
-                this.style.width = '60px';
+                this.style.width = '80px'; // Atualizado para corresponder ao valor do CSS
             }
         });
     }
