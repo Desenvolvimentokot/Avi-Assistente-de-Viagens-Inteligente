@@ -1,81 +1,83 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Controle da barra lateral (sidebar)
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main-content');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    
-    if (sidebarToggle) {
-        // Verificar se há estado salvo no localStorage
-        if (localStorage.getItem('sidebar-minimized') === 'true') {
-            sidebar.classList.add('minimized');
-            if (mainContent) {
-                mainContent.style.marginLeft = '60px';
-                mainContent.style.width = 'calc(100% - 60px)';
-            }
-        }
-        
-        // Adicionar evento de clique ao botão de toggle
-        sidebarToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            sidebar.classList.toggle('minimized');
-            
-            // Ajustar o conteúdo principal
-            if (mainContent) {
-                if (sidebar.classList.contains('minimized')) {
-                    mainContent.style.marginLeft = '60px';
-                    mainContent.style.width = 'calc(100% - 60px)';
-                    localStorage.setItem('sidebar-minimized', 'true');
-                } else {
-                    mainContent.style.marginLeft = '220px';
-                    mainContent.style.width = 'calc(100% - 220px)';
-                    localStorage.setItem('sidebar-minimized', 'false');
-                }
-            }
-        });
-    }
-    
-    // Seletores de abas
-    const chatTab = document.getElementById('chat-tab');
-    const plansTab = document.getElementById('plans-tab');
-    const profileTab = document.getElementById('profile-tab');
-    
-    const chatSection = document.getElementById('chat-section');
-    const plansSection = document.getElementById('plans-section');
-    const profileSection = document.getElementById('profile-section');
-    
     // Função para alternar entre as abas
-    function switchTab(tab, section) {
-        // Remover classe 'active' de todas as abas
+    function switchTab(tabId) {
+        // Esconder todas as seções de conteúdo
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Exibir a seção selecionada
+        document.getElementById(tabId).classList.add('active');
+
+        // Atualizar classe ativa dos itens de navegação
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        
-        // Remover classe 'active' de todas as seções
-        document.querySelectorAll('.content-section').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        // Adicionar classe 'active' à aba e seção selecionadas
-        tab.classList.add('active');
-        section.classList.add('active');
+
+        // Adicionar classe ativa ao item clicado
+        document.querySelector(`[id="${tabId.replace('-section', '-tab')}"]`).classList.add('active');
     }
-    
-    // Adicionar eventos de clique às abas
-    if (chatTab && chatSection) {
-        chatTab.addEventListener('click', function() {
-            switchTab(chatTab, chatSection);
+
+    // Configurar event listeners para as abas
+    document.getElementById('chat-tab').addEventListener('click', function() {
+        switchTab('chat-section');
+    });
+
+    document.getElementById('plans-tab').addEventListener('click', function() {
+        switchTab('plans-section');
+    });
+
+    document.getElementById('profile-tab').addEventListener('click', function() {
+        switchTab('profile-section');
+    });
+
+    // Event listener para o botão de nova conversa
+    document.querySelector('.add-conversation').addEventListener('click', function() {
+        // Implementar lógica para nova conversa
+        console.log('Nova conversa iniciada');
+    });
+
+    // Event listener para botões de modo de conversa
+    document.querySelectorAll('.mode-button').forEach(button => {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+        });
+    });
+
+    // Toggle de minimizar a sidebar
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('minimized');
+
+            // Ajusta a rotação do ícone de toggle
+            const icon = this.querySelector('i');
+            if (sidebar.classList.contains('minimized')) {
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
         });
     }
-    
-    if (plansTab && plansSection) {
-        plansTab.addEventListener('click', function() {
-            switchTab(plansTab, plansSection);
+
+    // Opcionalmente, ativar a expansão no hover
+    if (sidebar) {
+        sidebar.addEventListener('mouseenter', function() {
+            if (this.classList.contains('minimized')) {
+                // this.classList.remove('minimized');
+            }
         });
-    }
-    
-    if (profileTab && profileSection) {
-        profileTab.addEventListener('click', function() {
-            switchTab(profileTab, profileSection);
+
+        sidebar.addEventListener('mouseleave', function() {
+            if (!this.classList.contains('minimized') && window.innerWidth <= 768) {
+                // this.classList.add('minimized');
+            }
         });
     }
 });
