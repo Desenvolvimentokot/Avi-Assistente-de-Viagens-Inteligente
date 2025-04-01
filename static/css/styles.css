@@ -81,8 +81,9 @@ body {
 }
 
 .logo {
-    padding: 5px;
-    margin-bottom: 30px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    font-size: 24px;
     font-weight: bold;
     display: flex;
     justify-content: center;
@@ -90,8 +91,6 @@ body {
     color: #ffffff;
     text-align: center;
     position: relative;
-    overflow: visible;
-    height: 120px;
 }
 
 .logo i {
@@ -99,20 +98,17 @@ body {
 }
 
 .logo img {
-    width: 110px;
-    height: 110px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     object-fit: cover;
     transition: all 0.3s ease;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-    position: relative;
-    z-index: 5;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 .sidebar.minimized .logo {
     justify-content: center;
     padding: 15px 0;
-    height: 90px;
 }
 
 .sidebar.minimized .logo span {
@@ -121,42 +117,30 @@ body {
 
 .sidebar-toggle {
     position: absolute;
-    right: -16px;
+    right: -12px;
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
     z-index: 100;
-    border: 2px solid rgba(255, 255, 255, 0.6);
 }
 
 .sidebar.minimized .sidebar-toggle {
     transform: translateY(-50%) rotate(180deg);
     right: 50%;
-    margin-right: -16px;
+    margin-right: -14px;
 }
 
 .sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.sidebar-toggle i {
-    color: #2d4a77;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.sidebar-toggle:hover i {
-    color: #1c3c6a;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .nav-items {

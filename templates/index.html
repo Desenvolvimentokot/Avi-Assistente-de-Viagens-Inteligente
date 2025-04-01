@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avi - Assistente de Viagens Inteligente</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flight-results-panel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat-additions.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
+    <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
+    <!-- Script do novo painel de voos -->
+    <script src="{{ url_for('static', filename='js/flight-panel.js') }}" defer></script>
+    <!-- Script para redirecionamento para resultados Amadeus -->
+    <script src="{{ url_for('static', filename='js/amadeus-results-redirect.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo" style="color: white; display: flex; justify-content: center; align-items: center; position: relative;">
+                <img src="{{ url_for('static', filename='img/Avi-logo.png') }}" alt="Avi" style="width: 60px; height: 60px; margin-right: 8px; border-radius: 50%;">
+                <span>AVI</span>
+                <div class="sidebar-toggle" id="sidebar-toggle">
+                    <i class="fas fa-chevron-left"></i>
+                </div>
+            </div>
+            <div class="nav-items">
+                <div class="nav-item" id="chat-tab">
+                    <i class="fas fa-comment"></i>
+                    <span>Chat</span>
+                </div>
+                <div class="nav-item" id="plans-tab">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>Planos</span>
+                </div>
+                <div class="nav-item" id="profile-tab">
+                    <i class="fas fa-user"></i>
+                    <span>Perfil</span>
+                </div>
+            </div>
+            <div class="conversations">
+                <div class="conversation active">
+                    <div class="conversation-title">Nova conversa</div>
+                    <div class="conversation-date">Hoje</div>
+                </div>
+            </div>
+            <div class="add-conversation">
+                <i class="fas fa-plus"></i> Nova conversa
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chat Section -->
+            <div id="chat-section" class="content-section active">
+                <div class="header">
+                    <div class="chat-title">Chat com Avi</div>
+                    <div class="header-actions">
+                        <a href="/amadeus-results" class="header-action" id="amadeusResultsButton">
+                            <i class="fas fa-plane"></i>
+                            <span>Buscar Voos</span>
+                        </a>
+                        <div class="header-action">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="header-action">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-modes">
+                    <div class="mode-button active" data-mode="quick-search">Busca Rápida</div>
+                    <div class="mode-button" data-mode="full-planning">Planejamento Completo</div>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-messages">
+                        <!-- Mensagens serão adicionadas pelo JavaScript -->
+                    </div>
+                </div>
+
+                <div class="message-input-container">
+                    <textarea class="message-input" placeholder="Digite sua mensagem..."></textarea>
+                    <button class="send-button">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Plans Section -->
+            <div id="plans-section" class="content-section">
+                <div class="header">
+                    <div class="chat-title">Seus Planos de Viagem</div>
+                    <div class="header-actions">
+                        <div class="header-action">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plans-container">
+                    <div class="plans-list">
+                        <!-- Planos serão adicionados pelo JavaScript -->
+                        <p class="no-plans-message">Você ainda não tem planos de viagem salvos.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profile-section" class="content-section">
+                <div class="header">
+                    <div class="chat-title">Seu Perfil</div>
+                    <div class="header-actions">
+                        <div class="header-action">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-container">
+                    <div class="profile-section">
+                        <h2>Informações Pessoais</h2>
+                        <div class="profile-form-group">
+                            <label for="profile-name">Nome</label>
+                            <input type="text" id="profile-name" class="profile-input" placeholder="Seu nome completo">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-email">Email</label>
+                            <input type="email" id="profile-email" class="profile-input" placeholder="seu.email@exemplo.com">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-phone">Telefone</label>
+                            <input type="tel" id="profile-phone" class="profile-input" placeholder="(00) 00000-0000">
+                        </div>
+                        <button class="profile-save-button">Salvar Informações</button>
+                    </div>
+
+                    <div class="profile-section">
+                        <h2>Preferências de Viagem</h2>
+                        <div class="profile-form-group">
+                            <label for="profile-destinations">Destinos Preferidos</label>
+                            <input type="text" id="profile-destinations" class="profile-input" placeholder="Ex: Paris, Tóquio, Nova York">
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-accommodation">Tipo de Acomodação Preferida</label>
+                            <select id="profile-accommodation" class="profile-input">
+                                <option value="">Selecione uma opção</option>
+                                <option value="hotel">Hotel</option>
+                                <option value="hostel">Hostel</option>
+                                <option value="apartment">Apartamento</option>
+                                <option value="resort">Resort</option>
+                            </select>
+                        </div>
+                        <div class="profile-form-group">
+                            <label for="profile-budget">Orçamento Médio por Viagem (R$)</label>
+                            <input type="number" id="profile-budget" class="profile-input" placeholder="Ex: 5000">
+                        </div>
+                        <button class="profile-save-button">Salvar Preferências</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
