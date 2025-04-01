@@ -20,8 +20,10 @@
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="logo" style="color: white; display: flex; justify-content: center; align-items: center; position: relative; overflow: visible;">
-                <img src="{{ url_for('static', filename='img/Avi-logo.png') }}" alt="Avi" style="width: 280px; height: 280px; border-radius: 50%; margin: 15px 0; z-index: 5; box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); position: absolute; top: -50px;">
+            <div class="logo-container">
+                <div class="logo">
+                    <img src="{{ url_for('static', filename='img/Avi-logo.png') }}" alt="Avi">
+                </div>
                 <div class="sidebar-toggle" id="sidebar-toggle">
                     <i class="fas fa-chevron-left"></i>
                 </div>
