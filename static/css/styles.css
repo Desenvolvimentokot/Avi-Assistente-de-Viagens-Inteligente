@@ -56,10 +56,10 @@ body {
     transition: padding 0.3s ease;
 }
 
-/* Ajuste do container quando o menu está aberto */
+/* Ajuste do container quando o menu está aberto para comportar o menu horizontal */
 .header-container.menu-open {
-    padding-right: 20px; /* Espaço lateral mínimo */
-    margin-bottom: 0; /* Remove espaço extra abaixo */
+    padding-right: 50px; /* Reduzido pois não precisa de tanto espaço lateral */
+    margin-bottom: 70px; /* Espaço adicional abaixo para o menu horizontal */
 }
 
 /* Logo como botão dropdown */
@@ -103,25 +103,29 @@ body {
 /* Menu dropdown */
 .dropdown-menu {
     position: absolute;
-    top: 100px; /* Posicionado abaixo da logo para não sobrepor */
-    left: 0;
+    top: 50px; /* Posicionado no topo para ficar na mesma altura da logo */
+    left: 160px; /* Posicionado à direita da logo */
     background-color: #003f8e;
-    width: 100%; /* Ocupa toda a largura da tela */
-    height: 60px; /* Altura fixa para o menu horizontal */
+    min-width: 600px; /* Aumentado para acomodar itens lado a lado */
+    border-radius: 0 15px 15px 0;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    padding: 20px;
     z-index: 15;
-    transform-origin: top center;
-    transform: scaleY(0);
+    transform-origin: left center;
+    transform: scaleX(0);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    display: flex; /* Tornar o layout flexível */
+    flex-direction: row; /* Itens em linha (horizontal) */
+    justify-content: flex-start; /* Alinhamento à esquerda */
+    align-items: center; /* Alinhamento vertical centralizado */
+    flex-wrap: nowrap; /* Impedir quebra de linha */
 }
 
 .dropdown-menu.show {
-    transform: scaleY(1);
+    transform: scaleX(1);
     opacity: 1;
 }
 
@@ -138,7 +142,7 @@ body {
     flex-direction: row; /* Horizontal em vez de coluna */
     align-items: center;
     justify-content: flex-start;
-    height: 100%;
+    padding: 0 10px;
     flex-grow: 0;
     margin-right: 20px;
 }
@@ -146,24 +150,24 @@ body {
 .nav-item-dropdown {
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    height: 100%;
+    padding: 14px 20px;
     cursor: pointer;
     transition: all 0.3s;
+    margin: 0 10px;
+    border-radius: 12px;
     white-space: nowrap;
     color: white;
-    font-size: 14px;
-    position: relative;
-    overflow: visible;
 }
 
 .nav-item-dropdown:hover {
     background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-3px); /* Move para cima em vez de para o lado */
 }
 
 .nav-item-dropdown.active {
     background-color: rgba(255, 255, 255, 0.25);
-    border-bottom: 3px solid rgba(255, 255, 255, 0.9); /* Borda inferior mais sutil */
+    border-bottom: 4px solid rgba(255, 255, 255, 0.9); /* Borda inferior em vez de esquerda */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .nav-item-dropdown i {
@@ -187,23 +191,19 @@ body {
     flex-direction: row;
     align-items: center;
     flex-wrap: nowrap;
-    overflow-x: hidden; /* Impede barra de rolagem horizontal */
-    height: 100%;
-    margin-left: 15px;
-    flex: 1;
+    overflow-x: auto;
+    padding: 0 10px;
+    margin-left: 10px;
 }
 
 .conversation-dropdown {
-    height: 100%;
-    padding: 0 15px;
+    padding: 10px 15px;
     cursor: pointer;
-    border-bottom: 2px solid transparent; /* Borda inferior mais fina */
+    border-bottom: 3px solid transparent; /* Borda inferior em vez de esquerda */
     transition: all 0.2s;
     color: white;
-    margin: 0 2px;
+    margin: 0 5px;
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
 }
 
 .conversation-dropdown:hover {
@@ -211,7 +211,7 @@ body {
 }
 
 .conversation-dropdown.active {
-    border-bottom-color: white;
+    border-bottom-color: white; /* Borda inferior em vez de esquerda */
     background-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -220,41 +220,32 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 120px; /* Limita largura para não cortar outros elementos */
-    font-size: 13px;
 }
 
 .conversation-date-dropdown {
-    font-size: 11px;
+    font-size: 12px;
     opacity: 0.8;
-    margin-left: 5px;
 }
 
 /* Botão para adicionar nova conversa no dropdown */
 .add-conversation-dropdown {
-    padding: 6px 15px;
-    margin-left: auto; /* Empurra para a direita */
-    margin-right: 10px;
-    height: 32px;
+    padding: 12px 20px;
+    margin: 0 15px;
     cursor: pointer;
     background-color: white;
     color: var(--primary-color);
-    border-radius: 16px;
+    border-radius: 25px;
     font-weight: 500;
-    font-size: 13px;
     text-align: center;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .add-conversation-dropdown:hover {
     background-color: #f1f5fe;
-    transform: translateY(-2px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
 }
 
 .nav-items {
