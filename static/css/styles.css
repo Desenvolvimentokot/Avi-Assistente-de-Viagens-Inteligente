@@ -96,25 +96,37 @@ body {
 /* Menu dropdown */
 .dropdown-menu {
     position: absolute;
-    top: 140px; /* Alinhado com a parte inferior da logo */
-    left: 50px; /* Deslocado para direita para melhor visualização */
-    background-color: #fff; /* Fundo branco mais limpo */
+    top: 120px; /* Posicionado logo abaixo da logo */
+    left: 75px; /* Ajustado para alinhar com a logo */
+    background-color: #fff;
     min-width: 280px;
-    border-radius: 20px; /* Bordas mais arredondadas para combinar com a logo */
-    box-shadow: 0 8px 24px rgba(0, 63, 142, 0.15); /* Sombra mais suave na cor da marca */
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 63, 142, 0.15);
     padding: 15px 0;
     z-index: 15;
     transform-origin: top center;
-    transform: scale(0.95);
+    transform: translateY(-10px) scale(0.95);
     opacity: 0;
     transition: transform 0.3s ease-out, opacity 0.3s ease;
     max-height: calc(100vh - 160px);
     overflow-y: auto;
-    border-left: 3px solid #003f8e; /* Borda lateral na cor da marca */
+    border: 1px solid #e1e8f5;
+}
+
+/* Seta que aponta para a logo */
+.dropdown-menu::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 50px; /* Alinhado com o centro da logo */
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #fff;
+    filter: drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.05));
 }
 
 .dropdown-menu.show {
-    transform: scale(1);
+    transform: translateY(0) scale(1);
     opacity: 1;
 }
 
@@ -130,7 +142,7 @@ body {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    padding: 10px 0;
+    padding: 15px 0;
     position: relative;
 }
 
@@ -147,27 +159,30 @@ body {
 .nav-item-dropdown {
     display: flex;
     align-items: center;
-    padding: 14px 20px;
+    padding: 12px 20px;
     cursor: pointer;
-    transition: all 0.25s ease;
-    margin: 4px 10px;
+    transition: all 0.3s ease;
+    margin: 4px 15px;
     border-radius: 12px;
     white-space: nowrap;
-    color: #2f3542; /* Cor de texto escura para melhor contraste */
+    color: #2f3542;
     position: relative;
     overflow: hidden;
+    font-weight: 400;
 }
 
 .nav-item-dropdown:hover {
     background-color: #f1f8ff;
-    transform: translateX(5px);
+    transform: translateX(3px);
+    color: #003f8e;
 }
 
 .nav-item-dropdown.active {
     background-color: #e1f1ff;
-    border-left: 4px solid #003f8e;
+    border-left: 3px solid #003f8e;
     box-shadow: 0 2px 8px rgba(0, 63, 142, 0.1);
     font-weight: 500;
+    color: #003f8e;
 }
 
 .nav-item-dropdown i {

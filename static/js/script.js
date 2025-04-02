@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (dropdownMenu.classList.contains('show')) {
                 // Fechando o dropdown
                 dropdownMenu.style.opacity = '0';
-                dropdownMenu.style.transform = 'scale(0.95)';
+                dropdownMenu.style.transform = 'translateY(-10px) scale(0.95)';
                 
                 setTimeout(() => {
                     dropdownMenu.classList.remove('show');
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Pequeno atraso para garantir que a transição seja visível
                 setTimeout(() => {
                     dropdownMenu.style.opacity = '1';
-                    dropdownMenu.style.transform = 'scale(1)';
+                    dropdownMenu.style.transform = 'translateY(0) scale(1)';
                 }, 10);
             }
         });
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!dropdownMenu.contains(e.target) && e.target !== logoButton) {
                 // Fechando com animação
                 dropdownMenu.style.opacity = '0';
-                dropdownMenu.style.transform = 'scale(0.95)';
+                dropdownMenu.style.transform = 'translateY(-10px) scale(0.95)';
                 
                 setTimeout(() => {
                     dropdownMenu.classList.remove('show');
