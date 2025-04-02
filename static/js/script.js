@@ -6,13 +6,38 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logoButton && dropdownMenu) {
         logoButton.addEventListener('click', function(e) {
             e.stopPropagation();
-            dropdownMenu.classList.toggle('show');
+            
+            // Toggle com animação mais suave
+            if (dropdownMenu.classList.contains('show')) {
+                // Fechando o dropdown
+                dropdownMenu.style.opacity = '0';
+                dropdownMenu.style.transform = 'scale(0.95)';
+                
+                setTimeout(() => {
+                    dropdownMenu.classList.remove('show');
+                }, 300);
+            } else {
+                // Abrindo o dropdown
+                dropdownMenu.classList.add('show');
+                
+                // Pequeno atraso para garantir que a transição seja visível
+                setTimeout(() => {
+                    dropdownMenu.style.opacity = '1';
+                    dropdownMenu.style.transform = 'scale(1)';
+                }, 10);
+            }
         });
 
         // Fechar o dropdown quando clicar fora dele
         document.addEventListener('click', function(e) {
             if (!dropdownMenu.contains(e.target) && e.target !== logoButton) {
-                dropdownMenu.classList.remove('show');
+                // Fechando com animação
+                dropdownMenu.style.opacity = '0';
+                dropdownMenu.style.transform = 'scale(0.95)';
+                
+                setTimeout(() => {
+                    dropdownMenu.classList.remove('show');
+                }, 300);
             }
         });
     }
