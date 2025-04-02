@@ -8,15 +8,28 @@ document.addEventListener('DOMContentLoaded', function() {
         logoButton.addEventListener('click', function(event) {
             event.stopPropagation();
             dropdownMenu.classList.toggle('show');
-            // Adiciona uma classe ao header para ajustar o layout quando o menu estiver aberto
-            headerContainer.classList.toggle('menu-open');
+            
+            // Animação suave do menu
+            if (dropdownMenu.classList.contains('show')) {
+                // Adiciona classe para ajustar o layout
+                headerContainer.classList.add('menu-open');
+            } else {
+                // Remove classe após animação
+                setTimeout(() => {
+                    headerContainer.classList.remove('menu-open');
+                }, 300); // Tempo da transição
+            }
         });
 
         // Fechar dropdown ao clicar fora dele
         document.addEventListener('click', function(event) {
             if (!dropdownMenu.contains(event.target) && !logoButton.contains(event.target)) {
                 dropdownMenu.classList.remove('show');
-                headerContainer.classList.remove('menu-open');
+                
+                // Remove classe após animação
+                setTimeout(() => {
+                    headerContainer.classList.remove('menu-open');
+                }, 300); // Tempo da transição
             }
         });
     }

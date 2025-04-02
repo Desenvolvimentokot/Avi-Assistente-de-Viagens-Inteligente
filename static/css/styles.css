@@ -103,29 +103,25 @@ body {
 /* Menu dropdown */
 .dropdown-menu {
     position: absolute;
-    top: 50px; /* Alinhado com o centro do header */
-    left: 160px; /* Posicionado à direita da logo */
+    top: 100px; /* Posicionado abaixo da logo para não sobrepor */
+    left: 0;
     background-color: #003f8e;
-    width: calc(100% - 180px); /* Ocupa o espaço restante no header após a logo */
-    height: 60px; /* Altura reduzida para ficar mais fino e elegante */
-    border-radius: 0 15px 15px 0;
+    width: 100%; /* Ocupa toda a largura da tela */
+    height: 60px; /* Altura fixa para o menu horizontal */
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    padding: 0 20px; /* Padding horizontal mantido, vertical reduzido */
     z-index: 15;
-    transform-origin: left center;
-    transform: scaleX(0);
+    transform-origin: top center;
+    transform: scaleY(0);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    overflow: hidden; /* Impede overflow */
-    display: flex; /* Tornar o layout flexível */
-    flex-direction: row; /* Itens em linha (horizontal) */
-    justify-content: flex-start; /* Alinhamento à esquerda */
-    align-items: center; /* Alinhamento vertical centralizado */
-    flex-wrap: nowrap; /* Impedir quebra de linha */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
 }
 
 .dropdown-menu.show {
-    transform: scaleX(1);
+    transform: scaleY(1);
     opacity: 1;
 }
 
