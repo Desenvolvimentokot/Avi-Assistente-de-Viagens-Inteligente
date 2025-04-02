@@ -53,6 +53,12 @@ body {
     position: relative;
     z-index: 20;
     min-height: 90px;
+    transition: padding 0.3s ease;
+}
+
+/* Ajuste do container quando o menu está aberto para dar espaço ao dropdown lateral */
+.header-container.menu-open {
+    padding-right: 270px; /* Espaço para o menu dropdown lateral */
 }
 
 /* Logo como botão dropdown */
@@ -96,24 +102,24 @@ body {
 /* Menu dropdown */
 .dropdown-menu {
     position: absolute;
-    top: 140px; /* Ajustado para a nova posição da logo */
-    left: 0;
+    top: 50px; /* Posicionado no topo para ficar na mesma altura da logo */
+    left: 160px; /* Posicionado à direita da logo */
     background-color: #003f8e;
     min-width: 250px;
-    border-radius: 0 0 15px 15px;
+    border-radius: 0 15px 15px 0;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     padding: 20px 0;
     z-index: 15;
-    transform-origin: top left;
-    transform: scaleY(0);
+    transform-origin: left center;
+    transform: scaleX(0);
     opacity: 0;
     transition: transform 0.3s ease, opacity 0.3s ease;
-    max-height: calc(100vh - 140px);
+    max-height: calc(100vh - 100px);
     overflow-y: auto;
 }
 
 .dropdown-menu.show {
-    transform: scaleY(1);
+    transform: scaleX(1);
     opacity: 1;
 }
 

@@ -2,17 +2,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Logo dropdown toggle
     const logoButton = document.getElementById('logo-button');
     const dropdownMenu = document.getElementById('dropdown-menu');
+    const headerContainer = document.querySelector('.header-container');
 
     if (logoButton && dropdownMenu) {
-        logoButton.addEventListener('click', function(e) {
-            e.stopPropagation();
+        logoButton.addEventListener('click', function(event) {
+            event.stopPropagation();
             dropdownMenu.classList.toggle('show');
+            // Adiciona uma classe ao header para ajustar o layout quando o menu estiver aberto
+            headerContainer.classList.toggle('menu-open');
         });
 
-        // Fechar o dropdown quando clicar fora dele
-        document.addEventListener('click', function(e) {
-            if (!dropdownMenu.contains(e.target) && e.target !== logoButton) {
+        // Fechar dropdown ao clicar fora dele
+        document.addEventListener('click', function(event) {
+            if (!dropdownMenu.contains(event.target) && !logoButton.contains(event.target)) {
                 dropdownMenu.classList.remove('show');
+                headerContainer.classList.remove('menu-open');
             }
         });
     }
@@ -43,16 +47,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('chat-tab-dropdown').addEventListener('click', function() {
         switchTab('chat-section');
         dropdownMenu.classList.remove('show');
+        headerContainer.classList.remove('menu-open');
     });
 
     document.getElementById('plans-tab-dropdown').addEventListener('click', function() {
         switchTab('plans-section');
         dropdownMenu.classList.remove('show');
+        headerContainer.classList.remove('menu-open');
     });
 
     document.getElementById('profile-tab-dropdown').addEventListener('click', function() {
         switchTab('profile-section');
         dropdownMenu.classList.remove('show');
+        headerContainer.classList.remove('menu-open');
     });
 
     // Event listener para o botão de nova conversa no dropdown
@@ -61,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
         addConversationDropdown.addEventListener('click', function() {
             console.log('Nova conversa iniciada');
             dropdownMenu.classList.remove('show');
+            headerContainer.classList.remove('menu-open');
         });
     }
 
