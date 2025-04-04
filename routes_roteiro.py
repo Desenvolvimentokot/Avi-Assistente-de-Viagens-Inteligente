@@ -3,11 +3,15 @@ Rotas para o Roteiro Personalizado
 Este módulo contém as rotas necessárias para o recurso de Roteiro Personalizado,
 que permite aos usuários criar roteiros de viagem detalhados com voos, hospedagens
 e atividades.
+
+O módulo também inclui funções para processamento inteligente do chat da AVI,
+permitindo extração de informações e preenchimento automático do roteiro.
 """
 
 import json
 import logging
 import uuid
+import re
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, make_response, redirect, url_for
 from models import db, TravelPlan, FlightBooking, Accommodation
@@ -481,3 +485,460 @@ def atualizar_roteiro():
             'error': 'Erro ao atualizar roteiro',
             'details': str(e)
         }), 500
+        
+@roteiro_bp.route('/api/roteiro/chat', methods=['POST'])
+def roteiro_chat():
+    """
+    Processa mensagens do chat da AVI e retorna resposta com possíveis atualizações para o roteiro.
+    """
+    try:
+        data = request.json
+        message = data.get('message', '').strip()
+        roteiro_id = data.get('roteiro_id')
+        roteiro_data = data.get('roteiro_data', {})
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Mensagem vazia'
+            }), 400
+        
+        # Processar a mensagem e obter resposta da AVI + atualizações
+        response, updates = process_avi_message(message, roteiro_data)
+        
+        # Se temos um roteiro_id válido e atualizações, salvar no banco de dados
+        if roteiro_id and updates:
+            try:
+                save_updates_to_database(roteiro_id, updates)
+            except Exception as e:
+                logger.error(f"Erro ao salvar atualizações: {str(e)}")
+                # Não falhar a requisição por erro no DB, apenas registrar
+        
+        return jsonify({
+            'success': True,
+            'avi_response': response,
+            'roteiro_updates': updates
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar mensagem do chat: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao processar mensagem',
+            'details': str(e)
+        }), 500
+
+def process_avi_message(message, roteiro_data):
+    """
+    Processa a mensagem do usuário e retorna uma resposta da AVI com possíveis atualizações para o roteiro.
+    
+    Args:
+        message: Mensagem do usuário
+        roteiro_data: Dados atuais do roteiro
+        
+    Returns:
+        tuple: (resposta da AVI, atualizações para o roteiro)
+    """
+    from services.amadeus_service import AmadeusService
+    
+    # Inicializar serviço Amadeus (para buscar voos se necessário)
+    amadeus_service = AmadeusService()
+    
+    # Extrair informações do roteiro atual
+    destination = roteiro_data.get('destination', '')
+    start_date = roteiro_data.get('startDate')
+    end_date = roteiro_data.get('endDate')
+    travelers = roteiro_data.get('travelers', 1)
+    
+    # Inicializar objeto de atualizações
+    updates = {}
+    
+    # Analisar a mensagem para identificar entidades e intenções
+    message_lower = message.lower()
+    
+    # Padrões para extração de informações
+    # Destino
+    destination_patterns = [
+        r'(?:quero|gostaria de|planejo|pretendo|vou|para) (?:ir|viajar|visitar|conhecer) (?:para|a|o|à|ao|em) (.+?)(?:\.|,|\s|$)',
+        r'(?:viagem|viajar|visitar|ir|conhecer|férias|turismo) (?:para|a|o|à|ao|em) (.+?)(?:\.|,|\s|$)',
+        r'planejo (?:ir|viajar|visitar|conhecer) (.+?)(?:\.|,|\s|$)'
+    ]
+    
+    # Datas
+    date_patterns = [
+        r'(?:de|dia|data) (\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)',
+        r'(\d{1,2}) (?:de|do mês) (\w+)',
+        r'(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?',
+        r'entre (\d{1,2}\/\d{1,2}) e (\d{1,2}\/\d{1,2})',
+        r'entre dia (\d{1,2}) e (\d{1,2})'
+    ]
+    
+    # Número de viajantes
+    travelers_patterns = [
+        r'(\d+) (?:pessoa|pessoas|viajante|viajantes|adulto|adultos|passageiro|passageiros)',
+        r'(?:somos|seremos|vamos) (\d+)',
+        r'(?:eu|sozinho|só uma pessoa)',
+        r'(?:eu|eu e|com) (?:minha|meu|mais) (\d+)'
+    ]
+    
+    # Verificar se é uma solicitação de busca de destino
+    for pattern in destination_patterns:
+        matches = re.search(pattern, message_lower)
+        if matches:
+            potential_destination = matches.group(1).strip()
+            if potential_destination and len(potential_destination) > 2:
+                updates['destination'] = potential_destination.title()
+                break
+    
+    # Neste ponto, poderíamos utilizar a API GPT para extrair informações de forma mais inteligente,
+    # identificar intenções, e até mesmo ter um prompt específico para isso.
+    # Por fins de demonstração, vamos implementar uma versão simplificada.
+    
+    # Determinar o tipo de mensagem/intenção do usuário
+    intent = "geral"  # Padrão
+    
+    if any(word in message_lower for word in ['passag', 'voo', 'avião', 'companhia']):
+        intent = "voos"
+    elif any(word in message_lower for word in ['hotel', 'hosped', 'acomodaç', 'pousada', 'onde ficar']):
+        intent = "hospedagem"
+    elif any(word in message_lower for word in ['o que fazer', 'atração', 'atividade', 'passeio', 'visitar']):
+        intent = "atrações"
+    elif any(word in message_lower for word in ['roteiro', 'itinerário', 'planejar', 'organizar', 'programação']):
+        intent = "roteiro"
+    
+    # Gerar resposta da AVI com base na intenção e contexto do roteiro
+    response = generate_avi_response(intent, message, updates, roteiro_data)
+    
+    # Se o usuário está perguntando sobre voos e temos origem e destino, buscar voos
+    if intent == "voos" and destination:
+        # Aqui podemos assumir um aeroporto de origem padrão ou extraí-lo da mensagem
+        # Por exemplo, usar GRU para São Paulo como padrão
+        origin = extract_origin_from_message(message) or "GRU"
+        
+        # Verificar se temos datas para a busca
+        if start_date:
+            # Buscar voos na API Amadeus
+            try:
+                logger.info(f"Buscando voos: {origin} -> {destination}, data: {start_date}")
+                flight_results = amadeus_service.search_flights(
+                    origin=origin, 
+                    destination=destination,
+                    departure_date=start_date.split('T')[0] if 'T' in start_date else start_date,
+                    adults=travelers
+                )
+                
+                # Se temos resultados, adicionar às atualizações
+                if flight_results and len(flight_results) > 0:
+                    # Mapear resultados para o formato de bloco do roteiro
+                    flight_blocks = []
+                    for flight in flight_results[:2]:  # Limitar a 2 opções para não sobrecarregar
+                        flight_block = map_flight_to_block(flight)
+                        if flight_block:
+                            flight_blocks.append(flight_block)
+                    
+                    if flight_blocks:
+                        # Adicionar voos às atualizações
+                        if 'items' not in updates:
+                            updates['items'] = []
+                        updates['items'].extend(flight_blocks)
+                        
+                        # Adicionar mensagem sobre os voos encontrados
+                        response += f"\n\nEncontrei {len(flight_blocks)} opções de voos para você e já adicionei ao seu roteiro. Você pode ver os detalhes no painel à direita."
+            except Exception as e:
+                logger.error(f"Erro ao buscar voos: {str(e)}")
+    
+    return response, updates
+
+def generate_avi_response(intent, message, updates, roteiro_data):
+    """
+    Gera resposta da AVI baseada na intenção da mensagem e contexto do roteiro.
+    
+    Args:
+        intent: Intenção identificada na mensagem
+        message: Mensagem original do usuário
+        updates: Atualizações feitas ou a serem feitas no roteiro
+        roteiro_data: Dados atuais do roteiro
+        
+    Returns:
+        string: Resposta da AVI
+    """
+    # Aqui é onde integraríamos com a API GPT, mas vamos criar respostas pré-definidas para demonstração
+    destination = updates.get('destination') or roteiro_data.get('destination')
+    
+    # Resposta baseada em intenção
+    if intent == "voos":
+        if destination:
+            return f"Vou buscar voos para {destination} para você. Você pode me informar de onde pretende partir, em que datas e quantas pessoas viajarão?"
+        else:
+            return "Para buscar voos, preciso saber para onde você quer ir. Pode me informar seu destino?"
+            
+    elif intent == "hospedagem":
+        if destination:
+            return f"Posso ajudar a encontrar ótimas hospedagens em {destination}. Tem preferência por alguma região específica ou tipo de acomodação?"
+        else:
+            return "Para sugerir hospedagens, preciso saber qual é o seu destino. Pode me informar para onde pretende viajar?"
+            
+    elif intent == "atrações":
+        if destination:
+            return f"{destination} tem muitas atrações incríveis! Você prefere atividades culturais, naturais, gastronômicas ou todas elas?"
+        else:
+            return "Para recomendar atrações, preciso saber qual será seu destino. Pode me informar para onde pretende viajar?"
+            
+    elif intent == "roteiro":
+        if destination:
+            return f"Estou aqui para ajudar a planejar seu roteiro em {destination}. Se me contar mais sobre seus interesses, posso montar um plano personalizado com voos, hospedagem e atividades."
+        else:
+            return "Estou aqui para ajudar com seu roteiro de viagem. Para começar, pode me dizer para onde você pretende ir?"
+    
+    else:  # Intenção geral
+        if 'destination' in updates:  # Se acabamos de descobrir o destino
+            return f"Ótimo! Vamos planejar sua viagem para {destination}. Quando você pretende ir e por quantos dias ficará por lá?"
+        
+        elif destination:  # Se já sabemos o destino, mas é uma conversa geral
+            return f"Como posso ajudar mais com sua viagem para {destination}? Posso buscar voos, sugerir hotéis ou recomendar atividades interessantes."
+        
+        else:  # Conversa bem inicial
+            return "Olá! Para te ajudar a planejar sua viagem, preciso saber para onde você quer ir. Pode me informar o seu destino?"
+
+def extract_origin_from_message(message):
+    """
+    Tenta extrair o aeroporto ou cidade de origem da mensagem.
+    
+    Args:
+        message: Mensagem do usuário
+        
+    Returns:
+        string: Código do aeroporto ou None se não identificado
+    """
+    # Implementação básica com regex - em produção usaria NLP mais avançado
+    origin_patterns = [
+        r'(?:de|desde|partindo de|saindo de|a partir de) ([A-Z]{3})',  # Busca códigos de aeroporto
+        r'(?:de|desde|partindo de|saindo de|a partir de) ([a-zA-ZÀ-ÿ\s]{3,}?)(?:\s|,|\.|\?|$)'  # Busca nomes de cidades
+    ]
+    
+    for pattern in origin_patterns:
+        matches = re.search(pattern, message, re.IGNORECASE)
+        if matches:
+            origin = matches.group(1).strip()
+            
+            # Se for um código de aeroporto de 3 letras, retornar diretamente
+            if len(origin) == 3 and origin.isalpha() and origin.isupper():
+                return origin
+                
+            # Para nomes de cidades, seria necessário um mapeamento cidade -> aeroporto
+            # Simplificando para alguns exemplos
+            city_to_airport = {
+                'são paulo': 'GRU',
+                'rio de janeiro': 'GIG',
+                'brasília': 'BSB',
+                'salvador': 'SSA',
+                'recife': 'REC',
+                'fortaleza': 'FOR',
+                'porto alegre': 'POA',
+                'belo horizonte': 'CNF',
+                'curitiba': 'CWB',
+                'belém': 'BEL',
+                'manaus': 'MAO',
+                'campinas': 'VCP'
+            }
+            
+            # Verificar se a cidade está no mapeamento
+            origin_lower = origin.lower()
+            for city, code in city_to_airport.items():
+                if city in origin_lower or origin_lower in city:
+                    return code
+    
+    # Se não encontrou nada, retornar None (e usar GRU como default)
+    return None
+
+def map_flight_to_block(flight_offer):
+    """
+    Mapeia uma oferta de voo da API Amadeus para o formato de bloco do roteiro.
+    
+    Args:
+        flight_offer: Oferta de voo da API Amadeus
+        
+    Returns:
+        dict: Bloco de voo formatado para o roteiro
+    """
+    try:
+        # Extrair dados básicos do primeiro segmento de ida
+        outbound_segments = flight_offer.get('itineraries', [{}])[0].get('segments', [])
+        if not outbound_segments:
+            return None
+            
+        first_segment = outbound_segments[0]
+        last_segment = outbound_segments[-1]
+        
+        # Extrair informações da companhia aérea
+        airline_code = first_segment.get('carrierCode', '')
+        airline_name = get_airline_name(airline_code) or airline_code
+        flight_number = f"{airline_code}{first_segment.get('number', '')}"
+        
+        # Extrair informações de origem/destino
+        departure_iata = first_segment.get('departure', {}).get('iataCode', '')
+        arrival_iata = last_segment.get('arrival', {}).get('iataCode', '')
+        
+        # Extrair datas/horários
+        departure_time = first_segment.get('departure', {}).get('at', '')
+        arrival_time = last_segment.get('arrival', {}).get('at', '')
+        
+        # Extrair preço
+        price = float(flight_offer.get('price', {}).get('total', 0))
+        currency = flight_offer.get('price', {}).get('currency', 'BRL')
+        
+        # Criar bloco de voo
+        return {
+            'id': f"flight_{flight_offer.get('id', '')}",
+            'type': 'flight',
+            'title': f"Voo {airline_name} {flight_number}",
+            'airline': airline_name,
+            'flightNumber': flight_number,
+            'departureAirport': departure_iata,
+            'arrivalAirport': arrival_iata,
+            'departureTime': departure_time,
+            'arrivalTime': arrival_time,
+            'price': price,
+            'currency': currency,
+            'duration': calculate_duration(departure_time, arrival_time),
+            'stops': len(outbound_segments) - 1
+        }
+    except Exception as e:
+        logger.error(f"Erro ao mapear voo para bloco: {str(e)}")
+        return None
+
+def get_airline_name(airline_code):
+    """
+    Obtém o nome da companhia aérea a partir do código IATA.
+    
+    Args:
+        airline_code: Código IATA da companhia aérea
+        
+    Returns:
+        string: Nome da companhia aérea ou None se não encontrado
+    """
+    # Mapeamento simplificado de códigos para nomes de companhias
+    airlines = {
+        'LA': 'LATAM',
+        'G3': 'GOL',
+        'AD': 'Azul',
+        'AA': 'American Airlines',
+        'DL': 'Delta',
+        'UA': 'United',
+        'BA': 'British Airways',
+        'LH': 'Lufthansa',
+        'AF': 'Air France',
+        'KL': 'KLM',
+        'IB': 'Iberia',
+        'EK': 'Emirates',
+        'QR': 'Qatar Airways',
+        'TK': 'Turkish Airlines',
+        'AV': 'Avianca'
+    }
+    
+    return airlines.get(airline_code)
+
+def calculate_duration(departure_time, arrival_time):
+    """
+    Calcula a duração do voo em horas e minutos.
+    
+    Args:
+        departure_time: Data/hora de partida no formato ISO
+        arrival_time: Data/hora de chegada no formato ISO
+        
+    Returns:
+        string: Duração no formato "XhYm"
+    """
+    try:
+        from datetime import datetime
+        
+        # Converter strings para objetos datetime
+        departure_dt = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
+        arrival_dt = datetime.fromisoformat(arrival_time.replace('Z', '+00:00'))
+        
+        # Calcular diferença
+        delta = arrival_dt - departure_dt
+        total_minutes = delta.total_seconds() / 60
+        
+        # Formatar como horas e minutos
+        hours = int(total_minutes // 60)
+        minutes = int(total_minutes % 60)
+        
+        return f"{hours}h{minutes:02d}m"
+    except Exception:
+        return "N/A"  # Em caso de erro
+
+def save_updates_to_database(roteiro_id, updates):
+    """
+    Salva as atualizações do roteiro no banco de dados.
+    
+    Args:
+        roteiro_id: ID do roteiro
+        updates: Dicionário com as atualizações
+    """
+    try:
+        # Verificar se o roteiro existe
+        roteiro = TravelPlan.query.get(roteiro_id)
+        if not roteiro:
+            logger.error(f"Roteiro não encontrado: {roteiro_id}")
+            return
+        
+        # Atualizar campos básicos
+        if 'destination' in updates:
+            roteiro.destination = updates['destination']
+            roteiro.title = f"Viagem para {updates['destination']}"
+        
+        if 'startDate' in updates and updates['startDate']:
+            roteiro.start_date = datetime.fromisoformat(updates['startDate'].replace('Z', '+00:00'))
+        
+        if 'endDate' in updates and updates['endDate']:
+            roteiro.end_date = datetime.fromisoformat(updates['endDate'].replace('Z', '+00:00'))
+        
+        # Se há items para adicionar (voos, hotéis, etc.)
+        if 'items' in updates and updates['items']:
+            # Carregar detalhes atuais
+            current_details = json.loads(roteiro.details) if roteiro.details else []
+            
+            # Para cada item, adicionar ao dia apropriado
+            for item in updates['items']:
+                if item['type'] == 'flight':
+                    # Salvar como FlightBooking no banco de dados
+                    flight = FlightBooking(
+                        travel_plan_id=roteiro.id,
+                        airline=item.get('airline', ''),
+                        flight_number=item.get('flightNumber', ''),
+                        departure_location=item.get('departureAirport', ''),
+                        arrival_location=item.get('arrivalAirport', ''),
+                        departure_time=datetime.fromisoformat(item['departureTime'].replace('Z', '+00:00')) if item.get('departureTime') else None,
+                        arrival_time=datetime.fromisoformat(item['arrivalTime'].replace('Z', '+00:00')) if item.get('arrivalTime') else None,
+                        price=item.get('price', 0),
+                        currency=item.get('currency', 'BRL'),
+                        booking_status='planned'
+                    )
+                    db.session.add(flight)
+                
+                elif item['type'] == 'hotel':
+                    # Salvar como Accommodation no banco de dados
+                    hotel = Accommodation(
+                        travel_plan_id=roteiro.id,
+                        name=item.get('name', ''),
+                        location=item.get('location', ''),
+                        check_in=datetime.strptime(item['checkIn'], '%Y-%m-%d').date() if item.get('checkIn') else None,
+                        check_out=datetime.strptime(item['checkOut'], '%Y-%m-%d').date() if item.get('checkOut') else None,
+                        price_per_night=item.get('pricePerNight', 0),
+                        currency=item.get('currency', 'BRL'),
+                        stars=item.get('stars', 3),
+                        booking_status='planned'
+                    )
+                    db.session.add(hotel)
+        
+        # Atualizar data de modificação
+        roteiro.updated_at = datetime.now()
+        
+        # Salvar alterações
+        db.session.commit()
+        
+    except Exception as e:
+        logger.error(f"Erro ao salvar atualizações no banco de dados: {str(e)}")
+        db.session.rollback()
+        raise

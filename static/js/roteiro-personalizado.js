@@ -1059,8 +1059,130 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.value = '';
         userInput.style.height = 'auto';
         
-        // Processar mensagem (simulado - em produção enviaria para o backend)
-        simulateAviResponse(message);
+        // Mostrar indicador de digitação
+        const typingElement = document.createElement('div');
+        typingElement.className = 'message avi-message typing';
+        typingElement.innerHTML = '<div class="message-content"><p>AVI está digitando...</p></div>';
+        chatMessages.appendChild(typingElement);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Enviar mensagem para o backend
+        fetch('/api/roteiro/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                roteiro_id: currentRoteiro.id,
+                roteiro_data: currentRoteiro
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Remover indicador de digitação
+            chatMessages.removeChild(typingElement);
+            
+            if (data.success) {
+                // Adicionar resposta da AVI
+                addMessageToChat(data.avi_response, false);
+                
+                // Atualizar o roteiro se houver atualizações
+                if (data.roteiro_updates) {
+                    // Aplicar atualizações ao roteiro atual
+                    applyRoteiroUpdates(data.roteiro_updates);
+                    
+                    // Atualizar a interface do roteiro
+                    updateRoteiroUI();
+                }
+            } else {
+                // Em caso de erro, mostrar mensagem amigável
+                addMessageToChat("Desculpe, tive um problema ao processar sua mensagem. Pode tentar novamente?", false);
+                console.error("Erro na resposta da AVI:", data.error);
+            }
+        })
+        .catch(error => {
+            // Remover indicador de digitação
+            if (typingElement.parentNode === chatMessages) {
+                chatMessages.removeChild(typingElement);
+            }
+            
+            // Mostrar mensagem de erro
+            addMessageToChat("Desculpe, estou com dificuldades técnicas para responder no momento. Pode tentar novamente mais tarde?", false);
+            console.error("Erro ao enviar mensagem:", error);
+        });
+    }
+    
+    // Aplicar atualizações ao roteiro
+    function applyRoteiroUpdates(updates) {
+        // Atualizar destino e datas se fornecidos
+        if (updates.destination) currentRoteiro.destination = updates.destination;
+        if (updates.startDate) currentRoteiro.startDate = updates.startDate;
+        if (updates.endDate) currentRoteiro.endDate = updates.endDate;
+        if (updates.travelers) currentRoteiro.travelers = updates.travelers;
+        
+        // Se o roteiro estava vazio, criar dias com base nas novas datas
+        if (currentRoteiro.days.length === 0 && currentRoteiro.startDate && currentRoteiro.endDate) {
+            createDaysFromDates();
+        }
+        
+        // Adicionar itens (voos, hotéis, atividades)
+        if (updates.items && updates.items.length > 0) {
+            updates.items.forEach(item => {
+                // Determinar em qual dia colocar o item
+                let dayIndex = 0;
+                
+                if (item.dayIndex !== undefined) {
+                    dayIndex = item.dayIndex;
+                } else if (item.type === 'flight' && item.departureTime) {
+                    // Para voos, usar a data de partida para determinar o dia
+                    const departureDate = new Date(item.departureTime).toISOString().split('T')[0];
+                    const startDate = new Date(currentRoteiro.startDate).toISOString().split('T')[0];
+                    
+                    if (departureDate >= startDate) {
+                        const diffTime = Math.abs(new Date(departureDate) - new Date(startDate));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        dayIndex = Math.min(diffDays, currentRoteiro.days.length - 1);
+                    }
+                } else if (item.type === 'hotel' && item.checkIn) {
+                    // Para hotéis, usar a data de check-in
+                    const checkInDate = new Date(item.checkIn).toISOString().split('T')[0];
+                    const startDate = new Date(currentRoteiro.startDate).toISOString().split('T')[0];
+                    
+                    if (checkInDate >= startDate) {
+                        const diffTime = Math.abs(new Date(checkInDate) - new Date(startDate));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        dayIndex = Math.min(diffDays, currentRoteiro.days.length - 1);
+                    }
+                } else if (item.type === 'activity' && item.datetime) {
+                    // Para atividades, usar a data/hora da atividade
+                    const activityDate = new Date(item.datetime).toISOString().split('T')[0];
+                    const startDate = new Date(currentRoteiro.startDate).toISOString().split('T')[0];
+                    
+                    if (activityDate >= startDate) {
+                        const diffTime = Math.abs(new Date(activityDate) - new Date(startDate));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        dayIndex = Math.min(diffDays, currentRoteiro.days.length - 1);
+                    }
+                }
+                
+                // Garantir que o dia existe
+                if (dayIndex >= currentRoteiro.days.length) {
+                    dayIndex = currentRoteiro.days.length - 1;
+                }
+                
+                // Inicializar array de blocos se necessário
+                if (!currentRoteiro.days[dayIndex].blocks) {
+                    currentRoteiro.days[dayIndex].blocks = [];
+                }
+                
+                // Adicionar o item ao dia apropriado
+                currentRoteiro.days[dayIndex].blocks.push(item);
+            });
+        }
+        
+        // Atualizar no servidor
+        updateRoteiroOnServer();
     }
     
     // Adicionar mensagem ao chat
