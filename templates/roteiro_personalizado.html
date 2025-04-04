@@ -67,13 +67,13 @@
         <!-- Painel de Chat (Esquerda) -->
         <div class="chat-panel" id="chatPanel">
             <div class="chat-header">
-                <div class="chat-title">
+                <button class="toggle-chat-btn" id="toggleChatBtn" style="position: absolute; left: 10px;">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="chat-title" style="display: flex; justify-content: center; align-items: center; width: 100%;">
                     <img src="{{ url_for('static', filename='img/avi-avatar.png') }}" alt="AVI" class="avi-avatar">
                     <h3>Conversa com AVI</h3>
                 </div>
-                <button class="toggle-chat-btn" id="toggleChatBtn">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
             </div>
 
             <div class="chat-messages" id="chatMessages">
