@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro Personalizado - Avi</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/roteiro-personalizado.css') }}">
+    <!-- Leaflet.js para o mapa -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Flai Logo" height="30">
+                Flai
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">Sobre</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/contact">Contato</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="roteiro-container">
+        <!-- Painel de Chat (Esquerda) -->
+        <div class="chat-panel" id="chatPanel">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <img src="{{ url_for('static', filename='images/avi-avatar.png') }}" alt="AVI" class="avi-avatar">
+                    <h3>Conversa com AVI</h3>
+                </div>
+                <button class="toggle-chat-btn" id="toggleChatBtn">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <!-- Mensagem de boas-vindas da AVI -->
+                <div class="message avi-message">
+                    <div class="message-content">
+                        <p>Olá! Sou a AVI, sua assistente de viagens inteligente. 😊</p>
+                        <p>Estou vendo que você está usando o <strong>Roteiro Personalizado</strong>.</p>
+                        <p>Como posso ajudar a planejar sua viagem hoje?</p>
+                    </div>
+                </div>
+                
+                <!-- Outras mensagens serão adicionadas dinamicamente via JavaScript -->
+            </div>
+
+            <div class="chat-input-container">
+                <textarea id="userInput" class="chat-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+                <button id="sendButton" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Painel de Roteiro (Direita) -->
+        <div class="roteiro-panel" id="roteiroPanel">
+            <div class="roteiro-header">
+                <h2>Roteiro Personalizado</h2>
+                <div class="roteiro-actions">
+                    <button class="btn btn-primary btn-sm" id="btnSaveRoteiro">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" id="btnShareRoteiro">
+                        <i class="fas fa-share-alt"></i> Compartilhar
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" id="btnExportPDF">
+                        <i class="fas fa-file-pdf"></i> Exportar PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="roteiro-info">
+                <div class="destination-header">
+                    <div class="destination-info">
+                        <h3 id="destinationTitle">Preparando seu roteiro...</h3>
+                        <p id="destinationDates">Escolha as datas da sua viagem</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" id="editDestinationBtn">
+                        <i class="fas fa-pencil-alt"></i> Editar
+                    </button>
+                </div>
+
+                <div class="travel-details">
+                    <div class="travel-detail">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span id="destinationDetail">...</span>
+                    </div>
+                    <div class="travel-detail">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span id="durationDetail">...</span>
+                    </div>
+                    <div class="travel-detail">
+                        <i class="fas fa-users"></i>
+                        <span id="travelersDetail">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="days-navigator">
+                <div class="day-tabs" id="dayTabs">
+                    <!-- Botões de dias serão adicionados dinamicamente via JavaScript -->
+                </div>
+            </div>
+
+            <div class="day-blocks" id="dayBlocks">
+                <!-- Conteúdo de cada dia será adicionado dinamicamente via JavaScript -->
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-suitcase-rolling"></i>
+                    </div>
+                    <h4>Seu roteiro está vazio</h4>
+                    <p>Converse com a AVI para planejar sua viagem ou adicione itens manualmente.</p>
+                    <button class="btn btn-primary btn-add-item" id="btnAddManually">
+                        <i class="fas fa-plus"></i> Adicionar Item
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para mostrar mapa -->
+    <div class="modal fade" id="mapModal" tabindex="-1" aria-labelledby="mapModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mapModalLabel">Mapa de Localização</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="mapContainer" style="height: 400px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar informações da viagem -->
+    <div class="modal fade" id="editDestinationModal" tabindex="-1" aria-labelledby="editDestinationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDestinationModalLabel">Editar Informações da Viagem</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editDestinationForm">
+                        <div class="mb-3">
+                            <label for="editDestination" class="form-label">Destino</label>
+                            <input type="text" class="form-control" id="editDestination" placeholder="Ex: Paris, França">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editStartDate" class="form-label">Data de Ida</label>
+                            <input type="date" class="form-control" id="editStartDate">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEndDate" class="form-label">Data de Volta</label>
+                            <input type="date" class="form-control" id="editEndDate">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTravelers" class="form-label">Número de Viajantes</label>
+                            <input type="number" class="form-control" id="editTravelers" min="1" value="1">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveDestinationBtn">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar item manualmente -->
+    <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addItemModalLabel">Adicionar Item ao Roteiro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="itemTypeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="flight-tab" data-bs-toggle="tab" data-bs-target="#flight-tab-pane" type="button" role="tab" aria-controls="flight-tab-pane" aria-selected="true">Voo</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="hotel-tab" data-bs-toggle="tab" data-bs-target="#hotel-tab-pane" type="button" role="tab" aria-controls="hotel-tab-pane" aria-selected="false">Hotel</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity-tab-pane" type="button" role="tab" aria-controls="activity-tab-pane" aria-selected="false">Atividade</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="note-tab" data-bs-toggle="tab" data-bs-target="#note-tab-pane" type="button" role="tab" aria-controls="note-tab-pane" aria-selected="false">Nota</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-3" id="itemTypeTabContent">
+                        <!-- Aba de Voo -->
+                        <div class="tab-pane fade show active" id="flight-tab-pane" role="tabpanel" aria-labelledby="flight-tab" tabindex="0">
+                            <form id="flightForm">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="flightAirline" class="form-label">Companhia Aérea</label>
+                                        <input type="text" class="form-control" id="flightAirline" placeholder="Ex: LATAM, GOL">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="flightNumber" class="form-label">Número do Voo</label>
+                                        <input type="text" class="form-control" id="flightNumber" placeholder="Ex: LA3507">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="flightOrigin" class="form-label">Origem</label>
+                                        <input type="text" class="form-control" id="flightOrigin" placeholder="Ex: GRU - São Paulo">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="flightDestination" class="form-label">Destino</label>
+                                        <input type="text" class="form-control" id="flightDestination" placeholder="Ex: CDG - Paris">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="flightDepartureTime" class="form-label">Horário de Partida</label>
+                                        <input type="datetime-local" class="form-control" id="flightDepartureTime">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="flightArrivalTime" class="form-label">Horário de Chegada</label>
+                                        <input type="datetime-local" class="form-control" id="flightArrivalTime">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="flightPrice" class="form-label">Preço</label>
+                                        <input type="number" class="form-control" id="flightPrice" placeholder="Ex: 2500">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="flightDay" class="form-label">Dia do Roteiro</label>
+                                        <select class="form-select" id="flightDay">
+                                            <!-- Opções serão preenchidas dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Aba de Hotel -->
+                        <div class="tab-pane fade" id="hotel-tab-pane" role="tabpanel" aria-labelledby="hotel-tab" tabindex="0">
+                            <form id="hotelForm">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label for="hotelName" class="form-label">Nome do Hotel</label>
+                                        <input type="text" class="form-control" id="hotelName" placeholder="Ex: Grand Hotel Paris">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="hotelStars" class="form-label">Classificação (estrelas)</label>
+                                        <select class="form-select" id="hotelStars">
+                                            <option value="1">1 estrela</option>
+                                            <option value="2">2 estrelas</option>
+                                            <option value="3">3 estrelas</option>
+                                            <option value="4">4 estrelas</option>
+                                            <option value="5">5 estrelas</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="hotelAddress" class="form-label">Endereço</label>
+                                    <input type="text" class="form-control" id="hotelAddress" placeholder="Ex: 1 Rue de la Paix, Paris, França">
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="hotelCheckIn" class="form-label">Check-in</label>
+                                        <input type="date" class="form-control" id="hotelCheckIn">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="hotelCheckOut" class="form-label">Check-out</label>
+                                        <input type="date" class="form-control" id="hotelCheckOut">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="hotelPrice" class="form-label">Preço por Noite</label>
+                                        <input type="number" class="form-control" id="hotelPrice" placeholder="Ex: 500">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="hotelDay" class="form-label">Dia do Roteiro</label>
+                                        <select class="form-select" id="hotelDay">
+                                            <!-- Opções serão preenchidas dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Aba de Atividade -->
+                        <div class="tab-pane fade" id="activity-tab-pane" role="tabpanel" aria-labelledby="activity-tab" tabindex="0">
+                            <form id="activityForm">
+                                <div class="mb-3">
+                                    <label for="activityName" class="form-label">Nome da Atividade</label>
+                                    <input type="text" class="form-control" id="activityName" placeholder="Ex: Visita à Torre Eiffel">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="activityLocation" class="form-label">Local</label>
+                                    <input type="text" class="form-control" id="activityLocation" placeholder="Ex: Champ de Mars, Paris, França">
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="activityDate" class="form-label">Data</label>
+                                        <input type="date" class="form-control" id="activityDate">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="activityTime" class="form-label">Horário</label>
+                                        <input type="time" class="form-control" id="activityTime">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="activityPrice" class="form-label">Preço</label>
+                                        <input type="number" class="form-control" id="activityPrice" placeholder="Ex: 25">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="activityDay" class="form-label">Dia do Roteiro</label>
+                                        <select class="form-select" id="activityDay">
+                                            <!-- Opções serão preenchidas dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="activityNotes" class="form-label">Observações</label>
+                                    <textarea class="form-control" id="activityNotes" rows="3" placeholder="Ex: Comprar ingressos com antecedência"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Aba de Nota -->
+                        <div class="tab-pane fade" id="note-tab-pane" role="tabpanel" aria-labelledby="note-tab" tabindex="0">
+                            <form id="noteForm">
+                                <div class="mb-3">
+                                    <label for="noteTitle" class="form-label">Título</label>
+                                    <input type="text" class="form-control" id="noteTitle" placeholder="Ex: Dicas importantes">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="noteContent" class="form-label">Conteúdo</label>
+                                    <textarea class="form-control" id="noteContent" rows="5" placeholder="Ex: Lembrar de levar adaptador de tomada europeu"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="noteDay" class="form-label">Dia do Roteiro</label>
+                                    <select class="form-select" id="noteDay">
+                                        <!-- Opções serão preenchidas dinamicamente -->
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveItemBtn">Adicionar ao Roteiro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/roteiro-personalizado.js') }}"></script>
+</body>
+</html>

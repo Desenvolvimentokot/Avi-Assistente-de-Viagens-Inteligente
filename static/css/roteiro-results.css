@@ -1,0 +1,94 @@
+/* Estilos para Resultados do Roteiro Personalizado */
+
+.btn-danger {
+    background-color: #d93025 !important;
+    color: white !important;
+}
+
+.navigation-btns {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+}
+
+.back-to-chat {
+    color: #7761ff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.back-to-chat i {
+    margin-right: 5px;
+}
+
+.back-to-chat:hover {
+    color: #6550d9;
+    text-decoration: none;
+}
+
+.continue-to-roteiro {
+    background-color: #7761ff;
+    color: white;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.continue-to-roteiro i {
+    margin-left: 5px;
+}
+
+.continue-to-roteiro:hover {
+    background-color: #6550d9;
+    color: white;
+    text-decoration: none;
+}
+
+/* Botão para adicionar ao roteiro */
+.add-to-roteiro-btn {
+    background-color: #34a853;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    margin-top: 10px;
+    display: block;
+    width: 100%;
+}
+
+.add-to-roteiro-btn:hover {
+    background-color: #2d9348;
+}
+
+/* Badge de seleção */
+.selected-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #28a745;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    display: none;
+    z-index: 10;
+}
+
+@media (max-width: 768px) {
+    .navigation-btns {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .continue-to-roteiro {
+        text-align: center;
+        justify-content: center;
+    }
+}

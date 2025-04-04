@@ -1,0 +1,548 @@
+/* Estilos para Roteiro Personalizado */
+
+:root {
+    --primary: #7761ff;
+    --primary-light: #f3f2ff;
+    --primary-dark: #5e4acc;
+    --secondary: #FF6B6B;
+    --text-dark: #343a40;
+    --text-light: #6c757d;
+    --light-bg: #f8f9fa;
+    --border-color: #e9ecef;
+    --shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+body {
+    background-color: var(--light-bg);
+    color: var(--text-dark);
+    font-family: 'Nunito', sans-serif;
+}
+
+/* Layout principal - Container divido para chat e roteiro */
+.roteiro-container {
+    display: flex;
+    height: calc(100vh - 56px); /* Altura total menos a navbar */
+    overflow: hidden;
+}
+
+/* Painel de Chat (Esquerda) */
+.chat-panel {
+    width: 40%;
+    height: 100%;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    transition: width 0.3s ease;
+}
+
+.chat-panel.collapsed {
+    width: 50px;
+}
+
+.chat-header {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-title {
+    display: flex;
+    align-items: center;
+}
+
+.avi-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.chat-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.toggle-chat-btn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.toggle-chat-btn:hover {
+    background-color: var(--light-bg);
+    color: var(--text-dark);
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    position: relative;
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: var(--primary);
+    color: white;
+    border-bottom-right-radius: 3px;
+}
+
+.avi-message {
+    align-self: flex-start;
+    background-color: var(--primary-light);
+    color: var(--text-dark);
+    border-bottom-left-radius: 3px;
+}
+
+.message-content {
+    word-wrap: break-word;
+}
+
+.message-content p {
+    margin-bottom: 5px;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-input-container {
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.chat-input {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 10px 15px;
+    resize: none;
+    max-height: 100px;
+    min-height: 44px;
+    overflow-y: auto;
+    transition: border-color 0.2s;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.send-btn {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.send-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* Painel de Roteiro (Direita) */
+.roteiro-panel {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: var(--light-bg);
+}
+
+.roteiro-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.roteiro-header h2 {
+    margin: 0;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.roteiro-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.roteiro-info {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+}
+
+.destination-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.destination-info h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.destination-info p {
+    margin: 5px 0 0 0;
+    color: var(--text-light);
+}
+
+.travel-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.travel-detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.travel-detail i {
+    color: var(--primary);
+}
+
+/* Navegador de dias */
+.days-navigator {
+    background-color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+
+.day-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.day-tab {
+    padding: 8px 15px;
+    background-color: var(--light-bg);
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.day-tab:hover {
+    background-color: var(--primary-light);
+}
+
+.day-tab.active {
+    background-color: var(--primary);
+    color: white;
+}
+
+/* Blocos do dia */
+.day-blocks {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-height: 300px;
+}
+
+/* Estado vazio do roteiro */
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-light);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    color: var(--primary-light);
+}
+
+.empty-state h4 {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    margin-bottom: 20px;
+}
+
+/* Bloco de itens de roteiro */
+.block {
+    background-color: var(--light-bg);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.block-flight {
+    border-left: 4px solid #42a5f5; /* Azul para voos */
+}
+
+.block-hotel {
+    border-left: 4px solid #66bb6a; /* Verde para hotéis */
+}
+
+.block-activity {
+    border-left: 4px solid #ffa726; /* Laranja para atividades */
+}
+
+.block-note {
+    border-left: 4px solid #bdbdbd; /* Cinza para notas */
+}
+
+.block-header {
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.block-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.block-title i {
+    font-size: 1.1rem;
+}
+
+.block-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.block-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.block-action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-dark);
+}
+
+.block-content {
+    padding: 5px 15px 15px;
+    display: none;
+}
+
+.block.expanded .block-content {
+    display: block;
+}
+
+/* Detalhes específicos por tipo de bloco */
+.flight-details, .hotel-details, .activity-details, .note-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.detail-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.detail-label {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-bottom: 3px;
+}
+
+.detail-value {
+    font-weight: 600;
+}
+
+.detail-price {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Voo específico */
+.flight-route {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.route-airport {
+    text-align: center;
+}
+
+.airport-code {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.airport-time {
+    font-size: 0.9rem;
+}
+
+.route-divider {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.route-line {
+    flex: 1;
+    height: 2px;
+    background-color: var(--border-color);
+    position: relative;
+}
+
+.route-line::before, .route-line::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: var(--border-color);
+    border-radius: 50%;
+    top: -2px;
+}
+
+.route-line::before {
+    left: 0;
+}
+
+.route-line::after {
+    right: 0;
+}
+
+.route-duration {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    padding: 0 8px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Modal de mapa */
+#mapContainer {
+    width: 100%;
+    height: 400px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .roteiro-container {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .chat-panel {
+        width: 100%;
+        height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .chat-panel.collapsed {
+        height: 50px;
+        width: 100%;
+    }
+    
+    .roteiro-header, .destination-header, .roteiro-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .roteiro-actions {
+        width: 100%;
+    }
+    
+    .roteiro-actions button {
+        width: 100%;
+    }
+    
+    .travel-details {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .block-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .block-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .flight-route {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .route-divider {
+        width: 100%;
+        height: 40px;
+    }
+    
+    .route-line {
+        width: 2px;
+        height: 100%;
+    }
+    
+    .route-duration {
+        top: 50%;
+        left: -12px;
+        transform: translateY(-50%) rotate(-90deg);
+    }
+}

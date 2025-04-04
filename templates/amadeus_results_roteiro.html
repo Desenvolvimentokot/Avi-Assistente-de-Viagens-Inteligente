@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados de Voos - Roteiro Personalizado - Avi</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/roteiro-results.css') }}">
+    <!-- Serviço de informações de aeroportos e companhias aéreas -->
+    <script>
+        // Dados para mapeamento de códigos IATA para nomes completos
+        const airportData = {
+            // Aeroportos brasileiros mais comuns
+            "GRU": {"name": "Aeroporto Internacional de São Paulo/Guarulhos", "city": "São Paulo", "country": "Brasil"},
+            "CGH": {"name": "Aeroporto de Congonhas", "city": "São Paulo", "country": "Brasil"},
+            "VCP": {"name": "Aeroporto Internacional de Viracopos", "city": "Campinas", "country": "Brasil"},
+            "SDU": {"name": "Aeroporto Santos Dumont", "city": "Rio de Janeiro", "country": "Brasil"},
+            "GIG": {"name": "Aeroporto Internacional do Galeão", "city": "Rio de Janeiro", "country": "Brasil"},
+            "BSB": {"name": "Aeroporto Internacional de Brasília", "city": "Brasília", "country": "Brasil"},
+            "CNF": {"name": "Aeroporto Internacional de Confins", "city": "Belo Horizonte", "country": "Brasil"},
+            "SSA": {"name": "Aeroporto Internacional de Salvador", "city": "Salvador", "country": "Brasil"},
+            "REC": {"name": "Aeroporto Internacional do Recife", "city": "Recife", "country": "Brasil"},
+            "FOR": {"name": "Aeroporto Internacional de Fortaleza", "city": "Fortaleza", "country": "Brasil"},
+            "CWB": {"name": "Aeroporto Internacional de Curitiba", "city": "Curitiba", "country": "Brasil"},
+            "POA": {"name": "Aeroporto Internacional de Porto Alegre", "city": "Porto Alegre", "country": "Brasil"},
+            "FLN": {"name": "Aeroporto Internacional de Florianópolis", "city": "Florianópolis", "country": "Brasil"},
+            "NAT": {"name": "Aeroporto Internacional de Natal", "city": "Natal", "country": "Brasil"},
+            "BEL": {"name": "Aeroporto Internacional de Belém", "city": "Belém", "country": "Brasil"},
+            "VIX": {"name": "Aeroporto de Vitória", "city": "Vitória", "country": "Brasil"},
+            "AJU": {"name": "Aeroporto Internacional de Aracaju", "city": "Aracaju", "country": "Brasil"},
+            "MCZ": {"name": "Aeroporto Internacional de Maceió", "city": "Maceió", "country": "Brasil"},
+
+            // Aeroportos internacionais populares
+            "JFK": {"name": "Aeroporto Internacional John F. Kennedy", "city": "Nova York", "country": "Estados Unidos"},
+            "LAX": {"name": "Aeroporto Internacional de Los Angeles", "city": "Los Angeles", "country": "Estados Unidos"},
+            "MIA": {"name": "Aeroporto Internacional de Miami", "city": "Miami", "country": "Estados Unidos"},
+            "LHR": {"name": "Aeroporto de Heathrow", "city": "Londres", "country": "Reino Unido"},
+            "CDG": {"name": "Aeroporto Charles de Gaulle", "city": "Paris", "country": "França"},
+            "FRA": {"name": "Aeroporto de Frankfurt", "city": "Frankfurt", "country": "Alemanha"},
+            "MAD": {"name": "Aeroporto de Madrid-Barajas", "city": "Madri", "country": "Espanha"},
+            "FCO": {"name": "Aeroporto Leonardo da Vinci", "city": "Roma", "country": "Itália"},
+            "LIS": {"name": "Aeroporto de Lisboa", "city": "Lisboa", "country": "Portugal"},
+            "EZE": {"name": "Aeroporto Internacional Ministro Pistarini", "city": "Buenos Aires", "country": "Argentina"},
+            "SCL": {"name": "Aeroporto Internacional Comodoro Arturo Merino Benítez", "city": "Santiago", "country": "Chile"},
+            "BOG": {"name": "Aeroporto Internacional El Dorado", "city": "Bogotá", "country": "Colômbia"},
+            "MEX": {"name": "Aeroporto Internacional da Cidade do México", "city": "Cidade do México", "country": "México"},
+            "DXB": {"name": "Aeroporto Internacional de Dubai", "city": "Dubai", "country": "Emirados Árabes Unidos"},
+            "SYD": {"name": "Aeroporto de Sydney", "city": "Sydney", "country": "Austrália"},
+            "NRT": {"name": "Aeroporto Internacional de Narita", "city": "Tóquio", "country": "Japão"},
+            "HKG": {"name": "Aeroporto Internacional de Hong Kong", "city": "Hong Kong", "country": "China"},
+        };
+
+        const airlineData = {
+            // Companhias brasileiras
+            "G3": {"name": "GOL Linhas Aéreas", "country": "Brasil"},
+            "AD": {"name": "Azul Linhas Aéreas", "country": "Brasil"},
+            "LA": {"name": "LATAM Airlines", "country": "Brasil"},
+            "O6": {"name": "Avianca Brasil", "country": "Brasil"},
+
+            // Companhias internacionais
+            "AA": {"name": "American Airlines", "country": "Estados Unidos"},
+            "UA": {"name": "United Airlines", "country": "Estados Unidos"},
+            "DL": {"name": "Delta Air Lines", "country": "Estados Unidos"},
+            "AC": {"name": "Air Canada", "country": "Canadá"},
+            "AF": {"name": "Air France", "country": "França"},
+            "BA": {"name": "British Airways", "country": "Reino Unido"},
+            "IB": {"name": "Iberia", "country": "Espanha"},
+            "LH": {"name": "Lufthansa", "country": "Alemanha"},
+            "AZ": {"name": "Alitalia", "country": "Itália"},
+            "TP": {"name": "TAP Air Portugal", "country": "Portugal"},
+            "EK": {"name": "Emirates", "country": "Emirados Árabes Unidos"},
+            "QR": {"name": "Qatar Airways", "country": "Catar"},
+            "TK": {"name": "Turkish Airlines", "country": "Turquia"},
+            "AV": {"name": "Avianca", "country": "Colômbia"},
+            "AM": {"name": "Aeroméxico", "country": "México"},
+            "AR": {"name": "Aerolíneas Argentinas", "country": "Argentina"},
+            "CM": {"name": "Copa Airlines", "country": "Panamá"},
+            "KL": {"name": "KLM", "country": "Holanda"},
+        };
+
+        // Funções de utilidade para o frontend
+        function getAirportInfo(iataCode) {
+            if (!iataCode) return {};
+            iataCode = iataCode.toUpperCase();
+            if (airportData[iataCode]) {
+                return airportData[iataCode];
+            }
+            return {"name": `Aeroporto ${iataCode}`, "city": iataCode, "country": ""};
+        }
+
+        function getAirlineInfo(iataCode) {
+            if (!iataCode) return {};
+            iataCode = iataCode.toUpperCase();
+            if (airlineData[iataCode]) {
+                return airlineData[iataCode];
+            }
+            return {"name": `Companhia ${iataCode}`, "country": ""};
+        }
+
+        function getAirportDisplayName(iataCode) {
+            if (!iataCode) return "";
+            const info = getAirportInfo(iataCode);
+            if (info && info.city) {
+                return `${info.city} (${iataCode})`;
+            }
+            return iataCode;
+        }
+
+        function getAirlineDisplayName(iataCode) {
+            if (!iataCode) return "";
+            const info = getAirlineInfo(iataCode);
+            if (info && info.name) {
+                return `${info.name} (${iataCode})`;
+            }
+            return iataCode;
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #7761ff;
+            --primary-dark: #5e4acc;
+            --secondary: #FF6B6B;
+            --light-bg: #f8f9fa;
+            --text-dark: #343a40;
+            --text-light: #6c757d;
+            --avi-bg: #f3f2ff;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text-dark);
+        }
+
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .search-params {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .flight-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+            border-left: 4px solid var(--primary);
+        }
+
+        .flight-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .airline-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .flight-time {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .flight-date {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .airport-code {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .airport-name {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .flight-duration {
+            text-align: center;
+            padding: 10px 0;
+            position: relative;
+        }
+
+        .flight-duration::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed #ccc;
+            z-index: 1;
+        }
+
+        .duration-time {
+            background-color: white;
+            padding: 0 10px;
+            position: relative;
+            z-index: 2;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .stops {
+            font-size: 0.8rem;
+            background-color: #f8f9fa;
+            border-radius: 15px;
+            padding: 2px 10px;
+        }
+
+        .price-container {
+            text-align: center;
+            padding: 15px;
+            border-left: 1px solid #eee;
+        }
+
+        .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .select-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .select-btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Novo botão para adicionar ao roteiro */
+        .add-to-roteiro-btn {
+            background-color: #34a853;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+        }
+
+        .add-to-roteiro-btn:hover {
+            background-color: #2d9348;
+        }
+
+        .flight-details {
+            background-color: var(--light-bg);
+            border-top: 1px solid #eee;
+            padding: 15px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .segment {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .segment:last-child {
+            border-bottom: none;
+        }
+
+        .segment-header {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .baggage-info {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .economy-badge {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .business-badge {
+            background-color: #cce5ff;
+            color: #004085;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .filter-section {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .filter-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .form-range::-webkit-slider-thumb {
+            background: var(--primary);
+        }
+
+        .savings-suggestion {
+            background-color: #e8f4fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .savings-title {
+            color: #17a2b8;
+            font-weight: 600;
+        }
+
+        .savings-price {
+            font-weight: 700;
+            color: #28a745;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 100%;
+            text-align: center;
+            padding: 50px 0;
+        }
+
+        /* Botões de navegação */
+        .navigation-btns {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .back-to-chat {
+            color: var(--primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .back-to-chat i {
+            margin-right: 5px;
+        }
+
+        .back-to-chat:hover {
+            color: var(--primary-dark);
+        }
+
+        .continue-to-roteiro {
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .continue-to-roteiro i {
+            margin-left: 5px;
+        }
+
+        .continue-to-roteiro:hover {
+            background-color: var(--primary-dark);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .price-container {
+                border-left: none;
+                border-top: 1px solid #eee;
+                margin-top: 15px;
+            }
+            
+            .navigation-btns {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .continue-to-roteiro {
+                text-align: center;
+            }
+        }
+        
+        /* Badge de seleção */
+        .selected-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Flai Logo" height="30">
+                Flai
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Início</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">Sobre</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/contact">Contato</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="navigation-btns">
+            <a href="/" class="back-to-chat">
+                <i class="fas fa-arrow-left"></i> Voltar para o chat com a AVI
+            </a>
+            <a href="/roteiro-personalizado" class="continue-to-roteiro" id="continueToRoteiro">
+                Continuar para o Roteiro <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="search-params p-3 mb-4">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Origem:</strong> <span id="origin-display">{{ origin }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Destino:</strong> <span id="destination-display">{{ destination }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Data de ida:</strong> <span id="departure-date-display">{{ departure_date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Passageiros:</strong> <span id="passengers-display">{{ adults }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <strong><i class="fas fa-info-circle"></i> Roteiro Personalizado:</strong> 
+            Selecione os voos desejados clicando em "Adicionar ao Roteiro" e depois clique em "Continuar para o Roteiro" para finalizar seu planejamento.
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="filter-section">
+                    <h5 class="filter-title">Filtros</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label">Preço máximo</label>
+                        <input type="range" class="form-range" id="price-filter" min="0" max="10000">
+                        <div class="d-flex justify-content-between">
+                            <small>R$ 0</small>
+                            <small id="price-value">R$ 5.000</small>
+                            <small>R$ 10.000</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Companhias aéreas</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="LATAM" id="airline-latam" checked>
+                            <label class="form-check-label" for="airline-latam">LATAM</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="GOL" id="airline-gol" checked>
+                            <label class="form-check-label" for="airline-gol">GOL</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Azul" id="airline-azul" checked>
+                            <label class="form-check-label" for="airline-azul">Azul</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="Outras" id="airline-other" checked>
+                            <label class="form-check-label" for="airline-other">Outras</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Número de paradas</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="0" id="stops-0" checked>
+                            <label class="form-check-label" for="stops-0">Voo direto</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="stops-1" checked>
+                            <label class="form-check-label" for="stops-1">1 parada</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="2+" id="stops-2" checked>
+                            <label class="form-check-label" for="stops-2">2+ paradas</label>
+                        </div>
+                    </div>
+
+                    <button class="select-btn w-100" id="apply-filters">Aplicar filtros</button>
+                </div>
+
+                <div class="savings-suggestion">
+                    <div class="savings-title mb-2">Dica de economia!</div>
+                    <p>Antecipando sua viagem em 2 dias, você pode economizar:</p>
+                    <div class="savings-price mb-2">R$ 450,00</div>
+                    <button class="select-btn w-100">Ver oferta</button>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Buscando as melhores ofertas para você...</p>
+                </div>
+
+                <!-- Resultados -->
+                <div id="results-container"></div>
+            </div>
+        </div>
+        
+        <div class="navigation-btns mt-4 mb-5">
+            <a href="/" class="back-to-chat">
+                <i class="fas fa-arrow-left"></i> Voltar para o chat com a AVI
+            </a>
+            <a href="/roteiro-personalizado" class="continue-to-roteiro" id="continueToRoteiroBottom">
+                Continuar para o Roteiro <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página de resultados para Roteiro Personalizado carregada');
+            
+            // Coletar params da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const origin = urlParams.get('origin');
+            const destination = urlParams.get('destination');
+            const departureDate = urlParams.get('departure_date');
+            const returnDate = urlParams.get('return_date');
+            const adults = urlParams.get('adults') || 1;
+            const sessionId = urlParams.get('session_id');
+            
+            // Arrays para armazenar os voos selecionados
+            let selectedFlights = [];
+            
+            // Verificar se já temos seleções no cookie
+            const existingSelections = getCookie('roteiro_selected_flights');
+            if (existingSelections) {
+                try {
+                    selectedFlights = JSON.parse(existingSelections);
+                    console.log('Voos já selecionados:', selectedFlights);
+                } catch (e) {
+                    console.error('Erro ao processar seleções salvas:', e);
+                }
+            }
+            
+            // Atualizar a UI com parâmetros
+            if (origin) document.getElementById('origin-display').textContent = getAirportDisplayName(origin);
+            if (destination) document.getElementById('destination-display').textContent = getAirportDisplayName(destination);
+            if (departureDate) document.getElementById('departure-date-display').textContent = formatDate(departureDate);
+            if (adults) document.getElementById('passengers-display').textContent = adults;
+            
+            // Iniciar busca de voos
+            searchFlights({
+                origin, 
+                destination, 
+                departure_date: departureDate,
+                return_date: returnDate,
+                adults,
+                session_id: sessionId
+            });
+            
+            // Função para buscar voos
+            function searchFlights(params) {
+                // Mostrar loading
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('results-container').innerHTML = '';
+                
+                // Chamar a API
+                fetch('/api/amadeus/flight-search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(params)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Esconder loading
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Verificar se temos erro
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    // Mostrar os resultados
+                    renderFlightResults(data.data);
+                })
+                .catch(error => {
+                    // Esconder loading e mostrar erro
+                    document.getElementById('loading').style.display = 'none';
+                    showError('Erro ao buscar voos: ' + error.message);
+                });
+            }
+            
+            // Função para mostrar mensagem de erro
+            function showError(message) {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> ${message}
+                    </div>
+                    <div class="text-center mt-4">
+                        <button class="select-btn" onclick="window.location.href='/'">
+                            Voltar para o chat
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Função para mostrar mensagem de sem resultados
+            function showNoResults() {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i> Não encontramos voos para esta pesquisa.
+                    </div>
+                    <div class="text-center mt-4">
+                        <p>Tente modificar datas ou aeroportos.</p>
+                        <button class="select-btn" onclick="window.location.href='/'">
+                            Voltar para o chat
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Função para renderizar resultados de voos
+            function renderFlightResults(flights) {
+                console.log('🖌️ Renderizando resultados de voos...');
+                const container = document.getElementById('results-container');
+                container.innerHTML = '';
+
+                try {
+                    // Verificar se temos voos para renderizar
+                    if (!flights || flights.length === 0) {
+                        showNoResults();
+                        return;
+                    }
+
+                    console.log(`📊 Processando ${flights.length} ofertas de voos`);
+
+                    // Contador para rastrear quantos voos foram renderizados com sucesso
+                    let successfulRenders = 0;
+
+                    // Processando cada oferta de voo (uma oferta = ida + volta quando aplicável)
+                    flights.forEach((flight, flightIndex) => {
+                        try {
+                            // Verificar se o voo tem a estrutura de preço esperada
+                            if (!flight.price || !flight.price.total) {
+                                console.warn(`⚠️ Voo ${flightIndex} sem informação de preço válida:`, flight);
+                                return;
+                            }
+
+                            // Verificar se o voo tem itinerários
+                            if (!flight.itineraries || !Array.isArray(flight.itineraries) || flight.itineraries.length === 0) {
+                                console.warn(`⚠️ Voo ${flightIndex} sem itinerários válidos:`, flight);
+                                return;
+                            }
+
+                            // Criar um único card para a oferta completa (ida + volta quando aplicável)
+                            const flightCard = document.createElement('div');
+                            flightCard.className = 'flight-card mb-4';
+                            flightCard.dataset.flightId = flight.id;
+                            flightCard.style.position = 'relative';
+
+                            const priceTotal = parseFloat(flight.price.total);
+                            const currencyCode = flight.price.currency || 'BRL';
+
+                            // Flag para viagem de ida e volta
+                            const isRoundTrip = flight.itineraries.length > 1;
+
+                            // Processando o voo de ida (itinerário 0)
+                            const outboundItinerary = flight.itineraries[0];
+
+                            // Verificar se o itinerário tem segmentos
+                            if (!outboundItinerary || !outboundItinerary.segments || outboundItinerary.segments.length === 0) {
+                                console.warn(`⚠️ Itinerário de ida do voo ${flightIndex} inválido`);
+                                return;
+                            }
+
+                            const outboundSegments = outboundItinerary.segments;
+                            const outboundFirstSegment = outboundSegments[0];
+                            const outboundLastSegment = outboundSegments[outboundSegments.length - 1];
+
+                            // Verificar dados básicos
+                            if (!outboundFirstSegment || !outboundFirstSegment.departure || 
+                                !outboundLastSegment || !outboundLastSegment.arrival) {
+                                console.warn(`⚠️ Segmentos de ida do voo ${flightIndex} inválidos`);
+                                return;
+                            }
+
+                            // Dados de origem no voo de ida
+                            const outboundDeparture = outboundFirstSegment.departure;
+                            if (!outboundDeparture.at || !outboundDeparture.iataCode) {
+                                console.warn(`⚠️ Dados de partida incompletos para o voo de ida ${flightIndex}`);
+                                return;
+                            }
+
+                            const outboundDepartureDateTime = formatDateTime(outboundDeparture.at);
+                            const outboundOriginCode = outboundDeparture.iataCode;
+
+                            // Dados de destino no voo de ida
+                            const outboundArrival = outboundLastSegment.arrival;
+                            if (!outboundArrival.at || !outboundArrival.iataCode) {
+                                console.warn(`⚠️ Dados de chegada incompletos para o voo de ida ${flightIndex}`);
+                                return;
+                            }
+
+                            const outboundArrivalDateTime = formatDateTime(outboundArrival.at);
+                            const outboundDestinationCode = outboundArrival.iataCode;
+
+                            // Número de paradas
+                            const outboundStops = outboundSegments.length - 1;
+                            const outboundStopsText = outboundStops === 0 ? 'Direto' : `${outboundStops} ${outboundStops === 1 ? 'parada' : 'paradas'}`;
+
+                            // Duração do voo
+                            const outboundDuration = formatDuration(outboundItinerary.duration);
+
+                            // Companhia aérea (primeira companhia do primeiro segmento)
+                            const outboundAirline = outboundFirstSegment.carrierCode;
+
+                            // HTML para o voo de ida
+                            let outboundHTML = `
+                                <div class="p-3">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <div class="airline text-center">
+                                                <!-- Logo da companhia aérea (placeholder) -->
+                                                <div class="airline-name">${getAirlineDisplayName(outboundAirline)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="flight-time">${outboundDepartureDateTime.time}</div>
+                                            <div class="flight-date">${outboundDepartureDateTime.date}</div>
+                                            <div class="airport-code">${outboundOriginCode}</div>
+                                            <div class="airport-name">${getAirportInfo(outboundOriginCode).city}</div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="flight-duration">
+                                                <div class="duration-time">${outboundDuration}</div>
+                                            </div>
+                                            <div class="stops text-center mt-1">${outboundStopsText}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="flight-time">${outboundArrivalDateTime.time}</div>
+                                            <div class="flight-date">${outboundArrivalDateTime.date}</div>
+                                            <div class="airport-code">${outboundDestinationCode}</div>
+                                            <div class="airport-name">${getAirportInfo(outboundDestinationCode).city}</div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="price-container">
+                                                <div class="price">${formatPrice(priceTotal)}</div>
+                                                <button class="select-btn mt-2">Selecionar</button>
+                                                <button class="add-to-roteiro-btn" data-flight-id="${flight.id}">
+                                                    <i class="fas fa-plus"></i> Adicionar ao Roteiro
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            // HTML para o voo de volta (se aplicável)
+                            let returnHTML = '';
+                            if (isRoundTrip) {
+                                const inboundItinerary = flight.itineraries[1];
+                                
+                                if (!inboundItinerary || !inboundItinerary.segments || inboundItinerary.segments.length === 0) {
+                                    console.warn(`⚠️ Itinerário de volta do voo ${flightIndex} inválido`);
+                                } else {
+                                    const inboundSegments = inboundItinerary.segments;
+                                    const inboundFirstSegment = inboundSegments[0];
+                                    const inboundLastSegment = inboundSegments[inboundSegments.length - 1];
+                                    
+                                    // Verificar dados básicos
+                                    if (!inboundFirstSegment || !inboundFirstSegment.departure || 
+                                        !inboundLastSegment || !inboundLastSegment.arrival) {
+                                        console.warn(`⚠️ Segmentos de volta do voo ${flightIndex} inválidos`);
+                                    } else {
+                                        // Dados de origem no voo de volta
+                                        const inboundDeparture = inboundFirstSegment.departure;
+                                        if (!inboundDeparture.at || !inboundDeparture.iataCode) {
+                                            console.warn(`⚠️ Dados de partida incompletos para o voo de volta ${flightIndex}`);
+                                        } else {
+                                            const inboundDepartureDateTime = formatDateTime(inboundDeparture.at);
+                                            const inboundOriginCode = inboundDeparture.iataCode;
+                                            
+                                            // Dados de destino no voo de volta
+                                            const inboundArrival = inboundLastSegment.arrival;
+                                            if (!inboundArrival.at || !inboundArrival.iataCode) {
+                                                console.warn(`⚠️ Dados de chegada incompletos para o voo de volta ${flightIndex}`);
+                                            } else {
+                                                const inboundArrivalDateTime = formatDateTime(inboundArrival.at);
+                                                const inboundDestinationCode = inboundArrival.iataCode;
+                                                
+                                                // Número de paradas
+                                                const inboundStops = inboundSegments.length - 1;
+                                                const inboundStopsText = inboundStops === 0 ? 'Direto' : `${inboundStops} ${inboundStops === 1 ? 'parada' : 'paradas'}`;
+                                                
+                                                // Duração do voo
+                                                const inboundDuration = formatDuration(inboundItinerary.duration);
+                                                
+                                                // Companhia aérea (primeira companhia do primeiro segmento)
+                                                const inboundAirline = inboundFirstSegment.carrierCode;
+                                                
+                                                // HTML para o voo de volta
+                                                returnHTML = `
+                                                    <div class="return-flight p-3 border-top">
+                                                        <div class="segment-header mb-2">Voo de Volta</div>
+                                                        <div class="row align-items-center">
+                                                            <div class="col-md-2">
+                                                                <div class="airline text-center">
+                                                                    <!-- Logo da companhia aérea (placeholder) -->
+                                                                    <div class="airline-name">${getAirlineDisplayName(inboundAirline)}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <div class="flight-time">${inboundDepartureDateTime.time}</div>
+                                                                <div class="flight-date">${inboundDepartureDateTime.date}</div>
+                                                                <div class="airport-code">${inboundOriginCode}</div>
+                                                                <div class="airport-name">${getAirportInfo(inboundOriginCode).city}</div>
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <div class="flight-duration">
+                                                                    <div class="duration-time">${inboundDuration}</div>
+                                                                </div>
+                                                                <div class="stops text-center mt-1">${inboundStopsText}</div>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <div class="flight-time">${inboundArrivalDateTime.time}</div>
+                                                                <div class="flight-date">${inboundArrivalDateTime.date}</div>
+                                                                <div class="airport-code">${inboundDestinationCode}</div>
+                                                                <div class="airport-name">${getAirportInfo(inboundDestinationCode).city}</div>
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <!-- Preço já está no card principal -->
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Detalhes dos segmentos para expandir
+                            let outboundSegmentsHTML = '';
+                            outboundSegments.forEach((segment, segmentIndex) => {
+                                try {
+                                    if (!segment.departure || !segment.arrival || !segment.carrierCode) {
+                                        return;
+                                    }
+                                    
+                                    const segmentDeparture = formatDateTime(segment.departure.at);
+                                    const segmentArrival = formatDateTime(segment.arrival.at);
+                                    const segmentDuration = formatDuration(segment.duration);
+                                    const segmentCarrier = getAirlineDisplayName(segment.carrierCode);
+                                    const segmentNumber = segment.number;
+                                    
+                                    outboundSegmentsHTML += `
+                                        <div class="segment">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <strong>Voo:</strong> ${segmentCarrier} ${segmentNumber}
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <div class="segment-route">
+                                                        ${segment.departure.iataCode} (${segmentDeparture.time}) → 
+                                                        ${segment.arrival.iataCode} (${segmentArrival.time})
+                                                    </div>
+                                                    <div class="segment-info">
+                                                        Duração: ${segmentDuration}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                } catch (e) {
+                                    console.error(`Erro ao processar segmento ${segmentIndex} do voo ${flightIndex}:`, e);
+                                }
+                            });
+
+                            // Construir detalhes do voo de volta, se aplicável
+                            let inboundSegmentsHTML = '';
+                            if (isRoundTrip && flight.itineraries[1] && flight.itineraries[1].segments) {
+                                flight.itineraries[1].segments.forEach((segment, segmentIndex) => {
+                                    try {
+                                        if (!segment.departure || !segment.arrival || !segment.carrierCode) {
+                                            return;
+                                        }
+                                        
+                                        const segmentDeparture = formatDateTime(segment.departure.at);
+                                        const segmentArrival = formatDateTime(segment.arrival.at);
+                                        const segmentDuration = formatDuration(segment.duration);
+                                        const segmentCarrier = getAirlineDisplayName(segment.carrierCode);
+                                        const segmentNumber = segment.number;
+                                        
+                                        inboundSegmentsHTML += `
+                                            <div class="segment">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <strong>Voo:</strong> ${segmentCarrier} ${segmentNumber}
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <div class="segment-route">
+                                                            ${segment.departure.iataCode} (${segmentDeparture.time}) → 
+                                                            ${segment.arrival.iataCode} (${segmentArrival.time})
+                                                        </div>
+                                                        <div class="segment-info">
+                                                            Duração: ${segmentDuration}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    } catch (e) {
+                                        console.error(`Erro ao processar segmento de volta ${segmentIndex} do voo ${flightIndex}:`, e);
+                                    }
+                                });
+                            }
+                            
+                            // Badge de selecionado (inicialmente oculto)
+                            const selectedBadgeHTML = `
+                                <div class="selected-badge">
+                                    <i class="fas fa-check"></i> Adicionado ao Roteiro
+                                </div>
+                            `;
+
+                            // Montar o HTML completo do card
+                            flightCard.innerHTML = `
+                                ${selectedBadgeHTML}
+                                <div class="card-body">
+                                    ${outboundHTML}
+                                    ${returnHTML}
+                                </div>
+
+                                <div class="flight-details" style="display: none;">
+                                    <div class="segment-header">Detalhes do Voo de Ida</div>
+                                    <div class="segments-container">
+                                        ${outboundSegmentsHTML}
+                                    </div>
+                                    
+                                    ${isRoundTrip && inboundSegmentsHTML ? `
+                                        <div class="segment-header mt-3">Detalhes do Voo de Volta</div>
+                                        <div class="segments-container">
+                                            ${inboundSegmentsHTML}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    <div class="baggage-info mt-3">
+                                        <i class="fas fa-suitcase"></i> Inclui bagagem de mão. Bagagem despachada pode ter custo adicional.
+                                    </div>
+                                </div>
+                            `;
+
+                            // Adicionar o card à lista de resultados
+                            container.appendChild(flightCard);
+                            
+                            // Se este voo já estiver selecionado, mostrar a badge
+                            if (isFlightSelected(flight.id)) {
+                                const badge = flightCard.querySelector('.selected-badge');
+                                if (badge) {
+                                    badge.style.display = 'block';
+                                }
+                                
+                                const addBtn = flightCard.querySelector('.add-to-roteiro-btn');
+                                if (addBtn) {
+                                    addBtn.textContent = 'Remover do Roteiro';
+                                    addBtn.classList.add('btn-danger');
+                                }
+                            }
+
+                            // Adicionar event listeners
+                            const cardBody = flightCard.querySelector('.card-body');
+                            const details = flightCard.querySelector('.flight-details');
+                            
+                            // Expandir/retrair detalhes do voo
+                            cardBody.addEventListener('click', function(e) {
+                                // Não expandir se clicar no botão de selecionar
+                                if (e.target.classList.contains('select-btn') || e.target.classList.contains('add-to-roteiro-btn')) {
+                                    return;
+                                }
+
+                                if (details.style.display === 'none') {
+                                    details.style.display = 'block';
+                                } else {
+                                    details.style.display = 'none';
+                                }
+                            });
+                            
+                            // Adicionar ao roteiro
+                            const addToRoteiroBtn = flightCard.querySelector('.add-to-roteiro-btn');
+                            addToRoteiroBtn.addEventListener('click', function() {
+                                const flightId = this.dataset.flightId;
+                                
+                                if (isFlightSelected(flightId)) {
+                                    // Remover do roteiro
+                                    removeFlightFromSelection(flightId);
+                                    
+                                    // Atualizar UI
+                                    this.textContent = 'Adicionar ao Roteiro';
+                                    this.classList.remove('btn-danger');
+                                    const badge = flightCard.querySelector('.selected-badge');
+                                    if (badge) {
+                                        badge.style.display = 'none';
+                                    }
+                                } else {
+                                    // Adicionar ao roteiro
+                                    addFlightToSelection(flight);
+                                    
+                                    // Atualizar UI
+                                    this.textContent = 'Remover do Roteiro';
+                                    this.classList.add('btn-danger');
+                                    const badge = flightCard.querySelector('.selected-badge');
+                                    if (badge) {
+                                        badge.style.display = 'block';
+                                    }
+                                }
+                            });
+
+                            // Incrementar contador de renderizações bem-sucedidas
+                            successfulRenders++;
+                        } catch (e) {
+                            console.error(`⚠️ Erro ao renderizar voo ${flightIndex}:`, e);
+                        }
+                    });
+
+                    console.log(`✅ Renderizados com sucesso: ${successfulRenders} de ${flights.length} voos`);
+                    
+                    // Se nenhum voo foi renderizado com sucesso, mostrar mensagem de erro
+                    if (successfulRenders === 0) {
+                        showNoResults();
+                    }
+                } catch (e) {
+                    console.error('⚠️ Erro ao renderizar resultados:', e);
+                    showError('Ocorreu um erro ao processar os resultados. Por favor, tente novamente.');
+                }
+            }
+            
+            // Botões para continuar para o roteiro
+            document.getElementById('continueToRoteiro').addEventListener('click', navigateToRoteiro);
+            document.getElementById('continueToRoteiroBottom').addEventListener('click', navigateToRoteiro);
+            
+            // Funções para gerenciar seleções
+            function isFlightSelected(flightId) {
+                return selectedFlights.some(f => f.id === flightId);
+            }
+            
+            function addFlightToSelection(flight) {
+                // Evitar duplicatas
+                if (!isFlightSelected(flight.id)) {
+                    selectedFlights.push(flight);
+                    updateSelectionCookie();
+                }
+            }
+            
+            function removeFlightFromSelection(flightId) {
+                selectedFlights = selectedFlights.filter(f => f.id !== flightId);
+                updateSelectionCookie();
+            }
+            
+            function updateSelectionCookie() {
+                setCookie('roteiro_selected_flights', JSON.stringify(selectedFlights));
+            }
+            
+            function navigateToRoteiro(e) {
+                e.preventDefault();
+                
+                // Verificar se temos seleções
+                if (selectedFlights.length === 0) {
+                    alert('Por favor, selecione pelo menos um voo para adicionar ao seu roteiro.');
+                    return;
+                }
+                
+                // Preparar dados para o roteiro
+                const roteiroData = {
+                    destination: getAirportInfo(destination).city || destination,
+                    startDate: departureDate,
+                    endDate: returnDate || departureDate, // Se não houver data de retorno, usar a de ida
+                    travelers: parseInt(adults),
+                    flights: selectedFlights
+                };
+                
+                // Salvar dados do roteiro
+                setCookie('roteiro_data', JSON.stringify(roteiroData));
+                
+                // Redirecionar para a página do roteiro
+                window.location.href = '/roteiro-personalizado';
+            }
+            
+            // Funções utilitárias
+            function formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('pt-BR');
+            }
+            
+            function formatDateTime(dateTimeString) {
+                if (!dateTimeString) return { date: '', time: '' };
+                
+                const date = new Date(dateTimeString);
+                
+                return {
+                    date: date.toLocaleDateString('pt-BR'),
+                    time: date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                };
+            }
+            
+            function formatDuration(duration) {
+                if (!duration) return '';
+                
+                // Formatar duração para exibição
+                const durationMatch = duration.match(/PT(\d+H)?(\d+M)?/);
+                if (durationMatch) {
+                    const hours = durationMatch[1] ? parseInt(durationMatch[1]) : 0;
+                    const minutes = durationMatch[2] ? parseInt(durationMatch[2]) : 0;
+                    
+                    return `${hours}h ${minutes}m`;
+                }
+                
+                return duration;
+            }
+            
+            function formatPrice(price, currency = 'BRL') {
+                return new Intl.NumberFormat('pt-BR', { 
+                    style: 'currency', 
+                    currency: currency
+                }).format(price);
+            }
+            
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            }
+            
+            function setCookie(name, value, days = 7) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = `expires=${date.toUTCString()}`;
+                document.cookie = `${name}=${value};${expires};path=/`;
+            }
+        });
+    </script>
+</body>
+</html>
