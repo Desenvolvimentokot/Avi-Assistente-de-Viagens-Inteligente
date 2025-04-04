@@ -7,44 +7,68 @@
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/roteiro-personalizado.css') }}">
     <!-- Leaflet.js para o mapa -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Flai Logo" height="30">
-                Flai
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+    <!-- Header com logo dropdown -->
+    <div class="header-container">
+        <div class="logo-dropdown">
+            <button class="logo-button" id="logo-button">
+                <img src="{{ url_for('static', filename='img/Avi-logo.png') }}" alt="Logo Avi">
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Início</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/about">Sobre</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/contact">Contato</a>
-                    </li>
-                </ul>
+            <div class="dropdown-menu" id="dropdown-menu">
+                <div class="nav-items-dropdown">
+                    <div class="nav-item-dropdown" id="chat-tab-dropdown">
+                        <a href="/" style="text-decoration: none; color: inherit;">
+                            <i class="fas fa-comment"></i>
+                            <span>Chat</span>
+                        </a>
+                    </div>
+                    <div class="nav-item-dropdown" id="plans-tab-dropdown">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Planos</span>
+                    </div>
+                    <div class="nav-item-dropdown active" id="roteiro-tab-dropdown">
+                        <a href="/roteiro-personalizado" style="text-decoration: none; color: inherit;">
+                            <i class="fas fa-route"></i>
+                            <span>Roteiro Personalizado</span>
+                        </a>
+                    </div>
+                    <div class="nav-item-dropdown" id="profile-tab-dropdown">
+                        <i class="fas fa-user"></i>
+                        <span>Perfil</span>
+                    </div>
+                </div>
             </div>
         </div>
-    </nav>
+        <div class="header-actions">
+            <a href="/amadeus-results" class="header-action" id="amadeusResultsButton">
+                <i class="fas fa-plane"></i>
+                <span>Buscar Voos</span>
+            </a>
+            <a href="/roteiro-personalizado" class="header-action active" id="roteiroPersonalizadoButton">
+                <i class="fas fa-route"></i>
+                <span>Roteiro</span>
+            </a>
+            <div class="header-action">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="header-action">
+                <i class="fas fa-cog"></i>
+            </div>
+        </div>
+    </div>
 
     <div class="roteiro-container">
         <!-- Painel de Chat (Esquerda) -->
         <div class="chat-panel" id="chatPanel">
             <div class="chat-header">
                 <div class="chat-title">
-                    <img src="{{ url_for('static', filename='images/avi-avatar.png') }}" alt="AVI" class="avi-avatar">
+                    <img src="{{ url_for('static', filename='img/avi-avatar.png') }}" alt="AVI" class="avi-avatar">
                     <h3>Conversa com AVI</h3>
                 </div>
                 <button class="toggle-chat-btn" id="toggleChatBtn">
