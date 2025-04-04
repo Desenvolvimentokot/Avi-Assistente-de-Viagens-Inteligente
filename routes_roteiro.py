@@ -71,7 +71,6 @@ def iniciar_roteiro():
             destination=data.get('destination'),
             start_date=datetime.strptime(data.get('startDate'), '%Y-%m-%d') if data.get('startDate') else None,
             end_date=datetime.strptime(data.get('endDate'), '%Y-%m-%d') if data.get('endDate') else None,
-            budget=data.get('budget'),
             details=json.dumps(data.get('days', [])),
             created_at=datetime.now(),
             updated_at=datetime.now()
@@ -605,12 +604,20 @@ def process_avi_message(message, roteiro_data):
         intent = "atrações"
     elif any(word in message_lower for word in ['roteiro', 'itinerário', 'planejar', 'organizar', 'programação']):
         intent = "roteiro"
+    elif any(word in message_lower for word in ['busque tudo', 'buscar tudo', 'encontre tudo', 'mostre tudo']):
+        intent = "buscar_tudo"
+    elif any(word in message_lower for word in ['ajuda', 'ajudar', 'funciona', 'utilizar', 'como', 'não entendi']):
+        intent = "ajuda"
+    elif any(word in message_lower for word in ['olá', 'oi', 'ei', 'hey', 'boa', 'bom']):
+        intent = "saudacao"
+    elif any(word in message_lower for word in ['obrigad', 'agradeç', 'valeu', 'perfeito']):
+        intent = "agradecimento"
     
     # Gerar resposta da AVI com base na intenção e contexto do roteiro
     response = generate_avi_response(intent, message, updates, roteiro_data)
     
-    # Se o usuário está perguntando sobre voos e temos origem e destino, buscar voos
-    if intent == "voos" and destination:
+    # Se o usuário está perguntando sobre voos ou busca_tudo, e temos origem e destino, buscar voos
+    if (intent in ["voos", "buscar_tudo"]) and destination:
         # Aqui podemos assumir um aeroporto de origem padrão ou extraí-lo da mensagem
         # Por exemplo, usar GRU para São Paulo como padrão
         origin = extract_origin_from_message(message) or "GRU"
@@ -620,18 +627,18 @@ def process_avi_message(message, roteiro_data):
             # Buscar voos na API Amadeus
             try:
                 logger.info(f"Buscando voos: {origin} -> {destination}, data: {start_date}")
-                flight_results = amadeus_service.search_flights(
-                    origin=origin, 
-                    destination=destination,
-                    departure_date=start_date.split('T')[0] if 'T' in start_date else start_date,
-                    adults=travelers
-                )
+                flight_results = amadeus_service.search_flights(params={
+                    'originLocationCode': origin, 
+                    'destinationLocationCode': destination,
+                    'departureDate': start_date.split('T')[0] if 'T' in start_date else start_date,
+                    'adults': travelers
+                })
                 
                 # Se temos resultados, adicionar às atualizações
                 if flight_results and len(flight_results) > 0:
                     # Mapear resultados para o formato de bloco do roteiro
                     flight_blocks = []
-                    for flight in flight_results[:2]:  # Limitar a 2 opções para não sobrecarregar
+                    for flight in flight_results[:3]:  # Mostrar até 3 opções
                         flight_block = map_flight_to_block(flight)
                         if flight_block:
                             flight_blocks.append(flight_block)
@@ -642,10 +649,14 @@ def process_avi_message(message, roteiro_data):
                             updates['items'] = []
                         updates['items'].extend(flight_blocks)
                         
-                        # Adicionar mensagem sobre os voos encontrados
-                        response += f"\n\nEncontrei {len(flight_blocks)} opções de voos para você e já adicionei ao seu roteiro. Você pode ver os detalhes no painel à direita."
+                        # Adicionar mensagem sobre os voos encontrados apenas para intenção voos
+                        # Para buscar_tudo já está mencionado na resposta principal
+                        if intent == "voos":
+                            response += f"\n\nEncontrei {len(flight_blocks)} opções de voos para você e já adicionei ao seu roteiro. Você pode ver os detalhes no painel à direita."
             except Exception as e:
                 logger.error(f"Erro ao buscar voos: {str(e)}")
+                if intent == "voos":
+                    response += "\n\nDesculpe, tive um problema ao buscar voos. Por favor, verifique se o código de aeroporto está correto ou tente novamente mais tarde."
     
     return response, updates
 
@@ -662,43 +673,95 @@ def generate_avi_response(intent, message, updates, roteiro_data):
     Returns:
         string: Resposta da AVI
     """
-    # Aqui é onde integraríamos com a API GPT, mas vamos criar respostas pré-definidas para demonstração
+    # Recuperar informações do roteiro para contextualizar a resposta
     destination = updates.get('destination') or roteiro_data.get('destination')
+    start_date = updates.get('startDate') or roteiro_data.get('startDate')
+    end_date = updates.get('endDate') or roteiro_data.get('endDate')
+    travelers = updates.get('travelers') or roteiro_data.get('travelers', 1)
     
-    # Resposta baseada em intenção
-    if intent == "voos":
-        if destination:
-            return f"Vou buscar voos para {destination} para você. Você pode me informar de onde pretende partir, em que datas e quantas pessoas viajarão?"
-        else:
-            return "Para buscar voos, preciso saber para onde você quer ir. Pode me informar seu destino?"
-            
-    elif intent == "hospedagem":
-        if destination:
-            return f"Posso ajudar a encontrar ótimas hospedagens em {destination}. Tem preferência por alguma região específica ou tipo de acomodação?"
-        else:
-            return "Para sugerir hospedagens, preciso saber qual é o seu destino. Pode me informar para onde pretende viajar?"
-            
-    elif intent == "atrações":
-        if destination:
-            return f"{destination} tem muitas atrações incríveis! Você prefere atividades culturais, naturais, gastronômicas ou todas elas?"
-        else:
-            return "Para recomendar atrações, preciso saber qual será seu destino. Pode me informar para onde pretende viajar?"
-            
-    elif intent == "roteiro":
-        if destination:
-            return f"Estou aqui para ajudar a planejar seu roteiro em {destination}. Se me contar mais sobre seus interesses, posso montar um plano personalizado com voos, hospedagem e atividades."
-        else:
-            return "Estou aqui para ajudar com seu roteiro de viagem. Para começar, pode me dizer para onde você pretende ir?"
+    # Formatar datas para exibição, se disponíveis
+    formatted_start_date = None
+    formatted_end_date = None
     
-    else:  # Intenção geral
-        if 'destination' in updates:  # Se acabamos de descobrir o destino
-            return f"Ótimo! Vamos planejar sua viagem para {destination}. Quando você pretende ir e por quantos dias ficará por lá?"
-        
-        elif destination:  # Se já sabemos o destino, mas é uma conversa geral
-            return f"Como posso ajudar mais com sua viagem para {destination}? Posso buscar voos, sugerir hotéis ou recomendar atividades interessantes."
-        
-        else:  # Conversa bem inicial
-            return "Olá! Para te ajudar a planejar sua viagem, preciso saber para onde você quer ir. Pode me informar o seu destino?"
+    if start_date:
+        try:
+            if 'T' in start_date:
+                start_date = start_date.split('T')[0]
+            date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+            formatted_start_date = date_obj.strftime('%d/%m/%Y')
+        except:
+            formatted_start_date = start_date
+            
+    if end_date:
+        try:
+            if 'T' in end_date:
+                end_date = end_date.split('T')[0]
+            date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+            formatted_end_date = date_obj.strftime('%d/%m/%Y')
+        except:
+            formatted_end_date = end_date
+    
+    # Lista de possíveis respostas para cada intenção
+    respostas = {
+        "saudacao": [
+            f"Olá! Sou a AVI, sua assistente de viagens inteligente. Como posso ajudar com sua viagem{'para ' + destination if destination else ''}?",
+            f"Oi! Que bom te ver por aqui. Estou aqui para ajudar com o planejamento da sua viagem{'para ' + destination if destination else ''}.",
+            f"Olá! Vamos planejar sua viagem{'para ' + destination if destination else ''}? Conte-me o que você precisa."
+        ],
+        "voos": [
+            f"Vou buscar os melhores voos para {destination}. Você gostaria de partir de qual cidade?",
+            f"Para encontrar voos ideais para {destination}, preciso saber: de onde você quer partir e em quais datas?",
+            f"Estou pesquisando voos para {destination}. Já definiu a data da viagem?"
+        ],
+        "hospedagem": [
+            f"Posso ajudar a encontrar ótimas hospedagens em {destination}. Tem preferência por hotéis, pousadas ou apartamentos?",
+            f"Para sua estadia em {destination}, o que é mais importante: localização, conforto ou economia?",
+            f"Que tipo de acomodação você prefere em {destination}? Posso recomendar desde hotéis de luxo até opções mais econômicas."
+        ],
+        "atrações": [
+            f"{destination} tem atrações incríveis! Você prefere atividades culturais, natureza, gastronomia ou vida noturna?",
+            f"Em {destination} você encontra muitas opções de lazer. O que mais te interessa conhecer por lá?",
+            f"Posso sugerir os melhores pontos turísticos de {destination} baseados nos seus interesses. O que você mais gosta de fazer em viagens?"
+        ],
+        "roteiro": [
+            f"Estou montando seu roteiro para {destination}. Com quantos dias você planeja ficar?",
+            f"Para seu roteiro em {destination}, já tem alguma atividade ou lugar específico que não quer deixar de visitar?",
+            f"Vamos planejar cada dia em {destination}. Você prefere um roteiro mais intenso ou com tempo livre para relaxar?"
+        ],
+        "buscar_tudo": [
+            f"Perfeito! Vou buscar todas as informações disponíveis para sua viagem para {destination}{' de ' + formatted_start_date + ' a ' + formatted_end_date if formatted_start_date and formatted_end_date else ''}. Estou procurando voos, hospedagens e principais atrações para você!",
+            f"Buscando tudo sobre {destination} para você! Encontrarei as melhores opções de voos{' para ' + formatted_start_date if formatted_start_date else ''}, hospedagens e atrações para aproveitar ao máximo sua viagem.",
+            f"Estou procurando todas as informações para tornar sua viagem para {destination} perfeita! Já separei algumas opções de voos e estou analisando as melhores hospedagens e atividades."
+        ],
+        "ajuda": [
+            "Estou aqui para ajudar a planejar sua viagem! Você pode me dizer para onde quer ir, e eu ajudo com voos, hospedagem e atrações. Quanto mais detalhes você me der, mais personalizado será o roteiro!",
+            "O Roteiro Personalizado permite que você monte sua viagem enquanto conversamos. Me conte seu destino, datas e preferências, e irei sugerindo opções que aparecerão no painel à direita.",
+            "Para planejar sua viagem, comece me dizendo seu destino. Em seguida, podemos definir datas, buscar voos, encontrar hospedagens e sugerir atividades para cada dia do seu roteiro."
+        ],
+        "agradecimento": [
+            "Por nada! Estou sempre aqui para ajudar com suas viagens. Se precisar de mais alguma coisa, é só me dizer!",
+            "O prazer é meu! Se surgir qualquer dúvida sobre sua viagem, pode contar comigo.",
+            "Fico feliz em ajudar! Lembre-se que você pode atualizar seu roteiro a qualquer momento durante nosso planejamento."
+        ]
+    }
+    
+    # Seleciona uma resposta aleatória para a intenção detectada
+    if intent and intent in respostas:
+        import random
+        return random.choice(respostas[intent])
+    
+    # Se não há intenção específica, verificar o contexto para dar uma resposta apropriada
+    if 'destination' in updates:  # Se acabamos de descobrir o destino
+        return f"Perfeito! Vamos planejar sua viagem para {destination}. Quando você pretende ir? Se já souber, me informe as datas de ida e volta, assim posso buscar as melhores opções para você."
+    
+    elif destination:  # Se já sabemos o destino, mas é uma conversa geral
+        dates_info = ""
+        if formatted_start_date and formatted_end_date:
+            dates_info = f" de {formatted_start_date} a {formatted_end_date}"
+        return f"Estamos planejando sua viagem para {destination}{dates_info}. Em que posso ajudar agora? Posso buscar voos, sugerir hotéis ou recomendar atividades interessantes."
+    
+    else:  # Conversa bem inicial
+        return "Olá! Sou a AVI, sua assistente de viagens inteligente. Para começarmos a planejar sua viagem, me conte: para onde você gostaria de ir?"
 
 def extract_origin_from_message(message):
     """
