@@ -1,9 +1,9 @@
 /**
- * Amadeus Results Redirect
+ * Amadeus Results Modal
  * 
- * Script para tratar o botão que redireciona para a página de resultados da Amadeus.
+ * Script para tratar o botão que abre o modal de resultados da Amadeus.
  * Escuta cliques em botões com a classe 'amadeus-results-btn' e extrai os parâmetros
- * para construir a URL de redirecionamento.
+ * para abrir o modal com os resultados.
  */
 document.addEventListener('DOMContentLoaded', function() {
     // Inicializa a detecção de botões de resultados
@@ -82,29 +82,30 @@ function handleResultsButtonClick(event) {
     if (!sessionId || sessionId === 'undefined' || sessionId === 'null' || 
         sessionId === '12345' || sessionId === 'SESSION_ID_ATUAL') {
         sessionId = 'session-' + Math.random().toString(36).substring(2, 12);
-        console.log('[Amadeus Redirect] Gerado novo ID de sessão: ' + sessionId);
+        console.log('[Amadeus Modal] Gerado novo ID de sessão: ' + sessionId);
     }
     
-    console.log('[Amadeus Redirect] Clique em botão de resultados detectado.');
-    console.log(`[Amadeus Redirect] Parâmetros: ${origin} → ${destination}, Data: ${departureDate}, Adultos: ${adults}`);
-    console.log(`[Amadeus Redirect] Usando session_id confiável: ${sessionId}`);
+    console.log('[Amadeus Modal] Clique em botão de resultados detectado.');
+    console.log(`[Amadeus Modal] Parâmetros: ${origin} → ${destination}, Data: ${departureDate}, Adultos: ${adults}`);
+    console.log(`[Amadeus Modal] Usando session_id confiável: ${sessionId}`);
     
-    // Construir a URL para a página de resultados
-    let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    // Salvar o session_id no cookie para a API
+    document.cookie = `flai_session_id=${sessionId}; path=/; max-age=3600`;
     
-    if (departureDate) {
-        url += `&departure_date=${encodeURIComponent(departureDate)}`;
+    // Parâmetros para o modal
+    const params = {
+        origin: origin,
+        destination: destination,
+        departureDate: departureDate,
+        adults: adults || 1,
+        sessionId: sessionId
+    };
+    
+    // Verificar se o modal existe e abri-lo
+    if (typeof FlightModal !== 'undefined') {
+        FlightModal.open(params);
+    } else {
+        console.error('[Amadeus Modal] FlightModal não está definido. Verifique se o script flight-modal.js foi carregado.');
+        alert('Não foi possível abrir os resultados de voos. Por favor, tente novamente mais tarde.');
     }
-    
-    if (adults) {
-        url += `&adults=${encodeURIComponent(adults)}`;
-    }
-    
-    // SEMPRE usar o sessionId validado
-    url += `&session_id=${encodeURIComponent(sessionId)}`;
-    
-    console.log(`[Amadeus Redirect] Redirecionando para: ${url}`);
-    
-    // Abrir a página de resultados em uma nova aba para manter a conversa com a AVI
-    window.open(url, '_blank');
 }
