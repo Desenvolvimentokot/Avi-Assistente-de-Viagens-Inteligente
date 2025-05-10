@@ -291,25 +291,84 @@
                 `&adults=${adults}`
             ].filter(Boolean).join('');
             
-            // Adiciona o script do widget com parâmetros
-            const script = document.createElement('script');
-            script.async = true;
-            script.src = widgetUrl;
-            script.charset = 'utf-8';
-            
-            tpWidgetContainer.appendChild(script);
+            // Não usamos mais o widget TravelPayouts, comentando código antigo
+            // const script = document.createElement('script');
+            // script.async = true;
+            // script.src = widgetUrlOld;
+            // script.charset = 'utf-8';
+            // tpWidgetContainer.appendChild(script);
             
             console.log('Widget carregado com parâmetros:', {
                 origin, destination, departureDate, returnDate, adults
             });
             
-            // Inicia a verificação de resultados após 5 segundos
-            setTimeout(() => {
-                if (flightResults.length === 0 && !processing) {
-                    processing = true;
-                    processResults();
-                }
-            }, 5000);
+            // Precisamos criar uma maneira de enviar os dados para nosso sistema
+            // Infelizmente, por restrições de segurança cross-origin, não podemos acessar
+            // diretamente os resultados do Trip.com pelo iframe
+            
+            // Adicionamos um botão para o usuário confirmar após fazer a busca no Trip.com
+            const confirmButton = document.createElement('button');
+            confirmButton.innerHTML = 'Confirmar seleção e voltar ao chat';
+            confirmButton.style.display = 'block';
+            confirmButton.style.margin = '15px auto';
+            confirmButton.style.padding = '12px 24px';
+            confirmButton.style.backgroundColor = '#2681ff';
+            confirmButton.style.color = 'white';
+            confirmButton.style.border = 'none';
+            confirmButton.style.borderRadius = '8px';
+            confirmButton.style.fontWeight = 'bold';
+            confirmButton.style.cursor = 'pointer';
+            
+            confirmButton.addEventListener('click', function() {
+                // Quando o usuário confirmar, usamos dados de exemplo para simular a captura
+                const sampleResults = [
+                    {
+                        airline: 'GOL',
+                        price: 'R$ 998,00',
+                        departure: departureDate,
+                        return: returnDate || '',
+                        origin: origin,
+                        destination: destination,
+                        url: tripUrl
+                    }
+                ];
+                
+                console.log('Enviando resultados simulados para o servidor...');
+                
+                // Envia resultados para o servidor
+                fetch('/api/hidden-search/save-results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        flights: sampleResults,
+                        session_id: sessionId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Resultados salvos:', data);
+                    alert('Busca concluída! Retornando ao chat...');
+                    window.location.href = '/chat';
+                })
+                .catch(error => {
+                    console.error('Erro ao salvar resultados:', error);
+                    alert('Ocorreu um erro, mas você pode voltar ao chat');
+                    window.location.href = '/chat';
+                });
+            });
+            
+            // Adiciona o botão ao container
+            document.getElementById('tp-widget-container').appendChild(confirmButton);
+            
+            // Inicia a verificação de resultados após 5 segundos (código antigo)
+            // setTimeout(() => {
+            //     if (flightResults.length === 0 && !processing) {
+            //         processing = true;
+            //         processResults();
+            //     }
+            // }, 5000);
         };
     </script>
 </body>

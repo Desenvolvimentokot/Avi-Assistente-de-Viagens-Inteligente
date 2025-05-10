@@ -180,5 +180,13 @@
         initObserver();
     }
     
+    // Função para obter valor de cookie
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
     console.log('Script de detecção de botão Trip.com carregado');
 })();
