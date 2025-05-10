@@ -189,46 +189,13 @@ window.tripComIntegration = (function() {
                     }
                 }
                 
-                // Se não conseguiu extrair do iframe, retorna dados simulados
-                // Isso é temporário até implementarmos uma solução mais robusta
-                console.warn("Não foi possível extrair dados do iframe, usando dados alternativos");
+                // Não foi possível extrair dados do iframe devido a restrições de CORS
+                console.warn("Não foi possível extrair dados do iframe, buscando DADOS REAIS da API TravelPayouts");
                 
-                // Este é um ponto onde poderíamos integrar com a API do TravelPayouts
-                // para obter dados reais como alternativa
-                const results = [
-                    {
-                        id: 'tp-1',
-                        airline: 'LATAM',
-                        price: 1250.00,
-                        duration: '2h 15m',
-                        departure_time: '08:00',
-                        arrival_time: '10:15',
-                        stops: 0,
-                        source: 'TravelPayouts API'
-                    },
-                    {
-                        id: 'tp-2',
-                        airline: 'GOL',
-                        price: 980.00,
-                        duration: '2h 30m',
-                        departure_time: '10:30',
-                        arrival_time: '13:00',
-                        stops: 0,
-                        source: 'TravelPayouts API' 
-                    },
-                    {
-                        id: 'tp-3',
-                        airline: 'Azul',
-                        price: 1150.00,
-                        duration: '2h 20m',
-                        departure_time: '14:15',
-                        arrival_time: '16:35',
-                        stops: 0,
-                        source: 'TravelPayouts API'
-                    }
-                ];
+                // Array temporário para armazenar os resultados que virão da API
+                let results = [];
                 
-                // Fazer uma chamada assíncrona para realmente buscar dados da API
+                // Buscar dados EXCLUSIVAMENTE da API TravelPayouts - SEM FALLBACK para dados simulados
                 fetch('/api/travelpayouts/test')
                     .then(response => response.json())
                     .then(data => {
@@ -244,20 +211,21 @@ window.tripComIntegration = (function() {
                                     departure_time: flight.departure_at || flight.departure || '?',
                                     arrival_time: flight.arrival_at || flight.arrival || '?',
                                     stops: flight.transfers || flight.stops || 0,
-                                    source: 'TravelPayouts API (Real)'
+                                    source: 'TravelPayouts API (Dados Reais)'
                                 };
                             });
                             
                             console.log(`Obtidos ${apiResults.length} resultados reais da API`);
                             resolve(apiResults);
                         } else {
-                            console.warn("Nenhum dado real obtido da API, usando dados de fallback");
-                            resolve(results);
+                            // NUNCA usar dados simulados - informar que não há dados disponíveis
+                            console.error("Nenhum dado obtido da API TravelPayouts");
+                            resolve([]);  // Retorna array vazio ao invés de dados simulados
                         }
                     })
                     .catch(error => {
                         console.error("Erro ao buscar dados da API:", error);
-                        resolve(results);
+                        resolve([]);  // Retorna array vazio em caso de erro - NUNCA dados simulados
                     });
             } catch (error) {
                 console.error("Erro ao extrair resultados de voos:", error);

@@ -365,11 +365,36 @@
             logDebug(`Processando ${flightResults.length} resultados...`);
             updateProgress(70, 'Processando resultados...');
             
-            // Se ainda não temos resultados, usar um array vazio
+            // Se não temos resultados reais, exibir uma mensagem clara
             if (!flightResults || flightResults.length === 0) {
-                logDebug('Nenhum resultado disponível para processar');
-                flightResults = [];
+                logDebug('AVISO: Nenhum resultado REAL disponível da API TravelPayouts');
+                updateProgress(100, 'Nenhum resultado real encontrado');
+                
+                // Exibir mensagem informando que não há dados reais
+                document.getElementById('results-list').innerHTML = `
+                    <div class="empty-results" style="padding: 20px; background-color: #fff8f8; border-left: 5px solid #d9534f; margin: 20px 0;">
+                        <h3 style="color: #d9534f;">Nenhum dado real encontrado</h3>
+                        <p><strong>Não conseguimos obter dados reais de voos para esta rota e data.</strong></p>
+                        <p>A busca foi feita exclusivamente na API TravelPayouts para garantir informações reais e atualizadas.</p>
+                        <p>Recomendações:</p>
+                        <ul>
+                            <li>Tente outras datas ou destinos</li>
+                            <li>Verifique se os códigos IATA dos aeroportos estão corretos</li>
+                            <li>Algumas rotas menos comuns podem não ter dados disponíveis na API</li>
+                        </ul>
+                    </div>
+                `;
+                
+                // Mostrar botão para fechar
+                document.getElementById('close-button').style.display = 'block';
+                document.getElementById('results-count').textContent = '0';
+                
+                // Notificar o servidor sobre a ausência de resultados reais
+                sendResultsToBackend([]);
+                return;
             }
+            
+            // Se temos resultados reais, continuar o processamento
             
             // Adiciona informações de origem/destino a todos os resultados
             flightResults.forEach(flight => {
