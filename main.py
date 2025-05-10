@@ -20,7 +20,7 @@ app.register_blueprint(hidden_search_bp)
 app.register_blueprint(chat_flight_search_bp)
 
 # Adicionar log de inicialização
-logger.info("Aplicação inicializada com TravelPayouts, Roteiro Personalizado e Widget API")
+logger.info("Aplicação inicializada com TravelPayouts, Roteiro Personalizado, Widget API e Busca Invisível")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
