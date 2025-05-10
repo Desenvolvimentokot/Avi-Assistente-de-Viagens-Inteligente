@@ -76,39 +76,133 @@ class FlightWidgetLoader:
         self.active_searches[search_id]['status'] = 'processing'
         self.active_searches[search_id]['message'] = f'Buscando voos de {origin} para {destination}'
         
-        # Este é apenas um exemplo simulado
-        # Em uma implementação real, executaríamos o código abaixo em um worker separado
-        """
-        # Iniciar Playwright
-        self.playwright = sync_playwright().start()
-        browser = self.playwright.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
+        # Iniciar busca real com Playwright em um thread separado
+        import threading
         
-        # Navegar para a página que contém o widget
-        page.goto(self.base_url)
+        def run_browser_search():
+            try:
+                logger.info(f"Iniciando busca headless para {search_id} ({origin} → {destination})")
+                # Iniciar Playwright
+                playwright_instance = sync_playwright().start()
+                browser = playwright_instance.chromium.launch(headless=True)
+                context = browser.new_context()
+                page = context.new_page()
+                
+                # Armazenar objetos para uso posterior e limpeza
+                self.active_searches[search_id]['browser'] = browser
+                self.active_searches[search_id]['page'] = page
+                self.active_searches[search_id]['playwright'] = playwright_instance
+                
+                # Navegar para a página que contém o widget
+                logger.info(f"Navegando para {self.base_url}")
+                page.goto(self.base_url)
+                
+                # Preencher formulário
+                logger.info(f"Preenchendo formulário: {origin} → {destination}")
+                page.fill("#origin-input", origin)
+                page.fill("#destination-input", destination)
+                page.fill("#departure-date", departure_date)
+                if return_date:
+                    page.fill("#return-date", return_date)
+                
+                # Ajustar número de passageiros se necessário
+                if adults > 1:
+                    page.click("#passengers-select")
+                    for _ in range(adults - 1):
+                        page.click("#adults-plus-button")
+                    page.click("#apply-passengers")
+                
+                # Iniciar busca
+                logger.info(f"Clicando no botão de busca")
+                page.click("#search-button")
+                
+                # Aguardar resultados (até 30 segundos)
+                logger.info(f"Aguardando resultados...")
+                has_results = False
+                
+                # Aguardar até que a página marque a busca como concluída (até 30 segundos)
+                try:
+                    page.wait_for_selector("[data-search-complete='true']", timeout=30000)
+                    logger.info(f"Resultados encontrados para {search_id}")
+                    has_results = True
+                except Exception as e:
+                    logger.error(f"Timeout ao aguardar resultados: {str(e)}")
+                    self.active_searches[search_id]['status'] = 'error'
+                    self.active_searches[search_id]['message'] = 'Tempo limite excedido ao buscar resultados'
+                    return
+                
+                # Extrair resultados
+                if has_results:
+                    logger.info(f"Extraindo resultados dos cards de voo")
+                    # Extrair dados dos cards de voo
+                    flight_cards = page.query_selector_all(".flight-card")
+                    results = []
+                    
+                    for card in flight_cards:
+                        try:
+                            airline_element = card.query_selector(".flight-airline")
+                            airline = airline_element.inner_text() if airline_element else "Desconhecida"
+                            
+                            price_element = card.query_selector(".flight-price")
+                            price_text = price_element.inner_text() if price_element else "0"
+                            price = float(price_text.replace("R$ ", "").replace(".", "").replace(",", "."))
+                            
+                            times = card.query_selector_all(".flight-times span")
+                            departure = ""
+                            arrival = ""
+                            
+                            if times and len(times) > 0:
+                                departure_element = times[0]
+                                if departure_element:
+                                    departure = departure_element.inner_text() or ""
+                                
+                                if len(times) > 1:
+                                    arrival_element = times[-1]
+                                    if arrival_element:
+                                        arrival = arrival_element.inner_text() or ""
+                            
+                            duration_element = card.query_selector(".flight-duration")
+                            stops_info = duration_element.inner_text() if duration_element else ""
+                            stops = 0 if "Direto" in stops_info else 1
+                            
+                            # Construir URL de reserva
+                            booking_url = f"https://www.travelpayouts.com/flight?marker={self.tp_marker}&origin={origin}&destination={destination}&departure_at={departure_date}&adults={adults}&with_request=true"
+                            
+                            flight_data = {
+                                "airline": airline,
+                                "price": price,
+                                "currency": "BRL",
+                                "departure": departure,
+                                "arrival": arrival,
+                                "stops": stops,
+                                "bookingUrl": booking_url
+                            }
+                            
+                            results.append(flight_data)
+                        except Exception as extraction_error:
+                            logger.error(f"Erro ao extrair dados do card: {str(extraction_error)}")
+                    
+                    # Armazenar resultados
+                    if results:
+                        logger.info(f"Encontrados {len(results)} voos para {search_id}")
+                        self.active_searches[search_id]['results'] = results
+                        self.active_searches[search_id]['status'] = 'complete'
+                        self.active_searches[search_id]['message'] = 'Busca concluída com sucesso'
+                    else:
+                        logger.warning(f"Nenhum resultado encontrado para {search_id}")
+                        self.active_searches[search_id]['status'] = 'complete'
+                        self.active_searches[search_id]['message'] = 'Nenhum voo encontrado'
+                        self.active_searches[search_id]['results'] = []
+            
+            except Exception as e:
+                logger.error(f"Erro durante busca headless: {str(e)}")
+                self.active_searches[search_id]['status'] = 'error'
+                self.active_searches[search_id]['message'] = f'Erro: {str(e)}'
         
-        # Preencher formulário
-        page.fill("#origin-input", origin)
-        page.fill("#destination-input", destination)
-        page.fill("#departure-date", departure_date)
-        if return_date:
-            page.fill("#return-date", return_date)
-        
-        # Ajustar número de passageiros se necessário
-        if adults > 1:
-            page.click("#passengers-select")
-            for _ in range(adults - 1):
-                page.click("#adults-plus-button")
-            page.click("#apply-passengers")
-        
-        # Iniciar busca
-        page.click("#search-button")
-        
-        # Armazenar objetos para uso posterior
-        self.active_searches[search_id]['browser'] = browser
-        self.active_searches[search_id]['page'] = page
-        """
+        # Iniciar thread de busca em background
+        search_thread = threading.Thread(target=run_browser_search)
+        search_thread.daemon = True
+        search_thread.start()
         
         return True
         
@@ -130,49 +224,47 @@ class FlightWidgetLoader:
         # Obter dados da busca
         search_data = self.active_searches[search_id]
         
-        # Este é apenas um exemplo simulado que "finaliza" a busca após alguns segundos
-        # Em uma implementação real, verificaríamos o status da página do widget
+        # Verificar estado atual da busca
+        status = search_data.get('status', 'pending')
+        
+        # Se a busca já foi concluída ou falhou
+        if status in ['complete', 'error']:
+            return {
+                'status': status,
+                'message': search_data.get('message', 'Busca finalizada'),
+                'progress': 100 if status == 'complete' else 0,
+                'results': search_data.get('results', []) if status == 'complete' else None
+            }
+        
+        # Se a busca ainda está em processamento
         current_time = datetime.utcnow()
         created_time = datetime.fromisoformat(search_data['created_at'])
         time_diff = (current_time - created_time).total_seconds()
         
-        # Simular progresso baseado no tempo
-        if time_diff > 15:
-            # Busca completa após 15 segundos
-            search_data['status'] = 'complete'
-            search_data['message'] = 'Busca concluída'
-            
-            # Gerar alguns resultados de exemplo
-            if not search_data.get('results'):
-                search_data['results'] = self._generate_sample_results(
-                    search_data['origin'], 
-                    search_data['destination'],
-                    search_data['departure_date']
-                )
-            
-            return {
-                'status': 'complete',
-                'message': 'Busca concluída',
-                'progress': 100,
-                'results': search_data['results']
-            }
+        # Calcular progresso baseado no tempo decorrido (máximo 30 segundos)
+        max_wait_time = 30.0  # 30 segundos
+        elapsed_percent = min(time_diff / max_wait_time, 0.99)  # Nunca atinge 100% até completar
+        progress = int(elapsed_percent * 100)
+        
+        # Mensagens mais específicas conforme o progresso
+        if progress < 30:
+            message = f'Conectando ao sistema de reservas...'
+        elif progress < 60:
+            message = f'Buscando voos de {search_data["origin"]} para {search_data["destination"]}...'
+        elif progress < 80:
+            message = f'Processando resultados...'
         else:
-            # Busca em andamento
-            progress = min(int(time_diff / 15 * 100), 99)
+            message = f'Finalizando busca...'
+        
+        # Se a mensagem específica foi definida pelo processo de busca, usá-la
+        if search_data.get('message'):
+            message = search_data['message']
             
-            # Mensagens mais específicas conforme o progresso
-            if progress < 30:
-                message = f'Conectando ao sistema de reservas...'
-            elif progress < 60:
-                message = f'Buscando voos de {search_data["origin"]} para {search_data["destination"]}...'
-            else:
-                message = f'Processando resultados...'
-                
-            return {
-                'status': 'processing',
-                'message': message,
-                'progress': progress
-            }
+        return {
+            'status': 'processing',
+            'message': message,
+            'progress': progress
+        }
     
     def get_results(self, search_id):
         """
@@ -200,19 +292,11 @@ class FlightWidgetLoader:
         # Retornar resultados armazenados
         if search_data.get('results'):
             return search_data['results']
-            
-        # Se não temos resultados, gerar alguns exemplos para teste
-        # Em uma implementação real, extrairíamos os dados da página
-        results = self._generate_sample_results(
-            search_data['origin'], 
-            search_data['destination'],
-            search_data['departure_date']
-        )
         
-        # Armazenar resultados
-        search_data['results'] = results
-        
-        return results
+        # Se não encontrou resultados, retornar uma lista vazia em vez de dados simulados
+        logger.warning(f"Busca {search_id} completa, mas sem resultados disponíveis")
+        search_data['results'] = []
+        return []
     
     def _generate_sample_results(self, origin, destination, departure_date):
         """
