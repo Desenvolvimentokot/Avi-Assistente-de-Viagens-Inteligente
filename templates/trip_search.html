@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca de Voos - Trip.com</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2681ff;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        .search-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .widget-container {
+            min-height: 600px;
+        }
+        .debug-panel {
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-top: 30px;
+        }
+        .debug-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        #debug-log {
+            background-color: #282828;
+            color: #50fa7b;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .debug-separator {
+            height: 1px;
+            background-color: #ddd;
+            margin: 15px 0;
+        }
+        #flights-data-display {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #2681ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Busca de Voos - Trip.com</h1>
+            <p>Esta página contém o widget oficial do Trip.com para busca de voos em tempo real</p>
+        </div>
+        
+        <div class="search-container">
+            <div class="loading" id="loading-indicator">
+                <div class="loading-spinner"></div>
+                <p>Buscando voos, aguarde...</p>
+            </div>
+            
+            <div class="widget-container" id="trip-widget-container">
+                <!-- Trip.com flight search widget -->
+                <script async 
+                    src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121" 
+                    charset="utf-8">
+                </script>
+            </div>
+        </div>
+        
+        <div class="debug-panel">
+            <div class="debug-title">Painel de Debug</div>
+            <div id="debug-log">// Os logs aparecerão aqui</div>
+            
+            <div class="debug-separator"></div>
+            
+            <div class="debug-title">Resultados Capturados (flights_data)</div>
+            <div id="flights-data-display">// Os resultados de voos capturados aparecerão aqui</div>
+        </div>
+    </div>
+    
+    <script>
+        // Inicialização da captura de dados
+        window.flights_data = [];
+        
+        // Configurar listener de postMessage para capturar resultados do widget
+        window.addEventListener('message', event => {
+            logToDebug('Mensagem recebida: ' + JSON.stringify(event.data).substring(0, 300) + '...');
+            
+            if (event.data && event.data.tpFlightResults) {
+                logToDebug('✅ Resultados de voos recebidos: ' + event.data.tpFlightResults.length + ' voos');
+                window.flights_data.push(...event.data.tpFlightResults);
+                updateFlightsDataDisplay();
+            }
+        });
+        
+        // Função para adicionar logs ao painel de debug
+        function logToDebug(message) {
+            const debugLog = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            debugLog.innerHTML += `[${timestamp}] ${message}\n`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        
+        // Função para atualizar o display de dados de voos
+        function updateFlightsDataDisplay() {
+            const dataDisplay = document.getElementById('flights-data-display');
+            dataDisplay.innerHTML = JSON.stringify(window.flights_data, null, 2);
+        }
+        
+        // Interceptar navegação no widget para detectar busca
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+            logToDebug('Fetch interceptado: ' + arguments[0]);
+            
+            // Se parecer uma requisição de busca, mostrar o indicador de carregamento
+            if (arguments[0].includes('flight') || arguments[0].includes('search')) {
+                document.getElementById('loading-indicator').style.display = 'block';
+                
+                // Esconder o indicador após alguns segundos (ou ajuste conforme necessário)
+                setTimeout(() => {
+                    document.getElementById('loading-indicator').style.display = 'none';
+                }, 10000);
+            }
+            
+            return originalFetch.apply(this, arguments);
+        };
+        
+        // Log inicial
+        document.addEventListener('DOMContentLoaded', () => {
+            logToDebug('Página carregada. Widget Trip.com inicializando...');
+        });
+    </script>
+</body>
+</html>

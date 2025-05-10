@@ -1,0 +1,120 @@
+Aqui está o plano passo‑a‑passo que você deve passar ao Replit Agent para tirar o Playwright “do limbo” e fazer o widget Trip.com funcionar de verdade, extrair os dois melhores voos e devolver ao chat da AVI.
+
+1. Colocar o widget Trip.com na página de busca
+No template HTML da sua página de busca (por exemplo templates/search.html), substitua qualquer código antigo de widget por este script oficial do Trip.com. Ele deve ficar antes do fechamento de </body>:
+
+html
+Copy
+Edit
+<!-- Trip.com flight search widget -->
+<script async 
+        src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121" 
+        charset="utf-8">
+</script>
+Isso garante que, quando a página carregar, o widget já esteja pronto para receber parâmetros de origem, destino e datas.
+
+2. Expor um array global para capturar resultados
+No seu loader de widget (services/flight_widget_loader.py ou similar), antes de injetar o listener, adicione este código para inicializar o array que vai receber os voos:
+
+python
+Copy
+Edit
+# antes de page.evaluate_event_listener...
+page.evaluate("window.flights_data = []")
+Esse passo é essencial: sem ele, window.flights_data nunca existirá e o Playwright ficará esperando para sempre.
+
+3. Injetar o listener de postMessage no contexto da página
+Logo após inicializar window.flights_data, injete este listener JavaScript que escuta as mensagens vindas do widget:
+
+python
+Copy
+Edit
+page.evaluate("""() => {
+  window.addEventListener('message', event => {
+    if (event.data && event.data.tpFlightResults) {
+      // acumula todos os voos retornados pelo widget
+      window.flights_data.push(...event.data.tpFlightResults);
+    }
+  });
+}""")
+Importante: garanta que isso rode antes de qualquer clique no botão de busca, para não perder mensagens.
+
+4. Disparar a busca no widget
+No seu código Playwright, depois de navegar para a página de busca e preencher os campos (origem, destino, datas):
+
+python
+Copy
+Edit
+# Exemplo em Python + Playwright
+await page.fill('input[name="origin"]', origin)
+await page.fill('input[name="destination"]', destination)
+await page.fill('input[name="departure_date"]', departure_date)
+# se for round‑trip:
+await page.fill('input[name="return_date"]', return_date)
+
+# Clicar no botão “Buscar” do widget
+await page.click('button.tp-search-button')  
+A classe tp-search-button é meramente ilustrativa: use o seletor real do widget que dispara a busca.
+
+5. Esperar até que window.flights_data receba resultados
+Após o clique, aguarde até que o array global seja preenchido:
+
+python
+Copy
+Edit
+# espera até pelo menos 2 voos chegarem, timeout generoso
+await page.wait_for_function("window.flights_data.length >= 2", timeout=15000)
+Isso só irá retornar quando o widget enviar dados reais pelo postMessage.
+
+6. Extrair os dois melhores voos
+Agora que window.flights_data está populado, recupere os dois primeiros (ou ordene pelo preço, se preferir):
+
+python
+Copy
+Edit
+flights = await page.evaluate("window.flights_data.slice(0,2)")
+flights será uma lista de objetos JS com campos como price, origin, destination, departure_at, etc.
+
+7. Fechar a página oculta e retornar ao chat
+Depois de extrair:
+
+python
+Copy
+Edit
+await page.close()
+E envie flights de volta para sua função Python que formata a resposta da AVI. Por exemplo:
+
+python
+Copy
+Edit
+return [
+  {
+    "origem": f["origin"],
+    "destino": f["destination"],
+    "partida": f["departure_at"],
+    "chegada": f["arrival_at"],
+    "preco": f["price"]
+  }
+  for f in flights
+]
+8. No front‑end do chat (AVI)
+Ao receber a intenção de busca, exiba uma barra de carregamento (“Avi está pesquisando…”).
+
+Chame sua rota Python que dispara o Playwright conforme acima.
+
+Quando a lista de 2 voos retornar, remova a barra de carregamento e apresente os detalhes no chat.
+
+Resumo do que precisa ser alterado no Replit:
+HTML da página de busca: incluir o <script src="https://tp.media/content?…"></script>.
+
+flight_widget_loader.py (ou onde for):
+
+page.evaluate("window.flights_data = []")
+
+page.evaluate(...) para addEventListener('message'...).
+
+Fluxo Playwright: preencher campos, clicar botão do widget, wait_for_function("window.flights_data.length >= 2"), page.evaluate("window.flights_data.slice(0,2)").
+
+Rota Python: receber e formatar esses dois voos, enviar ao cliente no chat.
+
+Com esses passos garantidos, você terá dados reais retornados pelo widget Trip.com, sem depender de mocks ou automações frágeis de scraping.

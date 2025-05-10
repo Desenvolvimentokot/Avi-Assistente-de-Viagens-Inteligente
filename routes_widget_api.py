@@ -282,6 +282,15 @@ def rest_demo_search():
     """
     return render_template('search_rest_api.html')
 
+@widget_api.route('/trip-search', methods=['GET'])
+def trip_search():
+    """
+    Renderiza a página com o widget Trip.com para busca de voos.
+    Esta página contém o widget oficial que envia resultados via postMessage,
+    os quais são capturados por Playwright em background.
+    """
+    return render_template('trip_search.html')
+
 @widget_api.route('/travelpayouts-results', methods=['GET'])
 def travelpayouts_results_page():
     """
