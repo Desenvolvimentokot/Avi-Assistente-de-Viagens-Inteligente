@@ -10,32 +10,32 @@
     display: flex;
     height: calc(100vh - 60px);
   }
-  
+
   .chat-panel {
     flex: 0 0 40%;
     border-right: 1px solid #e0e0e0;
     overflow-y: auto;
     position: relative;
   }
-  
+
   .results-panel {
     flex: 0 0 60%;
     overflow-y: auto;
     padding: 20px;
     background-color: #f8f9fa;
   }
-  
+
   @media (max-width: 768px) {
     .split-screen {
       flex-direction: column;
     }
-    
+
     .chat-panel, .results-panel {
       flex: none;
       width: 100%;
       height: 50%;
     }
-    
+
     .chat-panel {
       border-right: none;
       border-bottom: 1px solid #e0e0e0;
@@ -56,20 +56,20 @@
           </div>
         </div>
       </div>
-      
+
       <div class="chat-input-container">
         <textarea id="user-input" class="chat-input" placeholder="Digite sua mensagem..."></textarea>
         <button id="send-button" class="send-button">Enviar</button>
       </div>
     </div>
   </div>
-  
+
   <div class="results-panel" id="flight-results-panel">
     <div class="panel-header">
       <h2>Resultados de Voo</h2>
       <p class="panel-description">Quando você buscar voos, os resultados aparecerão aqui.</p>
     </div>
-    
+
     <div id="flight-results-container" class="flight-results-container"></div>
   </div>
 </div>
@@ -82,27 +82,28 @@
 <!-- Scripts para a integração do widget de voos -->
 <script src="{{ url_for('static', filename='js/widget-api-client.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chat-widget-integration.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auto-redirect.js') }}"></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Inicialização do chat e da integração com widget
     const flightResultsPanel = document.getElementById('flight-results-panel');
     const flightResultsContainer = document.getElementById('flight-results-container');
-    
+
     // Função para mostrar voos no painel lateral
     window.displayFlightsInPanel = function(flights) {
       if (!flights || !flights.length) {
         flightResultsContainer.innerHTML = '<div class="no-results">Não encontramos voos para esta rota.</div>';
         return;
       }
-      
+
       let html = '';
-      
+
       flights.forEach(flight => {
         const price = typeof flight.price === 'number' 
           ? flight.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
           : flight.price;
-        
+
         html += `
           <div class="flight-card">
             <div class="flight-card-header">
@@ -126,16 +127,16 @@
           </div>
         `;
       });
-      
+
       flightResultsContainer.innerHTML = html;
     };
-    
+
     // Sobrescrever função do chat-widget-integration.js para mostrar tanto no chat quanto no painel
     const originalDisplayFlightCardsInChat = window.displayFlightCardsInChat;
     window.displayFlightCardsInChat = function(flights) {
       // Chamar implementação original para mostrar no chat
       originalDisplayFlightCardsInChat(flights);
-      
+
       // Mostrar também no painel lateral
       window.displayFlightsInPanel(flights);
     };

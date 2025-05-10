@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="flight-card-footer">
                 ${flight.bookingUrl ? 
-                    `<a href="${flight.bookingUrl}" target="_blank" class="flight-book-btn">Ver oferta</a>` :
+                    `<a href="${flight.bookingUrl}" target="_blank" class="flight-book-btn flight-results-button">Ver oferta</a>` :
                     '<span class="flight-notice">Oferta indisponível</span>'}
             </div>
         `;

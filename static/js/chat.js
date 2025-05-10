@@ -42,10 +42,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let chatMode = 'quick-search'; // Modo padrão
     let currentConversationId = null;
     let sessionId = null; // Para manter a sessão com o servidor
-    
+
     // Expor a variável de sessão globalmente para que outros scripts possam acessá-la
     window.chatSessionId = null;
-    
+
     let chatHistory = []; // Para manter o histórico da conversa
     let awaitingFlightSelection = false; // Flag para controlar se estamos esperando o usuário selecionar um voo
     let chatContext = {
@@ -176,13 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Armazena o session_id retornado pelo servidor
             if (data.session_id) {
                 sessionId = data.session_id;
-                
-                // ATUALIZAÇÃO CRÍTICA: Expor o ID de sessão globalmente para que outros scripts possam acessá-lo
+
+                // ATUALIZAÇÃO CRÍTICA: Expor o ID de sessão globalmente para que outros scripts possam acessá-la
                 window.chatSessionId = sessionId;
-                
+
                 // Salvar no localStorage para uso posterior
                 localStorage.setItem('chat_session_id', sessionId);
-                
+
                 console.log("Sessão ativa:", sessionId);
                 console.log("ID de sessão global atualizado e salvo no localStorage");
             }
@@ -217,10 +217,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.session_id) {
                     // Atualizar a variável global sessionId
                     sessionId = data.session_id;
-                    
+
                     // ATUALIZAÇÃO CRÍTICA: Atualizar a variável global
                     window.chatSessionId = sessionId;
-                    
+
                     console.log("Session ID atualizado para:", sessionId);
 
                     // Salvar no localStorage para persistência entre reloads
@@ -346,14 +346,14 @@ document.addEventListener('DOMContentLoaded', function() {
             text = convertMarkdownBold(text);
             text = convertMarkdownItalic(text);
             text = convertMarkdownLists(text);
-            
-            // Processa os botões da travelpayouts-results-btn
+
+            // Detectar botão de resultados na mensagem e adicionar classe específica para automação
             if (text.includes('travelpayouts-results-btn')) {
                 console.log("Detectado botão de resultados na mensagem");
             }
-            
+
             contentElement.innerHTML = text;
-            
+
             // Detecta e inicializa botões de resultados da TravelPayouts
             const resultButtons = contentElement.querySelectorAll('.travelpayouts-results-btn');
             if (resultButtons.length > 0) {
@@ -363,43 +363,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     button.style.display = "block";
                     button.style.margin = "20px auto";
                     button.style.textAlign = "center";
-                    
+
                     // Adiciona um ícone ao botão para torná-lo mais atraente
                     const buttonText = button.textContent;
                     button.innerHTML = `<i class="fas fa-plane-departure"></i> ${buttonText}`;
-                    
+
                     // CORREÇÃO: Adiciona o event listener diretamente aqui
                     button.addEventListener('click', function(event) {
                         event.preventDefault();
-                        
+
                         // Extrair os parâmetros do botão
                         const origin = this.getAttribute('data-origin');
                         const destination = this.getAttribute('data-destination');
                         const departureDate = this.getAttribute('data-departure');
                         const adults = this.getAttribute('data-adults');
-                        
+
                         console.log(`Clique no botão de resultados! Parâmetros: ${origin} → ${destination}`);
-                        
+
                         // Não precisamos mais se preocupar com o session_id na URL
                         // O cookie flai_session_id é enviado automaticamente pelo navegador
                         console.log(`✓ Usando cookie flai_session_id para autenticação`);
-                        
+
                         // Construir a URL para a página de resultados (somente para exibição)
                         // Os parâmetros serão usados apenas como fallback se o cookie não estiver disponível
                         let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-                        
+
                         if (departureDate) {
                             url += `&departure_date=${encodeURIComponent(departureDate)}`;
                         }
-                        
+
                         if (adults) {
                             url += `&adults=${encodeURIComponent(adults)}`;
                         }
-                        
+
                         console.log(`Abrindo resultados em nova aba: ${url}`);
                         window.open(url, '_blank');
                     });
-                    
+
                     console.log("Botão de resultados formatado e preparado com evento de clique");
                 });
             }
@@ -790,7 +790,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="detail-label">Bagagem</div>
                                     <div class="detail-value">${baggage}</div>
                                 </div>
-                                ${flightData.aircraft ? `
+                                ${Enhanced result button detection logic to facilitate automated actions after data confirmation.flightData.aircraft ? `
                                 <div class="detail-item">
                                     <div class="detail-label">Aeronave</div>
                                     <div class="detail-value">${flightData.aircraft}</div>
