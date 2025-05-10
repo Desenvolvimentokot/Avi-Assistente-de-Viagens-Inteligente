@@ -332,7 +332,7 @@ def chat():
                 else:
                     # SOLUÇÃO DEFINITIVA: Pular completamente o ChatGPT neste ponto
                     # Quando estamos na etapa de busca (step 2), não precisamos do ChatGPT
-                    # Os dados reais virão diretamente da API Amadeus
+                    # Os dados reais virão diretamente da API TravelPayouts
 
                     # Forçar a flag para pular ChatGPT imediatamente
                     logger.warning("🚫 ETAPA 2 DETECTADA: PULANDO GPT COMPLETAMENTE")
@@ -1352,7 +1352,7 @@ def check_prices():
                 threshold = 0.93  # 7% de queda para hotéis
 
             try:
-                # Em produção, usaríamos a API Amadeus para verificar o preço atual
+                # Em produção, usaríamos a API TravelPayouts para verificar o preço atual
                 # Aqui, vamos simular uma pequena variação de preço aleatória
                 if monitor.current_price:
                     # Simular uma queda de preço para demonstração

@@ -286,7 +286,7 @@ def travelpayouts_results_page():
         
         # Renderizar a página com os parâmetros obtidos
         resp = make_response(render_template(
-            'amadeus_results.html',
+            'travelpayouts_results.html',
             origin=origin,
             destination=destination,
             departure_date=departure_date,

@@ -838,10 +838,10 @@ def extract_origin_from_message(message):
 
 def map_flight_to_block(flight_offer):
     """
-    Mapeia uma oferta de voo da API Amadeus para o formato de bloco do roteiro.
+    Mapeia uma oferta de voo da API TravelPayouts para o formato de bloco do roteiro.
     
     Args:
-        flight_offer: Oferta de voo da API Amadeus
+        flight_offer: Oferta de voo da API TravelPayouts
         
     Returns:
         dict: Bloco de voo formatado para o roteiro
