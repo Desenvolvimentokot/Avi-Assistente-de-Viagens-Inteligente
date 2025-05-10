@@ -1,209 +1,192 @@
 /**
- * Script para o botão que redireciona para o Trip.com
- * Este script cria um botão que redireciona para a página de busca do Trip.com
- * com os parâmetros fornecidos.
+ * Script para substituir a tag [BOTÃO_TRIP_COM] nas mensagens da AVI
+ * por um botão real que abre a página com o widget do Trip.com
  */
 
-class TripComButton {
-    /**
-     * Cria uma instância do botão do Trip.com
-     * @param {HTMLElement} container - Elemento onde o botão será adicionado
-     * @param {Object} options - Opções de configuração
-     * @param {string} options.origin - Código IATA do aeroporto de origem
-     * @param {string} options.destination - Código IATA do aeroporto de destino
-     * @param {string} options.departureDate - Data de ida (YYYY-MM-DD)
-     * @param {string} options.returnDate - Data de volta (YYYY-MM-DD), opcional
-     * @param {number} options.adults - Número de adultos, padrão 1
-     * @param {string} options.text - Texto do botão, padrão 'Ver no Trip.com'
-     * @param {string} options.className - Classes CSS para o botão
-     */
-    constructor(container, options) {
-        this.container = typeof container === 'string' ? document.querySelector(container) : container;
-        this.options = Object.assign({
-            origin: 'GRU',
-            destination: 'JFK',
-            departureDate: this.getTomorrowDate(),
-            returnDate: '',
-            adults: 1,
-            text: 'Ver no Trip.com',
-            className: 'trip-com-button'
-        }, options);
-        
-        this.airportToCityMap = {
-            'GRU': 'sao_paulo',    // São Paulo - Guarulhos
-            'CGH': 'sao_paulo',    // São Paulo - Congonhas
-            'VCP': 'sao_paulo',    // São Paulo - Viracopos
-            'GIG': 'rio_de_janeiro', // Rio de Janeiro - Galeão
-            'SDU': 'rio_de_janeiro', // Rio de Janeiro - Santos Dumont
-            'BSB': 'brasilia',     // Brasília
-            'CNF': 'belo_horizonte', // Belo Horizonte - Confins
-            'PLU': 'belo_horizonte', // Belo Horizonte - Pampulha
-            'SSA': 'salvador',     // Salvador
-            'REC': 'recife',       // Recife
-            'FOR': 'fortaleza',    // Fortaleza
-            'CWB': 'curitiba',     // Curitiba
-            'POA': 'porto_alegre', // Porto Alegre
-            'FLN': 'florianopolis', // Florianópolis
-            'MAO': 'manaus',       // Manaus
-            'BEL': 'belem',        // Belém
-            'CGB': 'cuiaba',       // Cuiabá
-            'CGR': 'campo_grande', // Campo Grande
-            'NAT': 'natal',        // Natal
-            'MCZ': 'maceio',       // Maceió
-            'VIX': 'vitoria',      // Vitória
-            'GYN': 'goiania',      // Goiânia
-            // Aeroportos internacionais populares
-            'JFK': 'new_york',     // Nova York - John F. Kennedy
-            'LAX': 'los_angeles',  // Los Angeles
-            'MIA': 'miami',        // Miami
-            'LHR': 'london',       // Londres - Heathrow
-            'CDG': 'paris',        // Paris - Charles de Gaulle
-            'FCO': 'rome',         // Roma - Fiumicino
-            'MAD': 'madrid',       // Madri
-            'BCN': 'barcelona',    // Barcelona
-            'FRA': 'frankfurt',    // Frankfurt
-            'AMS': 'amsterdam',    // Amsterdã
-        };
-        
-        this.init();
-    }
-    
-    /**
-     * Obtém a data de amanhã no formato YYYY-MM-DD
-     * @returns {string} - Data de amanhã
-     */
-    getTomorrowDate() {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const year = tomorrow.getFullYear();
-        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-        const day = String(tomorrow.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    
-    /**
-     * Converte código de aeroporto para código de cidade
-     * @param {string} airportCode - Código IATA do aeroporto
-     * @returns {string} - Código da cidade correspondente
-     */
-    getCityCodeFromAirport(airportCode) {
-        return this.airportToCityMap[airportCode] || airportCode.toLowerCase();
-    }
-    
-    /**
-     * Formata data para o formato esperado pelo Trip.com (MM-DD-YYYY)
-     * @param {string} dateString - Data no formato YYYY-MM-DD
-     * @returns {string} - Data no formato MM-DD-YYYY
-     */
-    formatDateForTrip(dateString) {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${month}-${day}-${year}`;
-    }
-    
-    /**
-     * Constrói a URL do Trip.com com os parâmetros fornecidos
-     * @returns {string} - URL para o Trip.com
-     */
-    buildTripUrl() {
-        const dcity = this.getCityCodeFromAirport(this.options.origin);
-        const acity = this.getCityCodeFromAirport(this.options.destination);
-        const formattedDepartureDate = this.formatDateForTrip(this.options.departureDate);
-        const formattedReturnDate = this.formatDateForTrip(this.options.returnDate);
-        
-        return `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${formattedDepartureDate}&dairport=${this.options.origin}${this.options.returnDate ? '&rdate=' + formattedReturnDate + '&triptype=rt' : '&triptype=ow'}&class=y&quantity=${this.options.adults}&locale=pt-BR&curr=BRL`;
-    }
-    
-    /**
-     * Inicializa o botão do Trip.com
-     */
-    init() {
-        // Criar o botão
-        const button = document.createElement('a');
-        button.href = this.buildTripUrl();
-        button.className = this.options.className;
-        button.textContent = this.options.text;
-        button.target = '_blank';
-        button.rel = 'noopener noreferrer';
-        
-        // Estilos inline básicos (podem ser substituídos via CSS)
-        Object.assign(button.style, {
-            display: 'inline-block',
-            padding: '10px 15px',
-            backgroundColor: '#0062cc',
-            color: 'white',
-            borderRadius: '4px',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            textAlign: 'center',
-            margin: '10px 0'
-        });
-        
-        // Adicionar evento de clique para rastreamento
-        button.addEventListener('click', this.handleClick.bind(this));
-        
-        // Adicionar o botão ao contêiner
-        if (this.container) {
-            this.container.appendChild(button);
-        } else {
-            console.error('Contêiner não encontrado para o botão do Trip.com');
-        }
-    }
-    
-    /**
-     * Manipula o evento de clique no botão
-     * @param {Event} event - Evento de clique
-     */
-    handleClick(event) {
-        // Rastrear clique via Google Analytics ou outro sistema
-        if (window.gtag) {
-            window.gtag('event', 'click', {
-                'event_category': 'trip_com',
-                'event_label': 'redirect',
-                'value': 1
-            });
-        }
-        
-        // Você pode adicionar mais lógica aqui se necessário
-        console.log('Clique no botão do Trip.com:', {
-            url: event.target.href,
-            params: {
-                origin: this.options.origin,
-                destination: this.options.destination,
-                departureDate: this.options.departureDate,
-                returnDate: this.options.returnDate,
-                adults: this.options.adults
+(function() {
+    // Observador para detectar novas mensagens da AVI
+    const chatObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                for (let i = 0; i < mutation.addedNodes.length; i++) {
+                    const node = mutation.addedNodes[i];
+                    // Verificar se é uma mensagem da AVI (bot)
+                    if (node.classList && (node.classList.contains('message') || node.classList.contains('bot-message'))) {
+                        processMessage(node);
+                    }
+                }
             }
         });
-    }
-    
-    /**
-     * Atualiza as opções do botão e reconstrói a URL
-     * @param {Object} newOptions - Novas opções
-     */
-    updateOptions(newOptions) {
-        this.options = Object.assign(this.options, newOptions);
-        
-        // Atualizar a URL do botão
-        const button = this.container.querySelector('.' + this.options.className);
-        if (button) {
-            button.href = this.buildTripUrl();
-            button.textContent = this.options.text;
-        }
-    }
-    
-    /**
-     * Remove o botão do DOM
-     */
-    destroy() {
-        const button = this.container.querySelector('.' + this.options.className);
-        if (button) {
-            button.removeEventListener('click', this.handleClick);
-            button.remove();
-        }
-    }
-}
+    });
 
-// Exportar para uso global
-window.TripComButton = TripComButton;
+    // Processa uma mensagem para encontrar a tag [BOTÃO_TRIP_COM]
+    function processMessage(messageNode) {
+        const content = messageNode.textContent || messageNode.innerText;
+        
+        // Verificar se a mensagem contém a tag [BOTÃO_TRIP_COM]
+        if (content && content.includes('[BOTÃO_TRIP_COM]')) {
+            console.log('Tag [BOTÃO_TRIP_COM] encontrada, substituindo por botão real');
+            
+            // Extrair dados de voo do bloco [DADOS_VIAGEM]
+            const flightInfo = extractFlightInfo(messageNode);
+            
+            if (flightInfo) {
+                // Substituir a tag pelo botão
+                replaceTagWithButton(messageNode, flightInfo);
+            } else {
+                console.error('Dados de voo não encontrados na mensagem');
+            }
+        }
+    }
+
+    // Extrai informações de voo do bloco [DADOS_VIAGEM]
+    function extractFlightInfo(messageNode) {
+        const content = messageNode.innerHTML;
+        
+        // Verificar se há bloco de dados
+        const regex = /\[DADOS_VIAGEM\]([\s\S]*?)\[\/DADOS_VIAGEM\]/;
+        const match = content.match(regex);
+        
+        if (!match) {
+            console.error('Bloco [DADOS_VIAGEM] não encontrado');
+            return null;
+        }
+        
+        // Extrair dados
+        const dataBlock = match[1];
+        
+        // Extrair parâmetros individuais
+        const originMatch = /Origem:.*?\((.*?)\)/.exec(dataBlock);
+        const destMatch = /Destino:.*?\((.*?)\)/.exec(dataBlock);
+        const depDateMatch = /Data_Ida: (\d{4}-\d{2}-\d{2})/.exec(dataBlock);
+        const retDateMatch = /Data_Volta: (\d{4}-\d{2}-\d{2})/.exec(dataBlock);
+        const passengersMatch = /Passageiros: (\d+)/.exec(dataBlock);
+        
+        // Montar objeto com os dados
+        return {
+            origin: originMatch ? originMatch[1] : null,
+            destination: destMatch ? destMatch[1] : null,
+            departure_date: depDateMatch ? depDateMatch[1] : null,
+            return_date: retDateMatch ? retDateMatch[1] : null,
+            adults: passengersMatch ? parseInt(passengersMatch[1]) : 1
+        };
+    }
+
+    // Função para extrair código de cidade a partir do código de aeroporto
+    function getCityCodeFromAirport(airportCode) {
+        // Mapeamento básico de aeroportos para cidades
+        const airportToCityMap = {
+            'GRU': 'sao', // São Paulo
+            'SDU': 'rio', // Rio de Janeiro - Santos Dumont
+            'GIG': 'rio', // Rio de Janeiro - Galeão
+            'BSB': 'bsb', // Brasília
+            'SSA': 'ssa', // Salvador
+            'FOR': 'for', // Fortaleza
+            'POA': 'poa', // Porto Alegre
+            'MCZ': 'mcz', // Maceió
+            'REC': 'rec', // Recife
+            'CWB': 'cwb', // Curitiba
+            'BEL': 'bel', // Belém
+            'VCP': 'sao', // Campinas (São Paulo)
+            'CNF': 'bho', // Belo Horizonte - Confins
+            'FLN': 'fln', // Florianópolis
+            'NAT': 'nat', // Natal
+            'MAO': 'mao', // Manaus
+        };
+        
+        // Retorna o código da cidade ou o próprio código do aeroporto em minúsculas como fallback
+        return airportToCityMap[airportCode] || airportCode.toLowerCase();
+    }
+    
+    // Substitui a tag [BOTÃO_TRIP_COM] por um botão real
+    function replaceTagWithButton(messageNode, flightInfo) {
+        // HTML original
+        const originalHTML = messageNode.innerHTML;
+        
+        // Armazenar os códigos de cidade para nosso sistema interno
+        const dcity = getCityCodeFromAirport(flightInfo.origin);
+        const acity = getCityCodeFromAirport(flightInfo.destination);
+        
+        // Gerar um session_id aleatório se não existir
+        const sessionId = getCookie('flai_session_id') || localStorage.getItem('chat_session_id') || 'session-' + Math.random().toString(36).substring(2, 15);
+        
+        // Usar a URL da nossa página hidden-search, que depois carrega o widget Trip.com internamente
+        const internalUrl = `/hidden-search?origin=${flightInfo.origin}&destination=${flightInfo.destination}&departure_date=${flightInfo.departure_date}${flightInfo.return_date ? '&return_date=' + flightInfo.return_date : ''}&adults=${flightInfo.adults || 1}&session_id=${sessionId}`;
+        
+        // Armazenar a informação sobre os códigos de cidade para usar na página hidden-search
+        localStorage.setItem('trip_dcity', dcity);
+        localStorage.setItem('trip_acity', acity);
+        localStorage.setItem('trip_origin', flightInfo.origin);
+        localStorage.setItem('trip_destination', flightInfo.destination);
+        
+        console.log('URL da nossa página de busca gerada:', internalUrl);
+        
+        // Criar elemento do botão
+        const buttonHTML = `
+            <div class="trip-button-container" style="margin: 15px 0;">
+                <a href="${internalUrl}" 
+                   target="_blank" 
+                   class="trip-search-button" 
+                   style="display: inline-block; padding: 12px 24px; background-color: #2681ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: background-color 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    <span style="margin-right: 8px;">Ver opções de voos</span>
+                    <i class="fas fa-search" style="font-size: 14px;"></i>
+                </a>
+            </div>
+        `;
+        
+        // Substituir a tag pelo botão
+        const newHTML = originalHTML.replace('[BOTÃO_TRIP_COM]', buttonHTML);
+        messageNode.innerHTML = newHTML;
+        
+        // Adicionar evento de clique para logging
+        setTimeout(() => {
+            const button = messageNode.querySelector('.trip-search-button');
+            if (button) {
+                button.addEventListener('click', function() {
+                    console.log('Botão Trip.com clicado, abrindo pesquisa com parâmetros:', flightInfo);
+                });
+            }
+        }, 100);
+    }
+
+    // Iniciar observação quando o DOM estiver pronto
+    function initObserver() {
+        // Verificar se estamos na página de chat
+        const chatContainer = document.querySelector('.chat-messages') || document.querySelector('.chat-container');
+        if (!chatContainer) {
+            console.log('Container de chat não encontrado, pulando inicialização do observador');
+            return;
+        }
+        
+        // Aplicar às mensagens existentes
+        const existingMessages = chatContainer.querySelectorAll('.message, .bot-message');
+        existingMessages.forEach(function(message) {
+            processMessage(message);
+        });
+        
+        // Configurar MutationObserver para novas mensagens
+        chatObserver.observe(chatContainer, {
+            childList: true,
+            subtree: true
+        });
+        
+        console.log('Observador de mensagens da AVI inicializado');
+    }
+
+    // Inicializar quando o DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initObserver);
+    } else {
+        initObserver();
+    }
+    
+    // Função para obter valor de cookie
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    console.log('Script de detecção de botão Trip.com carregado');
+})();

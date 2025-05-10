@@ -107,8 +107,6 @@
             margin-top: 20px;
         }
     </style>
-    <!-- Carregar o script de integração com o Trip.com -->
-    <script src="/static/js/trip-com-integration.js"></script>
 </head>
 <body>
     <div class="status-container">
@@ -145,7 +143,7 @@
         <button id="close-button" style="display: none;">Fechar esta janela e voltar ao chat</button>
     </div>
     
-    <!-- Contêiner para o widget do Trip.com -->
+    <!-- Contêiner para o widget (agora visível) -->
     <div id="tp-widget-container"></div>
     
     <script>
@@ -346,8 +344,8 @@
         function startProcessingResults() {
             updateProgress(50, 'Obtendo dados reais de voos...');
             
-            // Extrair preços de voos usando o script de integração
-            window.tripComIntegration.extractFlightResults()
+            // Extrair preços de voos (agora retorna uma Promise)
+            extractFlightPrices()
                 .then(results => {
                     flightResults = results;
                     logDebug(`Obtidos ${flightResults.length} resultados reais de voos`);
@@ -365,36 +363,11 @@
             logDebug(`Processando ${flightResults.length} resultados...`);
             updateProgress(70, 'Processando resultados...');
             
-            // Se não temos resultados reais, exibir uma mensagem clara
+            // Se ainda não temos resultados, usar um array vazio
             if (!flightResults || flightResults.length === 0) {
-                logDebug('AVISO: Nenhum resultado REAL disponível da API TravelPayouts');
-                updateProgress(100, 'Nenhum resultado real encontrado');
-                
-                // Exibir mensagem informando que não há dados reais
-                document.getElementById('results-list').innerHTML = `
-                    <div class="empty-results" style="padding: 20px; background-color: #fff8f8; border-left: 5px solid #d9534f; margin: 20px 0;">
-                        <h3 style="color: #d9534f;">Nenhum dado real encontrado</h3>
-                        <p><strong>Não conseguimos obter dados reais de voos para esta rota e data.</strong></p>
-                        <p>A busca foi feita exclusivamente na API TravelPayouts para garantir informações reais e atualizadas.</p>
-                        <p>Recomendações:</p>
-                        <ul>
-                            <li>Tente outras datas ou destinos</li>
-                            <li>Verifique se os códigos IATA dos aeroportos estão corretos</li>
-                            <li>Algumas rotas menos comuns podem não ter dados disponíveis na API</li>
-                        </ul>
-                    </div>
-                `;
-                
-                // Mostrar botão para fechar
-                document.getElementById('close-button').style.display = 'block';
-                document.getElementById('results-count').textContent = '0';
-                
-                // Notificar o servidor sobre a ausência de resultados reais
-                sendResultsToBackend([]);
-                return;
+                logDebug('Nenhum resultado disponível para processar');
+                flightResults = [];
             }
-            
-            // Se temos resultados reais, continuar o processamento
             
             // Adiciona informações de origem/destino a todos os resultados
             flightResults.forEach(flight => {
@@ -459,8 +432,17 @@
             logDebug('Enviando resultados para o backend: ' + JSON.stringify(flights).substring(0, 200) + '...');
             updateProgress(80, 'Enviando resultados para o servidor...');
             
-            // Usar a função do script de integração para enviar os resultados
-            window.tripComIntegration.sendResultsToServer(sessionId, flights, tripUrl)
+            fetch('/api/hidden-search/save-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    flights: flights,
+                    session_id: sessionId,
+                    url: tripUrl
+                })
+            })
             .then(response => response.json())
             .then(data => {
                 logDebug('Resposta do backend: ' + JSON.stringify(data));
@@ -531,18 +513,21 @@
                 'GYN': 'goiania',    // Goiânia
             };
             
-            // Usar o script de integração para carregar o iframe do Trip.com
-            // Definir os parâmetros necessários
-            const tripParams = {
-                origin: origin,
-                destination: destination,
-                departureDate: departureDate,
-                returnDate: returnDate,
-                adults: adults || 1
+            // Obter os códigos de cidade com fallback para códigos originais
+            const dcity = airportToCityMap[origin] || origin.toLowerCase();
+            const acity = airportToCityMap[destination] || destination.toLowerCase();
+            
+            // Formatar datas no formato MM-DD-YYYY conforme esperado pelo Trip.com
+            const formatDateForTrip = (dateStr) => {
+                const [year, month, day] = dateStr.split('-');
+                return `${month}-${day}-${year}`;
             };
             
-            // Carregar o iframe usando o script de integração
-            tripUrl = window.tripComIntegration.loadTripComIframe(tripParams, '#tp-widget-container');
+            const formattedDepartureDate = formatDateForTrip(departureDate);
+            const formattedReturnDate = returnDate ? formatDateForTrip(returnDate) : '';
+            
+            // Construir URL no formato do Trip.com com datas formatadas corretamente
+            tripUrl = `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${formattedDepartureDate}&dairport=${origin}${returnDate ? '&rdate=' + formattedReturnDate + '&triptype=rt' : '&triptype=ow'}&class=y&quantity=${adults || 1}&locale=pt-BR&curr=BRL`;
 
             // Registrar URL para depuração
             logDebug("URL do Trip.com gerada: " + tripUrl);
@@ -573,36 +558,37 @@
                 logDebug('Erro ao notificar servidor: ' + error);
             });
             
-            // O iframe já foi criado pelo script de integração
-            // Obtemos a referência para trabalhar com ele
-            const iframe = document.getElementById('tripWidget');
+            // Criar iframe para o Trip.com
+            const iframe = document.createElement('iframe');
+            iframe.src = tripUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '800px';
+            iframe.style.border = 'none';
+            iframe.id = 'trip-iframe';
             
             updateProgress(30, 'Carregando busca de voos...');
             
-            if (iframe) {
-                // Adicionar eventos ao iframe já criado
-                iframe.onload = function() {
-                    logDebug('Iframe carregado, iniciando monitoramento de resultados');
-                    updateProgress(40, 'Buscando voos...');
-                    
-                    // Iniciar o monitoramento de resultados
-                    currentAttempt = 0;
-                    progressInterval = setInterval(checkForResults, 1000); // Verificar a cada segundo
-                };
+            // Adicionar eventos ao iframe
+            iframe.onload = function() {
+                logDebug('Iframe carregado, iniciando monitoramento de resultados');
+                updateProgress(40, 'Buscando voos...');
                 
-                // Tratamento de erros do iframe
-                iframe.onerror = function() {
-                    logDebug('Erro ao carregar iframe');
-                    updateProgress(100, 'Erro ao carregar resultados, iniciando recuperação...');
-                    
-                    // Mesmo com erro, tentamos obter alguns resultados
-                    setTimeout(startProcessingResults, 2000);
-                };
-            } else {
-                // Se não encontramos o iframe, iniciamos o processo de obtenção de resultados direto
-                logDebug('Iframe não encontrado, iniciando obtenção de resultados direto da API');
-                setTimeout(startProcessingResults, 2000);
-            }
+                // Iniciar o monitoramento de resultados
+                currentAttempt = 0;
+                progressInterval = setInterval(checkForResults, 1000); // Verificar a cada segundo
+            };
+            
+            // Tratamento de erros do iframe
+            iframe.onerror = function() {
+                logDebug('Erro ao carregar iframe');
+                updateProgress(100, 'Erro ao carregar resultados, iniciando recuperação...');
+                
+                // Mesmo com erro, tentamos obter alguns resultados
+                setTimeout(processResults, 2000);
+            };
+            
+            // Inserir iframe na página
+            document.getElementById('tp-widget-container').appendChild(iframe);
             
             // Código de referência do widget antigo (mantido apenas para documentação)
             /* 
