@@ -312,7 +312,7 @@ class FlightResultsPanel {
                     </div>
                 </div>
                 <div class="loading-message">Buscando melhores ofertas de voos</div>
-                <div class="loading-steps">Consultando API Amadeus em tempo real...</div>
+                <div class="loading-steps">Consultando API TravelPayouts em tempo real...</div>
                 <div class="loading-progress">
                     <div class="loading-progress-bar" id="loadingProgressBar"></div>
                 </div>
@@ -408,7 +408,7 @@ class FlightResultsPanel {
 
         // Exibir mensagem explicativa diretamente sem fazer requisição
         this.showError(
-            "Modo de teste desativado. O sistema Flai agora utiliza exclusivamente dados reais da API Amadeus. " +
+            "Modo de teste desativado. O sistema Flai agora utiliza exclusivamente dados reais da API TravelPayouts. " +
             "Para ver resultados de voos, converse com a Avi e forneça detalhes sobre sua viagem."
         );
     }
@@ -531,7 +531,7 @@ class FlightResultsPanel {
         // Preparar o conteúdo HTML
         let resultsHtml = `
             <h3>Voos Encontrados (${offers.length})</h3>
-            <p>Resultados reais da API Amadeus:</p>
+            <p>Resultados reais da API TravelPayouts:</p>
             <div class="flight-cards-container">
         `;
 
