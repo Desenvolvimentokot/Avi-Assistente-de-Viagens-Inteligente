@@ -6,7 +6,7 @@ Esta abordagem permite obter dados reais de voos sem usar um navegador headless 
 import json
 import uuid
 import logging
-from flask import Blueprint, request, jsonify, render_template, session, current_app
+from flask import Blueprint, request, jsonify, render_template, session, current_app, make_response
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -160,10 +160,10 @@ def save_flight_results():
         
         # Aqui precisaríamos de um mecanismo para armazenar os resultados
         # Para testes, vamos apenas guardar no app.config
-        if not hasattr(current_app, 'flight_results'):
-            current_app.flight_results = {}
+        if 'flight_results' not in current_app.config:
+            current_app.config['flight_results'] = {}
         
-        current_app.flight_results[session_id] = formatted_flights
+        current_app.config['flight_results'][session_id] = formatted_flights
         
         logger.info(f"Resultados salvos para sessão {session_id}")
         
@@ -179,4 +179,64 @@ def save_flight_results():
         return jsonify({
             "success": False,
             "message": f"Erro ao salvar resultados: {str(e)}"
+        }), 500
+        
+@hidden_search_bp.route('/api/chat-flight-results', methods=['GET'])
+def get_chat_flight_results():
+    """
+    Verifica se há resultados de voos disponíveis para o chat.
+    
+    Response:
+    {
+        "success": true,
+        "message": "Resultados disponíveis",
+        "results": [...],  // array de objetos de voos ou vazio
+        "has_results": true/false
+    }
+    """
+    try:
+        # Obter ID de sessão
+        session_id = request.cookies.get('flai_session_id')
+        
+        if not session_id:
+            return jsonify({
+                "success": False,
+                "message": "Sessão não encontrada",
+                "results": [],
+                "has_results": False
+            })
+        
+        logger.info(f"Verificando resultados para sessão {session_id}")
+        
+        # Verificar se há resultados para esta sessão
+        results = []
+        if 'flight_results' in current_app.config and session_id in current_app.config['flight_results']:
+            results = current_app.config['flight_results'][session_id]
+            
+            # Limpar resultados após retorná-los
+            del current_app.config['flight_results'][session_id]
+            
+            logger.info(f"Encontrados {len(results)} resultados para sessão {session_id}")
+        
+        # Criar resposta
+        response = jsonify({
+            "success": True,
+            "message": "Resultados verificados com sucesso",
+            "results": results,
+            "has_results": len(results) > 0
+        })
+        
+        # Garantir que a sessão seja mantida
+        if session_id:
+            response.set_cookie('flai_session_id', session_id, max_age=86400*30, httponly=True)
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar resultados: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Erro ao verificar resultados: {str(e)}",
+            "results": [],
+            "has_results": False
         }), 500
