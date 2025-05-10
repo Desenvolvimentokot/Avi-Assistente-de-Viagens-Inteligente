@@ -1,5 +1,5 @@
 """
-Conector direto entre o chat e o serviço de busca de voos do Amadeus
+Conector direto entre o chat e o serviço de busca de voos do TravelPayouts
 Esse serviço simplifica a integração direta entre chat e busca de voos.
 """
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class FlightServiceConnector:
     """
     Classe responsável por conectar o processador de chat diretamente 
-    com o serviço de busca de voos do Amadeus, sem depender de GPT
+    com o serviço de busca de voos do TravelPayouts, sem depender de GPT
     """
 
     def __init__(self):
@@ -26,7 +26,7 @@ class FlightServiceConnector:
     def search_flights_from_chat(self, travel_info, session_id):
         """
         Processa as informações extraídas do chat e envia diretamente 
-        para a API do Amadeus para buscar resultados reais
+        para a API do TravelPayouts para buscar resultados reais
 
         Args:
             travel_info: Dicionário com informações de viagem extraídas do chat

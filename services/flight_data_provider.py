@@ -1,6 +1,6 @@
 """
 Serviço intermediário para fornecer dados reais de voos para o chat
-Este serviço conecta o processador de chat às rotas de API Amadeus
+Este serviço conecta o processador de chat às rotas de API TravelPayouts
 """
 
 import os
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class FlightDataProvider:
     """
-    Fornece dados de voos reais da API Amadeus para o sistema de chat
+    Fornece dados de voos reais da API TravelPayouts para o sistema de chat
     """
     
     def __init__(self):
@@ -60,7 +60,7 @@ class FlightDataProvider:
             
             # Fazer a chamada à API interna
             logger.info(f"Buscando voos: {origin} -> {destination} em {departure_date}")
-            url = f"{self.base_url}/api/amadeus/flights"
+            url = f"{self.base_url}/api/travelpayouts/flights"
             response = requests.post(url, json=params)
             
             # Verificar se a requisição foi bem sucedida
@@ -121,7 +121,7 @@ class FlightDataProvider:
             
             # Fazer a chamada à API interna
             logger.info(f"Buscando melhores preços: {origin} -> {destination} entre {date_range_start} e {date_range_end}")
-            url = f"{self.base_url}/api/amadeus/best-prices"
+            url = f"{self.base_url}/api/travelpayouts/best-prices"
             response = requests.post(url, json=params)
             
             # Verificar se a requisição foi bem sucedida
