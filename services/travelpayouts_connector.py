@@ -1,6 +1,7 @@
 """
 Conector direto entre o chat e o serviço de busca de voos do TravelPayouts
-Esse serviço simplifica a integração direta entre chat e busca de voos.
+Esse serviço simplifica a integração direta entre chat e busca de voos usando a API REST
+para obter dados reais de voos diretamente da fonte oficial.
 """
 
 import logging
@@ -8,7 +9,7 @@ import json
 import requests
 import os
 from datetime import datetime, timedelta
-from services.travelpayouts_service import TravelPayoutsService
+from services.travelpayouts_rest_api import travelpayouts_api
 
 # Configuração do logger
 logging.basicConfig(level=logging.INFO)
@@ -17,17 +18,21 @@ logger = logging.getLogger(__name__)
 class TravelPayoutsConnector:
     """
     Classe responsável por conectar o processador de chat diretamente 
-    com o serviço de busca de voos do TravelPayouts, sem depender de GPT
+    com a API REST do TravelPayouts, sem depender de GPT ou Playwright.
+    
+    Esta classe fornece uma interface simplificada para buscar voos reais
+    diretamente da API TravelPayouts a partir das informações extraídas do chat.
     """
 
     def __init__(self):
         """Inicializa o conector de serviço de voos"""
-        self.travelpayouts_service = TravelPayoutsService()
+        # Usando a API REST diretamente em vez do serviço antigo
+        self.travelpayouts_api = travelpayouts_api
 
     def search_flights_from_chat(self, travel_info, session_id):
         """
         Processa as informações extraídas do chat e envia diretamente 
-        para a API do TravelPayouts para buscar resultados reais
+        para a API REST do TravelPayouts para buscar resultados reais
 
         Args:
             travel_info: Dicionário com informações de viagem extraídas do chat
@@ -69,7 +74,7 @@ class TravelPayoutsConnector:
 
     def _search_specific_flights(self, travel_info, session_id):
         """
-        Busca voos para data específica usando o serviço TravelPayouts
+        Busca voos para data específica usando a API REST do TravelPayouts
 
         Args:
             travel_info: Informações da viagem
@@ -80,7 +85,7 @@ class TravelPayoutsConnector:
         """
         try:
             # Logs de monitoramento detalhados para rastrear a busca
-            logger.warning(f"⭐ BUSCA REAL: Iniciando busca para sessão {session_id} via TravelPayouts")
+            logger.warning(f"⭐ BUSCA REAL: Iniciando busca para sessão {session_id} via TravelPayouts REST API")
 
             # Validação dos parâmetros obrigatórios
             required_params = ['origin', 'destination', 'departure_date']
@@ -93,29 +98,32 @@ class TravelPayoutsConnector:
                         "data": []
                     }
 
-            # Preparar os parâmetros para o serviço TravelPayouts
-            search_params = {
-                'originLocationCode': travel_info.get('origin'),
-                'destinationLocationCode': travel_info.get('destination'),
-                'departureDate': travel_info.get('departure_date'),
-                'adults': travel_info.get('adults', 1)
-            }
-            
-            # Adicionar data de retorno se existir
-            if travel_info.get('return_date'):
-                search_params['returnDate'] = travel_info.get('return_date')
+            # Extrair os parâmetros principais
+            origin = travel_info.get('origin')
+            destination = travel_info.get('destination')
+            departure_date = travel_info.get('departure_date')
+            return_date = travel_info.get('return_date')
+            adults = travel_info.get('adults', 1)
             
             # Registrar tempo de início para medição
             import time
             start_time = time.time()
             
-            # Buscar voos usando o serviço TravelPayouts
-            logger.warning(f"📡 Requisitando dados reais da API TravelPayouts: {json.dumps(search_params)}")
-            flight_results = self.travelpayouts_service.search_flights(search_params)
+            # Buscar voos usando a API REST do TravelPayouts
+            logger.warning(f"📡 Requisitando voos: {origin}→{destination}, partida: {departure_date}, retorno: {return_date}")
+            
+            # Usar a nova API REST para buscar voos
+            flight_results = self.travelpayouts_api.search_flights(
+                origin=origin,
+                destination=destination,
+                departure_date=departure_date,
+                return_date=return_date,
+                adults=adults
+            )
             
             # Calcular tempo de resposta
             elapsed_time = time.time() - start_time
-            logger.warning(f"⏱️ Tempo de resposta da API TravelPayouts: {elapsed_time:.2f} segundos")
+            logger.warning(f"⏱️ Tempo de resposta da API: {elapsed_time:.2f} segundos")
             
             # Processar os resultados
             if flight_results:
@@ -128,10 +136,10 @@ class TravelPayoutsConnector:
                     "session_id": session_id,
                     "search_timestamp": datetime.utcnow().isoformat(),
                     "meta": {
-                        "origin": travel_info.get('origin'),
-                        "destination": travel_info.get('destination'),
-                        "departure_date": travel_info.get('departure_date'),
-                        "return_date": travel_info.get('return_date'),
+                        "origin": origin,
+                        "destination": destination,
+                        "departure_date": departure_date,
+                        "return_date": return_date,
                         "currency": "BRL",
                         "source": "TravelPayouts"
                     }
@@ -156,7 +164,7 @@ class TravelPayoutsConnector:
 
     def _search_best_prices(self, travel_info, session_id):
         """
-        Busca melhores preços para um período flexível usando TravelPayouts
+        Busca melhores preços para um período flexível usando a API REST do TravelPayouts
 
         Args:
             travel_info: Informações da viagem
@@ -174,14 +182,21 @@ class TravelPayoutsConnector:
                 # Se não tiver data específica, usar mês atual
                 month = datetime.now().strftime('%Y-%m')
             
-            # Logging para debug
-            logger.info(f"Buscando melhores preços para {travel_info.get('origin')} → {travel_info.get('destination')} em {month}")
+            # Extrair informações importantes
+            origin = travel_info.get('origin')
+            destination = travel_info.get('destination')
             
-            # Buscar melhores preços
-            best_prices = self.travelpayouts_service.search_best_prices(
-                origin=travel_info.get('origin'),
-                destination=travel_info.get('destination'),
-                depart_date=month
+            # Logging para debug
+            logger.info(f"Buscando melhores preços para {origin} → {destination} em {month}")
+            
+            # Criar uma data de início do mês para a busca
+            month_start = f"{month}-01"
+            
+            # Buscar usando a API REST com um período maior para obter os melhores preços
+            best_prices = self.travelpayouts_api._search_month_matrix(
+                origin=origin,
+                destination=destination,
+                departure_date=month_start
             )
             
             if best_prices:
@@ -191,8 +206,8 @@ class TravelPayoutsConnector:
                     "session_id": session_id,
                     "search_timestamp": datetime.utcnow().isoformat(),
                     "meta": {
-                        "origin": travel_info.get('origin'),
-                        "destination": travel_info.get('destination'),
+                        "origin": origin,
+                        "destination": destination,
                         "month": month,
                         "currency": "BRL",
                         "source": "TravelPayouts"
@@ -328,8 +343,8 @@ class TravelPayoutsConnector:
                 logger.error("Origem ou destino não fornecidos para link de parceiro")
                 return None
                 
-            # Gerar link usando o serviço TravelPayouts
-            return self.travelpayouts_service.get_partner_link(
+            # Gerar link usando a API REST do TravelPayouts
+            return self.travelpayouts_api._create_booking_url(
                 origin=travel_info.get('origin'),
                 destination=travel_info.get('destination'),
                 departure_date=travel_info.get('departure_date'),
