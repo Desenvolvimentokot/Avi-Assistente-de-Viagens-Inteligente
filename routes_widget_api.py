@@ -8,7 +8,7 @@ import os
 import json
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, render_template, current_app
 from services.travelpayouts_rest_api import travelpayouts_api
 from services.travelpayouts_connector import travelpayouts_connector
