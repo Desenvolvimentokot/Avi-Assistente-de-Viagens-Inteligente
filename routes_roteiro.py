@@ -30,11 +30,11 @@ def roteiro_personalizado():
     """Renderiza a página do Roteiro Personalizado"""
     return render_template('roteiro_personalizado.html')
 
-@roteiro_bp.route('/amadeus-results-roteiro')
-def amadeus_results_roteiro():
+@roteiro_bp.route('/travelpayouts-results-roteiro')
+def travelpayouts_results_roteiro():
     """
     Renderiza a página de resultados para o Roteiro Personalizado.
-    Esta página é uma versão adaptada da página amadeus_results.html,
+    Esta página usa os resultados da API TravelPayouts para exibir opções de voo
     com a adição de funcionalidades para adicionar itens ao roteiro.
     """
     # Parâmetros da busca
@@ -44,14 +44,36 @@ def amadeus_results_roteiro():
     return_date = request.args.get('return_date', '')
     adults = request.args.get('adults', 1)
 
+    # Redirecionar para a página do TravelPayouts
     return render_template(
-        'amadeus_results_roteiro.html',
+        'travelpayouts_results.html',
         origin=origin,
         destination=destination,
         departure_date=departure_date,
         return_date=return_date,
         adults=adults
     )
+
+# Manter a rota antiga para compatibilidade, mas redirecionar para a nova
+@roteiro_bp.route('/amadeus-results-roteiro')
+def amadeus_results_roteiro():
+    """
+    Rota de compatibilidade que redireciona para a nova página de resultados do TravelPayouts
+    """
+    # Parâmetros da busca
+    origin = request.args.get('origin', '')
+    destination = request.args.get('destination', '')
+    departure_date = request.args.get('departure_date', '')
+    return_date = request.args.get('return_date', '')
+    adults = request.args.get('adults', 1)
+    
+    # Redirecionar para a nova rota
+    return redirect(url_for('travelpayouts.search', 
+                           origin=origin, 
+                           destination=destination,
+                           departure_date=departure_date,
+                           return_date=return_date,
+                           adults=adults))
 
 # API para o Roteiro Personalizado
 
