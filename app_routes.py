@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 # Importar os serviços necessários
 from services.travelpayouts_service import TravelPayoutsService
 from services.travelpayouts_connector import travelpayouts_connector
+# Importar a API REST para testes diretos
+import time
 
 # Criar blueprint para as rotas da API de resultados de voos
 api_blueprint = Blueprint('flight_results_api', __name__)
@@ -186,7 +188,7 @@ def direct_flight_search():
     """
     try:
         # Obter parâmetros da requisição
-        data = request.json
+        data = request.json or {}
         session_id = data.get('session_id', str(uuid.uuid4()))
         
         logger.info(f"Busca direta de voos - Sessão: {session_id}")
@@ -397,7 +399,7 @@ def travelpayouts_test():
             "origin": origin,
             "destination": destination,
             "departure_date": departure_date,
-            "adults": int(adults)
+            "adults": int(adults) if adults else 1
         }
         
         # Usar o travelpayouts_connector para buscar resultados reais
@@ -440,4 +442,72 @@ def travelpayouts_test():
             "error": f"Erro no teste: {str(e)}",
             "data": [],
             "success": False
+        }), 500
+
+# Endpoint para testar API REST do TravelPayouts diretamente
+@api_blueprint.route('/test-travelpayouts-rest', methods=['GET'])
+def test_travelpayouts_rest():
+    """
+    Endpoint para testar a API REST do TravelPayouts diretamente.
+    
+    Query parameters:
+    - origin: Código IATA do aeroporto de origem (default: GRU)
+    - destination: Código IATA do aeroporto de destino (default: JFK)
+    - departure_date: Data de partida no formato YYYY-MM-DD (default: data atual + 30 dias)
+    - return_date: Data de retorno no formato YYYY-MM-DD (opcional)
+    """
+    from services.travelpayouts_rest_api import travelpayouts_api
+    
+    try:
+        # Obter parâmetros da query string
+        origin = request.args.get('origin', 'GRU')
+        destination = request.args.get('destination', 'JFK')
+        
+        # Data padrão: 30 dias a partir de hoje
+        default_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        departure_date = request.args.get('departure_date', default_date)
+        
+        # Data de retorno é opcional
+        return_date = request.args.get('return_date', None)
+        
+        # Registrar a requisição
+        logger.warning(f"🧪 TESTE REST API: {origin} → {destination}, partida: {departure_date}, retorno: {return_date}")
+        
+        # Buscar voos via API REST
+        start_time = time.time()
+        flight_results = travelpayouts_api.search_flights(
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+            return_date=return_date
+        )
+        elapsed_time = time.time() - start_time
+        
+        # Formatar resposta
+        response = {
+            "status": "success",
+            "message": f"Busca concluída em {elapsed_time:.2f} segundos",
+            "params": {
+                "origin": origin,
+                "destination": destination,
+                "departure_date": departure_date,
+                "return_date": return_date
+            },
+            "results_count": len(flight_results),
+            "results": flight_results[:3]  # Limitar para não sobrecarregar a resposta
+        }
+        
+        # Registrar o resultado
+        logger.warning(f"✅ TESTE REST API: {len(flight_results)} resultados encontrados em {elapsed_time:.2f}s")
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"❌ ERRO NO TESTE REST API: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "status": "error",
+            "message": f"Erro ao testar API REST: {str(e)}"
         }), 500
