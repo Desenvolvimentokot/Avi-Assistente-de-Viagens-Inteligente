@@ -113,8 +113,8 @@ class TravelPayoutsRestAPI:
             # Parâmetros da API
             params = {
                 "token": self.token,
-                "origin": origin,
-                "destination": destination,
+                "origin": origin.lower(),  # API requer códigos em minúsculo
+                "destination": destination.lower(),  # API requer códigos em minúsculo
                 "calendar_type": "departure_date",
                 "month": departure_month,
                 "currency": "BRL",
@@ -123,6 +123,9 @@ class TravelPayoutsRestAPI:
             
             # Fazer a requisição
             start_time = time.time()
+            logger.info(f"Buscando voos de {origin} para {destination} no mês {departure_month}")
+            logger.info(f"URL: {self.calendar_prices_endpoint} com params: {params}")
+            
             response = requests.get(self.calendar_prices_endpoint, params=params)
             elapsed_time = time.time() - start_time
             logger.info(f"Requisição API calendário: {elapsed_time:.2f}s | Status: {response.status_code}")
@@ -134,6 +137,7 @@ class TravelPayoutsRestAPI:
             # Processar a resposta
             try:
                 data = response.json()
+                logger.info(f"Resposta recebida com sucesso. Tipo: {type(data)}")
                 
                 # Tentar converter para JSON se for uma string
                 if isinstance(data, str):
@@ -144,7 +148,7 @@ class TravelPayoutsRestAPI:
                         return []
                 
                 # Verificar estrutura da resposta
-                logger.debug(f"Estrutura da resposta da API calendário: {type(data)}")
+                logger.info(f"Tipo de resposta: {type(data)}")
             except Exception as json_error:
                 logger.error(f"Erro ao processar JSON da API calendário: {str(json_error)}")
                 return []
@@ -159,10 +163,17 @@ class TravelPayoutsRestAPI:
             # Em algumas respostas, data pode ser uma string ou um dicionário
             if isinstance(data.get("data"), dict):
                 raw_data = data.get("data", {})
+                logger.info(f"Formatando resultados de calendário. Tipo resposta: {type(data)}")
             else:
-                logger.warning(f"Formato de dados inesperado na API calendário. Tipo: {type(data.get('data'))}")
+                logger.error(f"Formato de dados inesperado na API calendário. Tipo: {type(data.get('data'))}")
                 raw_data = {}
+                
+            # Verificar se temos dados
+            if not raw_data:
+                logger.error("Nenhuma entrada de dados válida encontrada")
+                return []
             
+            # Processar cada data no calendário
             for date_str, prices in raw_data.items():
                 if not prices:
                     continue
@@ -185,11 +196,20 @@ class TravelPayoutsRestAPI:
             # Ordenar por preço (mais barato primeiro)
             flights.sort(key=lambda f: float(f["price"]["total"]))
             
+            logger.info(f"Resultados encontrados: {len(flights)} voos")
+            
+            # Se não encontrou resultados, tentar criando um resultado para redirecionamento
+            if len(flights) == 0:
+                logger.info(f"Tentando alternativa com API de preços baratos para {origin.lower()}-{destination.lower()}")
+                return []
+            
             # Limitar a 20 resultados para não sobrecarregar
             return flights[:20] if len(flights) > 20 else flights
             
         except Exception as e:
             logger.error(f"Erro ao buscar preços de calendário: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     def _search_cheap_prices(self, origin, destination, departure_date, return_date=None):

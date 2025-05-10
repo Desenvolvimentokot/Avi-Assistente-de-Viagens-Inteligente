@@ -1,0 +1,108 @@
+Workflow de integração do widget Trip.com para busca automática de voos
+1. Quando o cliente faz o pedido no chat AVI
+Cliente informa origem, destino, datas e número de passageiros no chat da AVI.
+
+AVI extrai esses parâmetros (origin, destination, departure_date, return_date, adults) e envia para o back‑end via chamada interna (por exemplo, POST /api/search-flights).
+
+2. Back‑end inicia um navegador headless com Playwright
+Abrir página de busca (por exemplo /flight-search) em background, sem recarregar a tela do usuário.
+
+Garantir que o HTML dessa página contenha o widget Trip.com (script que você forneceu) ao final de <body>:
+
+html
+Copy
+Edit
+<script async
+        src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121"
+        charset="utf-8"></script>
+Navegar para essa página no contexto Playwright.
+
+3. Preparar captura de resultados do widget
+Injetar no page antes de qualquer ação:
+
+js
+Copy
+Edit
+window.flights_data = [];
+window.addEventListener('message', event => {
+  if (event.data && event.data.tpFlightResults) {
+    window.flights_data.push(...event.data.tpFlightResults);
+  }
+});
+Isso cria um array global flights_data que receberá, via postMessage, cada resultado que o widget Trip.com emitir.
+
+4. Preencher o widget e disparar a busca
+Usar Playwright para preencher os campos visíveis do widget:
+
+Campo origem ← origin
+
+Campo destino ← destination
+
+Campo data de partida ← departure_date
+
+Campo data de retorno ← return_date (se houver)
+
+Clicar no botão de busca do widget (seletor do botão conforme estrutura DOM do widget, p.ex. button.tp-search-button).
+
+5. Aguardar resultados reais
+Após o clique, aguardar até que o array global receba pelo menos 2 resultados:
+
+js
+Copy
+Edit
+await page.waitForFunction('window.flights_data.length >= 2', { timeout: 15000 });
+Isso só retorna quando o widget tiver carregado dados reais de voos.
+
+6. Extrair os dois melhores voos
+No Playwright, executar:
+
+js
+Copy
+Edit
+const top2 = await page.evaluate('window.flights_data.slice(0, 2)');
+top2 será um array de 2 objetos JS com informações de cada voo (preço, horários, companhia etc).
+
+7. Fechar o navegador headless
+await page.close() para liberar recursos.
+
+8. Formatar e devolver ao chat AVI
+Converter top2 em JSON simples, por exemplo:
+
+json
+Copy
+Edit
+[
+  { "origem":"GRU", "destino":"AJU", "partida":"2025-05-20T10:00", "chegada":"2025-05-20T12:30", "preco":"R$ 450" },
+  { "origem":"GRU", "destino":"AJU", "partida":"2025-05-20T15:00", "chegada":"2025-05-20T17:30", "preco":"R$ 480" }
+]
+Enviar essa lista de volta ao front‑end via resposta da rota /api/search-flights.
+
+9. No front‑end do chat AVI
+Enquanto aguarda a resposta, exibir uma barra de “Avi está pesquisando…” no chat.
+
+Quando chegar o JSON com os 2 voos, remover a barra de carregamento e mostrar ao cliente uma mensagem formatada com detalhes de cada voo.
+
+Instruções diretas para o Replit Agent
+Alterar o template HTML de search.html (ou equivalente) e incluir o <script async src="https://tp.media/content?…"></script> conforme acima.
+
+No módulo que carrega o widget via Playwright (flight_widget_loader.py ou similar):
+
+Inserir page.evaluate("window.flights_data = []").
+
+Inserir o addEventListener('message', …) via page.evaluate(...).
+
+No conector Playwright:
+
+Preencher campos do widget.
+
+Clicar no botão de busca do widget.
+
+Aguardar window.flights_data.length >= 2.
+
+Extrair window.flights_data.slice(0,2).
+
+Format e retorne os dois objetos de voo para a rota Python.
+
+No front‑end do chat, exibir loading e depois mostrar os resultados.
+
+Com esse fluxo, o widget Trip.com será acionado automaticamente, retornará dados reais de voos e a AVI poderá apresentar ao cliente os dois melhores resultados.
