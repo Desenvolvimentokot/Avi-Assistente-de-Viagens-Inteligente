@@ -1,19 +1,23 @@
-/**
- * Chat-Widget Integration
- * 
- * Este script integra a busca de voos via widget Trip.com com a interface
- * de chat, permitindo exibir cards de resultados diretamente no chat e
- * no painel lateral.
- */
 
+/**
+ * Script para integração do widget Trip.com com o chat da Avi
+ */
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("Inicializando integração do widget Trip.com com o chat");
+    
     // Verificar se estamos em uma página com chat
-    if (!document.querySelector('.chat-messages')) return;
+    if (!document.querySelector('.chat-messages')) {
+        console.log("Elemento .chat-messages não encontrado, pulando inicialização do widget");
+        return;
+    }
     
     // Exportar função para exibir cartões de voos no chat
     window.displayFlightCardsInChat = function(flights) {
         // Verificar se temos voos para exibir
-        if (!flights || !flights.length) return;
+        if (!flights || !flights.length) {
+            console.log("Nenhum voo para exibir");
+            return;
+        }
         
         // Criar mensagem para cartões de voo
         const flightMessage = document.createElement('div');
@@ -40,59 +44,75 @@ document.addEventListener('DOMContentLoaded', function() {
             cardsContainer.appendChild(card);
         });
         
-        // Adicionar link para ver mais
-        if (flights.length > 3) {
-            const viewMoreLink = document.createElement('div');
-            viewMoreLink.className = 'view-more-flights';
-            viewMoreLink.innerHTML = `<a href="/widget-api/chat_search" class="view-more-link">Ver todas as ${flights.length} opções</a>`;
-            cardsContainer.appendChild(viewMoreLink);
-        }
-        
+        // Adicionar container de cartões ao conteúdo
         content.appendChild(cardsContainer);
+        
+        // Adicionar o conteúdo à mensagem
         flightMessage.appendChild(content);
         
-        // Adicionar ao chat
-        document.querySelector('.chat-messages').appendChild(flightMessage);
-        
-        // Scroll para mostrar novas mensagens
-        document.querySelector('.chat-messages').scrollTop = document.querySelector('.chat-messages').scrollHeight;
+        // Adicionar a mensagem ao chat
+        const chatMessages = document.querySelector('.chat-messages');
+        if (chatMessages) {
+            chatMessages.appendChild(flightMessage);
+            scrollToBottom();
+        }
     };
     
-    // Função auxiliar para criar um cartão de voo
+    // Função para criar um cartão de voo
     function createFlightCard(flight) {
         const card = document.createElement('div');
         card.className = 'flight-card';
         
-        // Formatação do preço
-        const price = typeof flight.price === 'number' 
-            ? flight.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-            : flight.price;
-        
+        // Implementar conteúdo do cartão com informações do voo
         card.innerHTML = `
             <div class="flight-card-header">
-                <div class="flight-airline">${flight.airline || 'Companhia Aérea'}</div>
-                <div class="flight-price">${flight.currency || 'R$'} ${price}</div>
+                <div class="flight-card-airline">${flight.airline || 'Companhia'}</div>
+                <div class="flight-card-price">${formatPrice(flight.price)}</div>
             </div>
-            <div class="flight-card-body">
-                <div class="flight-info">
-                    <div class="flight-times">
-                        <span class="departure-time">${flight.departure || 'Partida'}</span>
-                        <span class="flight-arrow">→</span>
-                        <span class="arrival-time">${flight.arrival || 'Chegada'}</span>
-                    </div>
-                    <div class="flight-duration">
-                        ${flight.duration || ''}
-                        ${flight.stops > 0 ? `(${flight.stops} ${flight.stops > 1 ? 'paradas' : 'parada'})` : 'Direto'}
-                    </div>
-                </div>
+            <div class="flight-card-route">
+                <div class="flight-card-cities">${flight.origin} → ${flight.destination}</div>
+                <div class="flight-card-date">${formatDate(flight.departureDate)}</div>
             </div>
-            <div class="flight-card-footer">
-                ${flight.bookingUrl ? 
-                    `<a href="${flight.bookingUrl}" target="_blank" class="flight-book-btn flight-results-button">Ver oferta</a>` :
-                    '<span class="flight-notice">Oferta indisponível</span>'}
-            </div>
+            <a href="${flight.bookingLink}" target="_blank" class="flight-card-action">
+                Ver detalhes
+            </a>
         `;
         
         return card;
     }
+    
+    // Funções auxiliares
+    function formatPrice(price) {
+        if (!price) return 'Preço não disponível';
+        
+        try {
+            const value = parseFloat(price);
+            return value.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        } catch (e) {
+            return price;
+        }
+    }
+    
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('pt-BR');
+        } catch (e) {
+            return dateStr;
+        }
+    }
+    
+    function scrollToBottom() {
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+    
+    console.log("Integração do widget Trip.com inicializada com sucesso");
 });

@@ -32,10 +32,12 @@ document.addEventListener('DOMContentLoaded', function() {
             scrollToBottom();
         }
     });
-    // Elementos do DOM
+    
+    // Elementos do DOM - obtenção segura com verificação
     const chatMessages = document.querySelector('.chat-messages');
-    const messageInput = document.getElementById('user-input');
-    const sendButton = document.getElementById('send-button');
+    // Usar querySelector para garantir que os elementos sejam encontrados corretamente
+    const messageInput = document.querySelector('.message-input');
+    const sendButton = document.querySelector('.send-button');
     const modeButtons = document.querySelectorAll('.mode-button');
 
     // Variáveis globais

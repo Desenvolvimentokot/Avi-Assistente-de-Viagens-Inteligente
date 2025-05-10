@@ -12,8 +12,8 @@
     // Função para verificar novas mensagens e detectar confirmação
     function checkForConfirmation() {
         // Observar mudanças no contêiner de mensagens
-        const chatMessages = document.querySelector('.chat-messages');
-        if (!chatMessages) {
+        const chatMessagesContainer = document.querySelector('.chat-messages');
+        if (!chatMessagesContainer) {
             console.log("Container de mensagens não encontrado, tentando novamente em 1 segundo...");
             setTimeout(checkForConfirmation, 1000);
             return;
@@ -61,7 +61,7 @@
         });
         
         // Configurar o observador
-        observer.observe(chatMessages, { 
+        observer.observe(chatMessagesContainer, { 
             childList: true,
             subtree: true 
         });
