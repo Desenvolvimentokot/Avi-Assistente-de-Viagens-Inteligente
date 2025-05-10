@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Widget de Busca de Voos</title>
+</head>
+<body>
+  <!-- Container onde o widget Trip.com será injetado -->
+  <div id="widget-container"></div>
+
+  <!-- Código do widget Trip.com -->
+  <script async
+    src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121"
+    charset="utf-8">
+  </script>
+  
+  <!-- Script para injetar parâmetros no widget -->
+  <script>
+    // Verificar se existem parâmetros para o widget
+    document.addEventListener('DOMContentLoaded', function() {
+      // Recuperar parâmetros definidos externamente
+      const travelParams = window._travelParams || {};
+      
+      console.log('Travel params loaded:', travelParams);
+      
+      // Aqui seria o código para preencher o widget com os parâmetros
+      // O widget do Trip.com não oferece uma API JS direta, mas podemos
+      // observar quando o widget for carregado e tentar interagir com ele
+    });
+  </script>
+</body>
+</html>

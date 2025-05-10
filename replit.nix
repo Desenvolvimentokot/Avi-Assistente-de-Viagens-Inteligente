@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.chromium
     pkgs.pango
     pkgs.harfbuzz
     pkgs.glib

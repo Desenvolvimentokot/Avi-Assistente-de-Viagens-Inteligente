@@ -1,0 +1,181 @@
+Prompt para o Replit Agent: Integração do Widget Trip.com (TravelPayouts) em Workflow Headless
+
+1. Página interna de busca (headless)
+Arquivo: templates/widget_search.html
+
+html
+Copy
+Edit
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Widget de Busca de Voos</title>
+</head>
+<body>
+  <!-- Container onde o widget Trip.com será injetado -->
+  <div id="widget-container"></div>
+
+  <!-- Código do widget Trip.com -->
+  <script async
+    src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121"
+    charset="utf-8">
+  </script>
+</body>
+</html>
+2. Serviço de carregamento headless
+Arquivo: services/flight_widget_loader.py
+
+python
+Copy
+Edit
+from playwright.sync_api import sync_playwright
+import json
+
+class FlightWidgetLoader:
+    def __init__(self, base_url):
+        self.base_url = base_url  # ex: https://seu-site.com/widget_search.html
+
+    def fetch_flights(self, session_id, travel_params):
+        """
+        1. Abre a página interna headless
+        2. Passa parâmetros de viagem via localStorage/sessionStorage
+        3. Aguarda renderização dos cards do widget
+        4. Extrai e retorna os 2 melhores voos como JSON
+        """
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            # injetar travel_params para que o widget use
+            page.evaluate_on_new_document(
+                f"window._travelParams = {json.dumps(travel_params)};"
+            )
+            page.goto(f"{self.base_url}?session_id={session_id}")
+            # aguardar até aparecer pelo menos 2 cards
+            page.wait_for_selector(".flight-result-card", timeout=15000)
+            # extrair dados
+            results = page.evaluate("""
+                () => {
+                  const cards = Array.from(document.querySelectorAll('.flight-result-card'));
+                  const data = cards.slice(0,2).map(card => ({
+                     airline: card.querySelector('.airline-name')?.innerText||'',
+                     departure: card.querySelector('.departure-time')?.innerText||'',
+                     arrival: card.querySelector('.arrival-time')?.innerText||'',
+                     price: parseFloat(card.querySelector('.price-amount')?.innerText.replace(/[^0-9\.]/g, ''))||0,
+                     currency: card.querySelector('.price-currency')?.innerText||'BRL',
+                     bookingUrl: card.querySelector('a.book-button')?.href||''
+                  }));
+                  return data;
+                }
+            """)
+            browser.close()
+            return results
+3. Adaptar o fluxo de chat da Avi
+Arquivo: app_routes.py (ou onde estiver o endpoint de busca)
+
+python
+Copy
+Edit
+from flask import Blueprint, session, jsonify
+from services.flight_widget_loader import FlightWidgetLoader
+
+bp = Blueprint('flights', __name__)
+loader = FlightWidgetLoader(base_url="https://seu-site.com/widget_search.html")
+
+@bp.route("/api/search-flights", methods=["POST"])
+def search_flights():
+    travel_info = session.get('travel_info')
+    # indica ao frontend mostrar barra de carregamento
+    return jsonify({"status":"loading"}), 202
+
+@bp.route("/api/fetch-widget-results", methods=["GET"])
+def fetch_widget_results():
+    session_id = session['id']
+    travel_info = session['travel_info']
+    # chama headless loader
+    results = loader.fetch_flights(session_id, travel_info)
+    # retorna JSON com os 2 melhores voos
+    return jsonify({"status":"success", "flights": results})
+4. Frontend: exibição e carregamento
+Arquivo: static/js/chat.js (ou equivalente)
+
+js
+Copy
+Edit
+// Quando Avi envia confirmação dos dados de viagem:
+function onTravelConfirmed() {
+  // exibir barra de carregamento no chat
+  showLoadingIndicator("🔄 Estou buscando os melhores voos...");
+  // solicitar backend para iniciar headless
+  fetch("/api/search-flights", { method: "POST" })
+    .then(() => {
+      // em seguida, poll para obter resultados
+      return pollWidgetResults();
+    })
+    .then(data => {
+      hideLoadingIndicator();
+      displayFlightCardsInChat(data.flights);
+    })
+    .catch(err => {
+      hideLoadingIndicator();
+      displayMessage("Não foi possível obter voos no momento. Tente novamente mais tarde.");
+    });
+}
+
+function pollWidgetResults() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      fetch("/api/fetch-widget-results")
+        .then(res => res.json())
+        .then(json => {
+          if (json.status === "success") {
+            clearInterval(interval);
+            resolve(json);
+          }
+          else if (attempts > 20) { // timeout ~20s
+            clearInterval(interval);
+            reject("timeout");
+          }
+        });
+    }, 1000);
+  });
+}
+
+function displayFlightCardsInChat(flights) {
+  flights.forEach(f => {
+    appendChatCard({
+      title: `${f.airline} — R$${f.price.toFixed(2)}`,
+      subtitle: `${f.departure} → ${f.arrival}`,
+      action: { label: "Reservar", url: f.bookingUrl }
+    });
+  });
+}
+5. Tratamento de erros e fallback
+Se pollWidgetResults timeout: exibir mensagem de falha.
+
+Não usar dados simulados em nenhuma etapa.
+
+Resumo do Workflow implementado
+Usuário conversa com Avi e fornece origem, destino, datas.
+
+Avi confirma dados e aciona /api/search-flights.
+
+Backend dispara headless loader, carrega widget_search.html, injeta parâmetros e espera o widget renderizar.
+
+Widget Trip.com busca e exibe resultados na página oculta.
+
+Loader extrai os 2 melhores voos do DOM e retorna ao backend.
+
+Frontend faz polling em /api/fetch-widget-results, remove loading e mostra cards de voo no chat.
+
+Use este plano completo e os snippets de código para implementar a solução de ponta a ponta.
+
+
+
+
+
+
+
+

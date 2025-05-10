@@ -19,4 +19,6 @@ dependencies = [
     "pandas>=2.2.3",
     "urllib3>=2.3.0",
     "amadeus>=12.0.0",
+    "trafilatura>=2.0.0",
+    "playwright>=1.52.0",
 ]
