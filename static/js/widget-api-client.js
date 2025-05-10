@@ -98,8 +98,11 @@ class WidgetApiClient {
             this.checkStatus(
                 // Callback de sucesso
                 (statusData) => {
+                    // Calcular progresso com base no status
+                    const progress = statusData.progress || Math.floor((this.currentAttempt / this.maxPollingAttempts) * 100);
+                    
                     // Atualizar mensagem de status
-                    onStatus('searching', `${statusData.message || 'Buscando voos...'} (${this.currentAttempt}/${this.maxPollingAttempts})`);
+                    onStatus('searching', statusData.message || 'Buscando voos...', progress);
                     
                     // Se a busca estiver concluída, buscar resultados
                     if (statusData.status === 'complete') {

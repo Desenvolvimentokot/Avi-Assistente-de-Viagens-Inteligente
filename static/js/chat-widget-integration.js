@@ -6,7 +6,7 @@
  */
 
 // Funções auxiliares para interface
-function showLoadingIndicator(message) {
+function showLoadingIndicator(message, progress = 0) {
     // Verifica se o elemento de loading já existe
     let loadingElement = document.getElementById('flight-loading-indicator');
     
@@ -20,6 +20,9 @@ function showLoadingIndicator(message) {
                 <div class="loading-container">
                     <div class="loading-spinner"></div>
                     <div class="loading-text">${message || 'Buscando voos...'}</div>
+                    <div class="loading-progress">
+                        <div class="loading-progress-bar" style="width: ${progress}%"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -35,6 +38,12 @@ function showLoadingIndicator(message) {
         const loadingText = loadingElement.querySelector('.loading-text');
         if (loadingText) {
             loadingText.textContent = message || 'Buscando voos...';
+        }
+        
+        // Atualizar barra de progresso
+        const progressBar = loadingElement.querySelector('.loading-progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
         }
     }
 }
@@ -149,9 +158,9 @@ function searchFlights(travelParams) {
     window.widgetApiClient.startSearch(
         travelParams,
         // Callback de status
-        (status, message) => {
+        (status, message, progress = 0) => {
             if (status === 'searching') {
-                showLoadingIndicator(message);
+                showLoadingIndicator(message, progress);
             }
         },
         // Callback de sucesso
