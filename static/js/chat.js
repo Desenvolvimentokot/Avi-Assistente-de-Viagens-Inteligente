@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // Elementos do DOM
     const chatMessages = document.querySelector('.chat-messages');
-    const messageInput = document.querySelector('.message-input');
-    const sendButton = document.querySelector('.send-button');
+    const messageInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
     const modeButtons = document.querySelectorAll('.mode-button');
 
     // Variáveis globais
@@ -56,7 +56,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Inicialização
+    console.log("Inicializando chat - adicionando mensagem de boas-vindas");
     addWelcomeMessage();
+    
+    // Garantir que a área de chat role para mostrar a mensagem de boas-vindas
+    setTimeout(function() {
+        scrollToBottom();
+    }, 100);
 
     // Eventos
     if (sendButton) {
