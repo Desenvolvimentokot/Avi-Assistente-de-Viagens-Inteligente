@@ -9,35 +9,60 @@
     let searchInProgress = false;
     let lastExtractedFlightInfo = null;
 
-    // Referências para elementos da UI
-    const messageInput = document.querySelector('.message-input');
-    const sendButton = document.querySelector('.send-button');
+    // Referências para elementos da UI - inicializadas apenas quando o DOM estiver pronto
+    let messageInput;
+    let sendButton;
+    
+    // Função para inicializar os elementos UI quando o DOM estiver pronto
+    function initializeUIElements() {
+        messageInput = document.querySelector('.message-input');
+        sendButton = document.querySelector('.send-button');
 
-    // Monitorar o evento de envio de mensagem
-    if (sendButton && messageInput) {
-        // Interceptar envio de mensagem
-        const originalSendButtonClick = sendButton.onclick;
-        sendButton.onclick = function(event) {
-            handleUserMessage();
+        // Monitorar o evento de envio de mensagem apenas se os elementos existirem
+        if (sendButton && messageInput) {
+            console.log('Elementos de UI encontrados, configurando event listeners');
             
-            // Chamar o handler original
-            if (originalSendButtonClick) {
-                originalSendButtonClick.call(this, event);
-            }
-        };
-
-        // Interceptar tecla Enter no input
-        messageInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            // Interceptar envio de mensagem (botão)
+            const originalSendButtonClick = sendButton.onclick;
+            sendButton.onclick = function(event) {
                 handleUserMessage();
-                // Não precisamos chamar preventDefault() ou stopPropagation()
-                // porque estamos apenas observando, não substituindo o comportamento
-            }
-        });
+                
+                // Chamar o handler original
+                if (originalSendButtonClick) {
+                    originalSendButtonClick.call(this, event);
+                }
+            };
+
+            // Interceptar tecla Enter no input
+            messageInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    handleUserMessage();
+                    // Não precisamos chamar preventDefault() ou stopPropagation()
+                    // porque estamos apenas observando, não substituindo o comportamento
+                }
+            });
+        } else {
+            console.log('Elementos de UI não encontrados, tentando novamente em 1s');
+            // Tentar novamente após um atraso
+            setTimeout(initializeUIElements, 1000);
+        }
+    }
+    
+    // Inicializar elementos da UI quando o DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeUIElements);
+    } else {
+        initializeUIElements();
     }
 
     // Handler para processar mensagem do usuário
     function handleUserMessage() {
+        // Verificar se o elemento existe antes de acessar
+        if (!messageInput) {
+            console.warn('messageInput não está disponível');
+            return;
+        }
+        
         const message = messageInput.value.trim();
         if (!message) return;
 
