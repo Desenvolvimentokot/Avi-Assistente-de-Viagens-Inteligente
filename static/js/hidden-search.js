@@ -72,10 +72,18 @@
     }
     
     /**
-     * Cria um iframe invisível para carregar a página de busca
+     * Cria um iframe para carregar a página de busca
+     * MODO DE TESTE: Abre em uma nova aba em vez de usar iframe invisível
      * @param {string} url URL da página de busca
      */
     function createHiddenFrame(url) {
+        console.log('MODO DE TESTE: Abrindo em janela visível a página:', url);
+        
+        // Na fase de teste, abrir em uma nova janela para visualização
+        const fullUrl = window.location.origin + url;
+        window.open(fullUrl, '_blank');
+        
+        /* Código original do iframe invisível - desativado durante os testes
         // Remover iframe anterior, se existir
         if (hiddenFrame && hiddenFrame.parentNode) {
             hiddenFrame.parentNode.removeChild(hiddenFrame);
@@ -96,11 +104,12 @@
         
         // Configurar URL
         hiddenFrame.src = url;
+        */
         
-        // Adicionar ao DOM
-        document.body.appendChild(hiddenFrame);
+        // No modo de teste, não precisamos adicionar o iframe ao DOM
+        // pois estamos abrindo em uma nova aba
         
-        console.log('Iframe invisível criado para URL:', url);
+        console.log('URL de busca aberta em nova aba para testes:', fullUrl);
     }
     
     /**

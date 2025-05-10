@@ -121,6 +121,69 @@
         });
     }
 
+    // Mostrar barra de carregamento na interface
+    function showLoadingIndicator() {
+        // Verificar se já existe um indicador
+        if (document.getElementById('avi-loading-indicator')) {
+            return;
+        }
+        
+        // Criar um elemento de indicador de carregamento
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'avi-loading-indicator';
+        loadingDiv.style.position = 'fixed';
+        loadingDiv.style.top = '10px';
+        loadingDiv.style.left = '50%';
+        loadingDiv.style.transform = 'translateX(-50%)';
+        loadingDiv.style.backgroundColor = '#2681ff';
+        loadingDiv.style.color = 'white';
+        loadingDiv.style.padding = '10px 20px';
+        loadingDiv.style.borderRadius = '20px';
+        loadingDiv.style.zIndex = '9999';
+        loadingDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        loadingDiv.style.display = 'flex';
+        loadingDiv.style.alignItems = 'center';
+        loadingDiv.style.gap = '10px';
+        
+        // Adicionar spinner
+        const spinner = document.createElement('div');
+        spinner.style.width = '20px';
+        spinner.style.height = '20px';
+        spinner.style.border = '3px solid rgba(255,255,255,0.3)';
+        spinner.style.borderTop = '3px solid white';
+        spinner.style.borderRadius = '50%';
+        spinner.style.animation = 'avi-spin 1s linear infinite';
+        
+        // Adicionar estilo de animação
+        const style = document.createElement('style');
+        style.textContent = '@keyframes avi-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+        
+        // Texto do indicador
+        const text = document.createElement('span');
+        text.textContent = 'Buscando voos...';
+        
+        // Montar indicador
+        loadingDiv.appendChild(spinner);
+        loadingDiv.appendChild(text);
+        document.body.appendChild(loadingDiv);
+        
+        // Configurar remoção automática após 60 segundos (segurança)
+        setTimeout(() => {
+            if (document.getElementById('avi-loading-indicator')) {
+                document.getElementById('avi-loading-indicator').remove();
+            }
+        }, 60000);
+    }
+    
+    // Remover barra de carregamento
+    function hideLoadingIndicator() {
+        const indicator = document.getElementById('avi-loading-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+    
     // Iniciar busca invisível usando o iframe oculto
     function initiateInvisibleSearch(flightInfo) {
         if (searchInProgress) {
@@ -130,6 +193,9 @@
 
         console.log("🔍 Iniciando busca invisível:", flightInfo);
         searchInProgress = true;
+        
+        // Mostrar indicador de carregamento
+        showLoadingIndicator();
 
         // Obter ID de sessão do cookie ou localStorage
         const sessionId = getCookie('flai_session_id') || localStorage.getItem('chat_session_id');
