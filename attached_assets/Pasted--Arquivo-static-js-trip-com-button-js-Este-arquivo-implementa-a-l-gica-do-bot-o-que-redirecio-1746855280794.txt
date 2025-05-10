@@ -1,0 +1,138 @@
+// Arquivo: static/js/trip-com-button.js
+// Este arquivo implementa a lógica do botão que redireciona para a busca de voos
+
+/**
+ * Obtém o valor de um cookie pelo nome
+ * @param {string} name - Nome do cookie
+ * @returns {string|null} - Valor do cookie ou null se não encontrado
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+/**
+ * Converte código de aeroporto para código de cidade
+ * @param {string} airportCode - Código IATA do aeroporto
+ * @returns {string} - Código da cidade correspondente
+ */
+function getCityCodeFromAirport(airportCode) {
+    const airportToCityMap = {
+        'GRU': 'sao', // São Paulo
+        'CGH': 'sao', // São Paulo
+        'SDU': 'rio', // Rio de Janeiro
+        'GIG': 'rio', // Rio de Janeiro
+        'BSB': 'bsb', // Brasília
+        'CNF': 'bho', // Belo Horizonte
+        'SSA': 'ssa', // Salvador
+        'REC': 'rec', // Recife
+        'POA': 'poa', // Porto Alegre
+        'CWB': 'cwb', // Curitiba
+        'MCZ': 'mcz', // Maceió
+        'FLN': 'fln', // Florianópolis
+        'FOR': 'for', // Fortaleza
+        'NAT': 'nat', // Natal
+        'VCP': 'sao', // Campinas (São Paulo)
+        'BEL': 'bel', // Belém
+        'MAO': 'mao', // Manaus
+        'VIX': 'vix', // Vitória
+        'GYN': 'gyn', // Goiânia
+        'IGU': 'igu', // Foz do Iguaçu
+        'AJU': 'aju'  // Aracaju
+    };
+    
+    return airportToCityMap[airportCode.toUpperCase()] || airportCode.toLowerCase();
+}
+
+/**
+ * Converte formato de data (YYYY-MM-DD para MM-DD-YYYY)
+ * @param {string} dateString - Data no formato YYYY-MM-DD
+ * @returns {string} - Data no formato MM-DD-YYYY
+ */
+function formatDateForTrip(dateString) {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    return `${parts[1]}-${parts[2]}-${parts[0]}`;
+}
+
+/**
+ * Inicializa o botão para busca de voos no Trip.com
+ * @param {Object} flightData - Dados do voo
+ * @param {string} flightData.origin - Código IATA do aeroporto de origem
+ * @param {string} flightData.destination - Código IATA do aeroporto de destino
+ * @param {string} flightData.departureDate - Data de ida (YYYY-MM-DD)
+ * @param {string} flightData.returnDate - Data de volta (YYYY-MM-DD)
+ * @param {number} flightData.passengers - Número de passageiros
+ * @param {string} sessionId - ID da sessão do chat
+ */
+function initTripComButton(flightData, sessionId) {
+    const buttons = document.querySelectorAll('.trip-com-button');
+    
+    // Verifique se temos todos os dados necessários
+    if (!flightData || !flightData.origin || !flightData.destination || !flightData.departureDate) {
+        console.error('Dados incompletos para inicializar o botão do Trip.com');
+        return;
+    }
+    
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Construa a URL para a página de busca oculta
+            const searchUrl = `/hidden-flight-search?origin=${flightData.origin}&destination=${flightData.destination}&departureDate=${flightData.departureDate}&returnDate=${flightData.returnDate || ''}&passengers=${flightData.passengers || 1}&sessionId=${sessionId}`;
+            
+            // Armazene os parâmetros de pesquisa no localStorage para uso posterior
+            localStorage.setItem('trip_origin', flightData.origin);
+            localStorage.setItem('trip_destination', flightData.destination);
+            localStorage.setItem('trip_dcity', getCityCodeFromAirport(flightData.origin));
+            localStorage.setItem('trip_acity', getCityCodeFromAirport(flightData.destination));
+            localStorage.setItem('trip_departure_date', flightData.departureDate);
+            localStorage.setItem('trip_return_date', flightData.returnDate || '');
+            localStorage.setItem('trip_passengers', flightData.passengers || 1);
+            
+            // Redirecione para a página de busca oculta
+            window.location.href = searchUrl;
+        });
+    });
+}
+
+/**
+ * Renderiza o botão de busca de voos no Trip.com
+ * @param {Object} flightData - Dados do voo
+ * @param {string} sessionId - ID da sessão do chat
+ * @returns {string} - HTML do botão
+ */
+function renderTripComButton(flightData, sessionId) {
+    // Defina uma ID única para o botão
+    const buttonId = 'trip-com-btn-' + Math.random().toString(36).substr(2, 9);
+    
+    // Crie o HTML do botão
+    const buttonHtml = `
+        <button id="${buttonId}" class="trip-com-button" style="background-color: #2681ff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;">
+            Ver opções de voos
+        </button>
+        <script>
+            // Inicialize o botão quando a página carregar
+            document.addEventListener('DOMContentLoaded', function() {
+                const flightData = ${JSON.stringify(flightData)};
+                const sessionId = "${sessionId}";
+                initTripComButton(flightData, sessionId);
+            });
+        </script>
+    `;
+    
+    return buttonHtml;
+}
+
+// Exporte as funções se estiver usando ES modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        initTripComButton,
+        renderTripComButton,
+        getCityCodeFromAirport,
+        formatDateForTrip
+    };
+}

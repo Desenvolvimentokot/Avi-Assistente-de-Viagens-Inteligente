@@ -1,0 +1,329 @@
+// Arquivo: templates/hidden_flight_search.html
+// Este é o arquivo principal que implementa a integração com o widget Trip.com
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscando Voos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .search-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #e9f5fe;
+        }
+        .progress-bar {
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #2681ff;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .widget-container {
+            margin-top: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            height: 600px;
+            overflow: hidden;
+        }
+        .widget-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .results-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            display: none;
+        }
+        .flight-result {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-status">
+            <h2>Buscando as melhores opções de voos para você</h2>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <p id="statusText">Conectando ao serviço de busca...</p>
+        </div>
+        
+        <div class="widget-container" id="widgetContainer">
+            <!-- O widget Trip.com será carregado aqui -->
+        </div>
+        
+        <div class="results-container" id="resultsContainer">
+            <h3>Resultados encontrados</h3>
+            <div id="flightResults"></div>
+        </div>
+    </div>
+
+    <script>
+        // Função para obter parâmetros da URL
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                origin: params.get('origin') || '',
+                destination: params.get('destination') || '',
+                departureDate: params.get('departureDate') || '',
+                returnDate: params.get('returnDate') || '',
+                passengers: params.get('passengers') || '1',
+                sessionId: params.get('sessionId') || ''
+            };
+        }
+
+        // Função para converter formato de data (YYYY-MM-DD para MM-DD-YYYY)
+        function formatDateForTrip(dateString) {
+            if (!dateString) return '';
+            const parts = dateString.split('-');
+            if (parts.length !== 3) return dateString;
+            return `${parts[1]}-${parts[2]}-${parts[0]}`;
+        }
+
+        // Função para obter código de cidade a partir do código de aeroporto
+        function getCityCodeFromAirport(airportCode) {
+            const airportToCityMap = {
+                'GRU': 'sao', // São Paulo
+                'CGH': 'sao', // São Paulo
+                'SDU': 'rio', // Rio de Janeiro
+                'GIG': 'rio', // Rio de Janeiro
+                'BSB': 'bsb', // Brasília
+                'CNF': 'bho', // Belo Horizonte
+                'SSA': 'ssa', // Salvador
+                'REC': 'rec', // Recife
+                'POA': 'poa', // Porto Alegre
+                'CWB': 'cwb', // Curitiba
+                'MCZ': 'mcz', // Maceió
+                'FLN': 'fln', // Florianópolis
+                'FOR': 'for', // Fortaleza
+                'NAT': 'nat', // Natal
+                'VCP': 'sao', // Campinas (São Paulo)
+                'BEL': 'bel', // Belém
+                'MAO': 'mao', // Manaus
+                'VIX': 'vix', // Vitória
+                'GYN': 'gyn', // Goiânia
+                'IGU': 'igu', // Foz do Iguaçu
+                'AJU': 'aju'  // Aracaju
+            };
+            
+            return airportToCityMap[airportCode.toUpperCase()] || airportCode.toLowerCase();
+        }
+
+        // Função para notificar o servidor que a busca foi iniciada
+        async function notifySearchStarted(sessionId) {
+            try {
+                const response = await fetch('/hidden-search/notify-search-started', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sessionId })
+                });
+                
+                if (!response.ok) {
+                    console.error('Erro ao notificar início da busca:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Erro ao notificar início da busca:', error);
+            }
+        }
+
+        // Função para extrair resultados de voos do widget Trip.com
+        async function extractFlightResults() {
+            return new Promise((resolve, reject) => {
+                // Definir um timeout para não esperar indefinidamente
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('Tempo limite excedido ao extrair resultados de voos'));
+                }, 30000); // 30 segundos
+                
+                // Função que tenta extrair os resultados periodicamente
+                const extractionAttempt = async () => {
+                    try {
+                        // Acessa o iframe do widget Trip.com
+                        const iframe = document.querySelector('#tripWidget');
+                        if (!iframe || !iframe.contentWindow) {
+                            throw new Error('Widget Trip.com não encontrado');
+                        }
+                        
+                        // Avisa que estamos tentando extrair dados
+                        document.getElementById('statusText').textContent = 'Processando resultados...';
+                        
+                        // Tenta extrair os dados do DOM do iframe
+                        // Nota: Isso pode ser bloqueado por políticas de segurança CORS
+                        // Em um ambiente real, você precisaria implementar um proxy no servidor
+                        
+                        // Simulando a extração de dados reais (em produção, você usaria MutationObserver ou eventos)
+                        const flightResults = [];
+                        
+                        // Verifica se temos resultados suficientes
+                        if (flightResults.length > 0) {
+                            clearTimeout(timeoutId);
+                            resolve(flightResults);
+                        } else {
+                            // Tenta novamente em 3 segundos
+                            setTimeout(extractionAttempt, 3000);
+                        }
+                    } catch (error) {
+                        console.error('Erro ao extrair resultados:', error);
+                        // Tenta novamente em 3 segundos
+                        setTimeout(extractionAttempt, 3000);
+                    }
+                };
+                
+                // Inicia a tentativa de extração
+                extractionAttempt();
+            });
+        }
+
+        // Função para enviar resultados para o servidor
+        async function sendResultsToServer(sessionId, results) {
+            try {
+                const response = await fetch('/hidden-search/save-flight-results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId,
+                        results
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ao enviar resultados: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erro ao enviar resultados:', error);
+                throw error;
+            }
+        }
+
+        // Função principal que gerencia todo o fluxo
+        async function startFlightSearch() {
+            try {
+                // Obtém parâmetros da URL
+                const params = getUrlParams();
+                const { origin, destination, departureDate, returnDate, passengers, sessionId } = params;
+                
+                // Verifica se temos todos os parâmetros necessários
+                if (!origin || !destination || !departureDate || !sessionId) {
+                    throw new Error('Parâmetros de busca incompletos');
+                }
+                
+                // Notifica o servidor que a busca começou
+                await notifySearchStarted(sessionId);
+                
+                // Atualiza a interface para mostrar o progresso
+                document.getElementById('statusText').textContent = 'Conectando ao serviço de busca...';
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = '10%';
+                
+                // Prepara os parâmetros para o widget Trip.com
+                const dcity = getCityCodeFromAirport(origin);
+                const acity = getCityCodeFromAirport(destination);
+                const ddate = formatDateForTrip(departureDate);
+                const rdate = returnDate ? formatDateForTrip(returnDate) : '';
+                const tripType = returnDate ? 'rt' : 'ow'; // rt = ida e volta, ow = só ida
+                
+                // Constrói a URL para o widget Trip.com
+                const tripUrl = `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${ddate}${rdate ? '&rdate=' + rdate : ''}&dairport=${origin}&triptype=${tripType}&class=y&quantity=${passengers}&locale=pt-BR&curr=BRL`;
+                
+                // Atualiza a barra de progresso
+                progressBar.style.width = '30%';
+                document.getElementById('statusText').textContent = 'Conectando ao Trip.com...';
+                
+                // Carrega o widget Trip.com
+                const widgetContainer = document.getElementById('widgetContainer');
+                const iframe = document.createElement('iframe');
+                iframe.id = 'tripWidget';
+                iframe.src = tripUrl;
+                iframe.onload = () => {
+                    // Widget carregado com sucesso
+                    progressBar.style.width = '50%';
+                    document.getElementById('statusText').textContent = 'Buscando voos...';
+                    
+                    // Agenda a extração de resultados após o carregamento
+                    setTimeout(async () => {
+                        try {
+                            // Atualiza a barra de progresso
+                            progressBar.style.width = '70%';
+                            document.getElementById('statusText').textContent = 'Processando resultados...';
+                            
+                            // Extrai os resultados de voos
+                            const flightResults = await extractFlightResults();
+                            
+                            // Ordena os resultados por preço
+                            flightResults.sort((a, b) => a.price - b.price);
+                            
+                            // Pega os dois voos mais baratos
+                            const cheapestFlights = flightResults.slice(0, 2);
+                            
+                            // Envia os resultados para o servidor
+                            progressBar.style.width = '90%';
+                            document.getElementById('statusText').textContent = 'Enviando resultados...';
+                            await sendResultsToServer(sessionId, cheapestFlights);
+                            
+                            // Finaliza a busca
+                            progressBar.style.width = '100%';
+                            document.getElementById('statusText').textContent = 'Busca concluída!';
+                            
+                            // Redireciona de volta para o chat após um breve atraso
+                            setTimeout(() => {
+                                window.location.href = `/chat?session=${sessionId}`;
+                            }, 2000);
+                        } catch (error) {
+                            console.error('Erro durante a extração de resultados:', error);
+                            document.getElementById('statusText').textContent = 'Erro ao buscar voos: ' + error.message;
+                        }
+                    }, 10000); // Espera 10 segundos para o widget carregar completamente
+                };
+                
+                widgetContainer.appendChild(iframe);
+            } catch (error) {
+                console.error('Erro ao iniciar busca de voos:', error);
+                document.getElementById('statusText').textContent = 'Erro ao iniciar busca: ' + error.message;
+            }
+        }
+
+        // Inicia a busca quando a página carregar
+        window.onload = startFlightSearch;
+    </script>
+</body>
+</html>
