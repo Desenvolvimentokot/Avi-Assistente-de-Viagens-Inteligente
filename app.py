@@ -14,8 +14,8 @@ from werkzeug.security import generate_password_hash
 from app_routes import api_blueprint
 
 # Importação dos serviços e modelos
-from services.amadeus_sdk_service import AmadeusSDKService
-from services.busca_rapida_service import BuscaRapidaService
+from services.travelpayouts_service import TravelPayoutsService
+from services.travelpayouts_connector import TravelPayoutsConnector
 from services.chat_processor import ChatProcessor
 from services.openai_service import OpenAIService
 from services.pdf_service import PDFService
@@ -147,8 +147,8 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Inicializa os serviços
-amadeus_service = AmadeusSDKService()
-busca_rapida_service = BuscaRapidaService()
+travelpayouts_service = TravelPayoutsService()
+travelpayouts_connector = TravelPayoutsConnector()
 chat_processor = ChatProcessor()
 openai_service = OpenAIService()
 
@@ -389,7 +389,7 @@ def chat():
                     'search_results': current_travel_info.get('search_results'),
                     'error': None
                 }
-                updated_context, response_text = busca_rapida_service.process_message(message, current_context)
+                updated_context, response_text = travelpayouts_connector.search_flights_from_chat(current_context.get('travel_info', {}), session_id)
             else:
                 # O GPT ajudou a entender e estruturar a interação
                 # Verifica se existe a chave 'response' no gpt_result
@@ -401,13 +401,12 @@ def chat():
 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):
-                    # IMPLEMENTAÇÃO DEFINITIVA: CONEXÃO DIRETA COM A API AMADEUS
-                    # Apenas o flight_service_connector será utilizado para todas as buscas
+                    # IMPLEMENTAÇÃO DEFINITIVA: CONEXÃO DIRETA COM A API TRAVELPAYOUTS
+                    # Apenas o travelpayouts_connector será utilizado para todas as buscas
                     # Este é o único ponto onde a busca real é feita
-                    from services.flight_service_connector import flight_service_connector
 
                     # Log para rastrear este ponto crítico
-                    logger.warning("🔍 BUSCA REAL: Chamando Amadeus API diretamente via flight_service_connector")
+                    logger.warning("🔍 BUSCA REAL: Chamando TravelPayouts API diretamente via travelpayouts_connector")
 
                     search_results = None
                     try:
