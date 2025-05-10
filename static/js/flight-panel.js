@@ -1,6 +1,6 @@
 /**
  * PAINEL DE RESULTADOS REMOVIDO
- * Agora todos os resultados são mostrados na página dedicada amadeus-results
+ * Agora todos os resultados são mostrados na página dedicada travelpayouts-results
  * 
  * Este arquivo foi mantido apenas para evitar erros de referência, mas todo o 
  * comportamento do painel lateral foi removido conforme solicitado.

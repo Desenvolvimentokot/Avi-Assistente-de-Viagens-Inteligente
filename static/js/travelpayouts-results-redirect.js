@@ -6,29 +6,46 @@
  * para construir a URL de redirecionamento.
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializa a detecção de botões de resultados
-    initResultsButtons();
+    try {
+        // Inicializa a detecção de botões de resultados
+        initResultsButtons();
 
-    // Se estamos no chat, adiciona um observador para detectar novos botões que podem aparecer
-    if (document.getElementById('chat-messages')) {
-        setupMutationObserver();
+        // Se estamos no chat, adiciona um observador para detectar novos botões que podem aparecer
+        const chatContainer = document.getElementById('chat-messages');
+        if (chatContainer) {
+            setupMutationObserver(chatContainer);
+        } else {
+            console.log("[tp] Chat container não encontrado, observador de mutações não foi inicializado");
+        }
+        
+        console.log("[tp] entrypoint init");
+    } catch (error) {
+        console.log(`[tp] Erro na inicialização: ${error.message}`);
     }
-    
-    console.log("[tp] entrypoint init");
 });
 
 /**
  * Inicializa os botões de resultados existentes na página
  */
 function initResultsButtons() {
-    const buttons = document.querySelectorAll('.travelpayouts-results-btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', handleResultsButtonClick);
-    });
-    console.log(`[tp] Inicializados ${buttons.length} botões de resultados.`);
-    
-    // Também inicializar os botões antigos (para compatibilidade)
-    initLegacyButtons();
+    try {
+        const buttons = document.querySelectorAll('.travelpayouts-results-btn');
+        if (buttons && buttons.length > 0) {
+            buttons.forEach(button => {
+                if (button) {
+                    button.addEventListener('click', handleResultsButtonClick);
+                }
+            });
+            console.log(`[tp] Inicializados ${buttons.length} botões de resultados.`);
+        } else {
+            console.log(`[tp] Nenhum botão travelpayouts-results-btn encontrado para inicializar`);
+        }
+        
+        // Também inicializar os botões antigos (para compatibilidade)
+        initLegacyButtons();
+    } catch (error) {
+        console.log(`[tp] Erro ao inicializar botões: ${error.message}`);
+    }
 }
 
 /**
@@ -58,12 +75,12 @@ function initLegacyButtons() {
 
 /**
  * Configura um observador de mutações para detectar novos botões adicionados ao chat
+ * @param {HTMLElement} chatContainer - O elemento container do chat
  */
-function setupMutationObserver() {
+function setupMutationObserver(chatContainer) {
     try {
-        const chatContainer = document.getElementById('chat-messages');
         if (!chatContainer) {
-            console.log('[tp] Aviso: elemento chat-messages não encontrado');
+            console.log('[tp] Aviso: container não fornecido');
             return;
         }
         

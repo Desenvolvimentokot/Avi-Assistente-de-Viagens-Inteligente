@@ -23,11 +23,21 @@ document.addEventListener('DOMContentLoaded', function() {
  * Inicializa os botões de resultados existentes na página
  */
 function initResultsButtons() {
-    const buttons = document.querySelectorAll('.amadeus-results-btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', handleResultsButtonClick);
-    });
-    console.log(`[Amadeus Redirect] Inicializados ${buttons.length} botões de resultados.`);
+    try {
+        const buttons = document.querySelectorAll('.amadeus-results-btn');
+        if (buttons && buttons.length > 0) {
+            buttons.forEach(button => {
+                if (button) {
+                    button.addEventListener('click', handleResultsButtonClick);
+                }
+            });
+            console.log(`[Amadeus Redirect] Inicializados ${buttons.length} botões de resultados.`);
+        } else {
+            console.log('[Amadeus Redirect] Nenhum botão para inicializar.');
+        }
+    } catch (error) {
+        console.log(`[Amadeus Redirect] Erro ao inicializar botões: ${error.message}`);
+    }
 }
 
 /**
