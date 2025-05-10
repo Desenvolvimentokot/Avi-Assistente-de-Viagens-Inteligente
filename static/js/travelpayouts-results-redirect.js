@@ -35,18 +35,24 @@ function initResultsButtons() {
  * Inicializa os botões antigos da Amadeus para conversão automática
  */
 function initLegacyButtons() {
-    const legacyButtons = document.querySelectorAll('.amadeus-results-btn');
-    legacyButtons.forEach(button => {
-        // Converter para a nova classe
-        button.classList.remove('amadeus-results-btn');
-        button.classList.add('travelpayouts-results-btn');
-        
-        // Adicionar handler para o clique
-        button.addEventListener('click', handleResultsButtonClick);
-    });
-    
-    if (legacyButtons.length > 0) {
-        console.log(`[tp] link_switcher convert links`);
+    try {
+        const legacyButtons = document.querySelectorAll('.amadeus-results-btn');
+        if (legacyButtons && legacyButtons.length > 0) {
+            legacyButtons.forEach(button => {
+                if (button) {
+                    // Converter para a nova classe
+                    button.classList.remove('amadeus-results-btn');
+                    button.classList.add('travelpayouts-results-btn');
+                    
+                    // Adicionar handler para o clique
+                    button.addEventListener('click', handleResultsButtonClick);
+                }
+            });
+            
+            console.log(`[tp] link_switcher convert links`);
+        }
+    } catch (error) {
+        console.log(`[tp] Aviso: não foi possível converter botões antigos: ${error.message}`);
     }
 }
 
@@ -54,37 +60,56 @@ function initLegacyButtons() {
  * Configura um observador de mutações para detectar novos botões adicionados ao chat
  */
 function setupMutationObserver() {
-    const chatContainer = document.getElementById('chat-messages');
-    if (!chatContainer) return;
-    
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) { // Elemento
-                        // Verificar botões novos
-                        const newButtons = node.querySelectorAll('.travelpayouts-results-btn');
-                        newButtons.forEach(button => {
-                            button.addEventListener('click', handleResultsButtonClick);
-                            console.log('[tp] Novo botão de resultados detectado e inicializado.');
-                        });
-                        
-                        // Converter botões legados
-                        const legacyButtons = node.querySelectorAll('.amadeus-results-btn');
-                        legacyButtons.forEach(button => {
-                            button.classList.remove('amadeus-results-btn');
-                            button.classList.add('travelpayouts-results-btn');
-                            button.addEventListener('click', handleResultsButtonClick);
-                            console.log('[tp] Botão legado convertido e inicializado.');
-                        });
-                    }
-                });
-            }
+    try {
+        const chatContainer = document.getElementById('chat-messages');
+        if (!chatContainer) {
+            console.log('[tp] Aviso: elemento chat-messages não encontrado');
+            return;
+        }
+        
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node && node.nodeType === 1) { // Elemento
+                            try {
+                                // Verificar botões novos
+                                const newButtons = node.querySelectorAll('.travelpayouts-results-btn');
+                                if (newButtons && newButtons.length > 0) {
+                                    newButtons.forEach(button => {
+                                        if (button) {
+                                            button.addEventListener('click', handleResultsButtonClick);
+                                            console.log('[tp] Novo botão de resultados detectado e inicializado.');
+                                        }
+                                    });
+                                }
+                                
+                                // Converter botões legados
+                                const legacyButtons = node.querySelectorAll('.amadeus-results-btn');
+                                if (legacyButtons && legacyButtons.length > 0) {
+                                    legacyButtons.forEach(button => {
+                                        if (button) {
+                                            button.classList.remove('amadeus-results-btn');
+                                            button.classList.add('travelpayouts-results-btn');
+                                            button.addEventListener('click', handleResultsButtonClick);
+                                            console.log('[tp] Botão legado convertido e inicializado.');
+                                        }
+                                    });
+                                }
+                            } catch (err) {
+                                console.log(`[tp] Erro ao processar nó: ${err.message}`);
+                            }
+                        }
+                    });
+                }
+            });
         });
-    });
-    
-    observer.observe(chatContainer, { childList: true, subtree: true });
-    console.log('[tp] link_switcher init');
+        
+        observer.observe(chatContainer, { childList: true, subtree: true });
+        console.log('[tp] link_switcher init');
+    } catch (error) {
+        console.log(`[tp] Aviso: não foi possível configurar o observador de mutações: ${error.message}`);
+    }
 }
 
 /**
