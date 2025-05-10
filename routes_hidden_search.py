@@ -24,6 +24,15 @@ def hidden_search():
     logger.info("Acessando página de busca oculta")
     return render_template('hidden_flight_search.html')
 
+@hidden_search_bp.route('/trip-com-test')
+def trip_com_test():
+    """
+    Renderiza a página de teste da integração com o Trip.com.
+    Esta página permite testar os diferentes componentes da integração.
+    """
+    logger.info("Acessando página de teste da integração Trip.com")
+    return render_template('trip_com_test.html')
+
 @hidden_search_bp.route('/api/hidden-flight-search', methods=['POST'])
 def start_hidden_flight_search():
     """
