@@ -49,15 +49,17 @@ Data_Ida: [DATA_IDA]
 Passageiros: [NUM_ADULTOS]
 [/DADOS_VIAGEM]
 
-Ótimo! Estou iniciando uma busca por voos para você neste momento. Isso pode levar alguns segundos... 
+Ótimo! Para visualizar as melhores opções de voos, clique no botão abaixo:
 
-Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes. Logo que encontrar as opções mais vantajosas para você, vou exibi-las aqui mesmo em nossa conversa!
+[BOTÃO_TRIP_COM]
+
+Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes usando a Trip.com, um de nossos parceiros de confiança.
 
 Enquanto isso, você gostaria de informações sobre [CIDADE_DESTINO], como atrações turísticas, clima ou dicas para sua viagem?"
 
-4. O novo sistema invisível será acionado automaticamente pelo site
-5. NUNCA mais adicionar qualquer botão ou link para página externa
-6. Os resultados do voo serão mostrados diretamente no chat quando encontrados pelo sistema invisível
+4. Adicione o texto [BOTÃO_TRIP_COM] onde deve aparecer o botão para a página do Trip.com
+5. O sistema de frontend substituirá [BOTÃO_TRIP_COM] por um botão real que abre a página do Trip.com
+6. Os parâmetros de busca são extraídos automaticamente do bloco [DADOS_VIAGEM]
 
 # Considerações Técnicas
 - O sistema invisível funciona automaticamente sem necessidade de botões
@@ -94,9 +96,11 @@ Data_Volta: 2025-04-14
 Passageiros: 1
 [/DADOS_VIAGEM]
 
-Ótimo! Estou iniciando uma busca por voos para você neste momento. Isso pode levar alguns segundos... 
+Ótimo! Para visualizar as melhores opções de voos, clique no botão abaixo:
 
-Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes. Logo que encontrar as opções mais vantajosas para você, vou exibi-las aqui mesmo em nossa conversa!
+[BOTÃO_TRIP_COM]
+
+Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes usando a Trip.com, um de nossos parceiros de confiança.
 
 Enquanto isso, você gostaria de informações sobre Rio de Janeiro, como atrações turísticas, clima ou dicas para sua viagem?"
 
@@ -140,9 +144,11 @@ Data_Volta: 2025-07-24
 Passageiros: 2
 [/DADOS_VIAGEM]
 
-Ótimo! Estou iniciando uma busca por voos para você neste momento. Isso pode levar alguns segundos... 
+Ótimo! Para visualizar as melhores opções de voos, clique no botão abaixo:
 
-Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes. Logo que encontrar as opções mais vantajosas para você, vou exibi-las aqui mesmo em nossa conversa!
+[BOTÃO_TRIP_COM]
+
+Estou buscando as melhores ofertas em mais de 20 companhias aéreas diferentes usando a Trip.com, um de nossos parceiros de confiança.
 
 Enquanto isso, você gostaria de informações sobre Lisboa, como atrações turísticas, clima ou dicas para sua viagem? Também posso começar a preparar recomendações de hospedagem enquanto aguardamos os resultados dos voos."
 """
