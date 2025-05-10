@@ -5,12 +5,22 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log("Inicializando integração do widget Trip.com com o chat");
     
-    // Verificar se estamos em uma página com chat
-    const chatMessagesElement = document.querySelector('.chat-messages');
-    if (!chatMessagesElement) {
-        console.log("Elemento .chat-messages não encontrado, pulando inicialização do widget");
-        return;
-    }
+    // Verificar se estamos em uma página com chat - com retry
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    function initializeWidget() {
+        const chatMessagesElement = document.querySelector('.chat-messages');
+        if (!chatMessagesElement) {
+            attempts++;
+            if (attempts < maxAttempts) {
+                console.log(`Elemento .chat-messages não encontrado, tentativa ${attempts}/${maxAttempts}`);
+                setTimeout(initializeWidget, 500);
+            } else {
+                console.log("Elemento .chat-messages não encontrado após várias tentativas");
+            }
+            return;
+        }
     
     // Exportar função para exibir cartões de voos no chat
     window.displayFlightCardsInChat = function(flights) {
@@ -116,4 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log("Integração do widget Trip.com inicializada com sucesso");
+    }
+    
+    initializeWidget();
 });

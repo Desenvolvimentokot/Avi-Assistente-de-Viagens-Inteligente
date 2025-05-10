@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
             scrollToBottom();
         }
     });
-    
+
     // Elementos do DOM - obtenção segura com verificação
     const chatMessages = document.querySelector('.chat-messages');
     // Usar querySelector para garantir que os elementos sejam encontrados corretamente
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicialização
     console.log("Inicializando chat - adicionando mensagem de boas-vindas");
     addWelcomeMessage();
-    
+
     // Garantir que a área de chat role para mostrar a mensagem de boas-vindas
     setTimeout(function() {
         scrollToBottom();
@@ -791,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 ${flightNumber ? `
                                 <div class="detail-item">
-                                    <div class="detail-label">Número do Voo</div>
+                                                                   <div class="detail-label">Número do Voo</div>
                                     <div class="detail-value">${flightNumber}</div>
                                 </div>` : ''}
                                 <div class="detail-item">
@@ -802,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="detail-label">Bagagem</div>
                                     <div class="detail-value">${baggage}</div>
                                 </div>
-                                ${Enhanced result button detection logic to facilitate automated actions after data confirmation.flightData.aircraft ? `
+                                ${flightData.aircraft ? `
                                 <div class="detail-item">
                                     <div class="detail-label">Aeronave</div>
                                     <div class="detail-value">${flightData.aircraft}</div>
@@ -1076,6 +1076,87 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTravelPlans();
     startPriceMonitoring();
 });
+
+function monitorChatForConfirmation() {
+        // Inicializar o observador
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                // Verificar se algum nó foi adicionado
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        // Verificar se o nó é um elemento
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Verificar se o nó contém um box de mensagem
+                            if (node.classList.contains('message-box') || node.querySelector('.message-box')) {
+
+                                // Encontrar o texto da mensagem
+                                const messageText = node.textContent.toLowerCase();
+
+                                // Verificar se há mensagem de confirmação
+                                if ((messageText.includes('confirmado') || messageText.includes('confirmei')) && 
+                                    messageText.includes('dados') && 
+                                    (messageText.includes('voo') || messageText.includes('viagem'))) {
+
+                                    console.log('Confirmação detectada! Procurando botões de resultados...');
+
+                                    // Procurar botões de resultados na mensagem
+                                    setTimeout(() => {
+                                        const resultButtons = node.querySelectorAll('a.travelpayouts-results-btn');
+                                        console.log(`Encontrados ${resultButtons.length} botões de resultados`);
+
+                                        if (resultButtons.length > 0) {
+                                            console.log('Clicando automaticamente no primeiro botão de resultados em 1.5 segundos...');
+
+                                            setTimeout(() => {
+                                                try {
+                                                    resultButtons[0].click();
+                                                    console.log('Botão clicado automaticamente!');
+                                                } catch (err) {
+                                                    console.error('Erro ao clicar no botão:', err);
+                                                }
+                                            }, 1500);
+                                        }
+                                    }, 1000);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        // Configurar o observador com verificação de existência do elemento
+        if (chatMessages) {
+            observer.observe(chatMessages, { 
+                childList: true,
+                subtree: true 
+            });
+            console.log('📊 Monitoramento de confirmação de viagem iniciado');
+        } else {
+            console.error('Elemento de mensagens do chat não encontrado');
+        }
+    }
+
+    // Função global para abrir a página de resultados
+    window.openTripResultsPage = function(origin, destination, departureDate, returnDate, adults) {
+        // Construir a URL para a página de resultados
+        let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+
+        if (departureDate) {
+            url += `&departure_date=${encodeURIComponent(departureDate)}`;
+        }
+
+        if (returnDate) {
+            url += `&return_date=${encodeURIComponent(returnDate)}`;
+        }
+
+        if (adults) {
+            url += `&adults=${encodeURIComponent(adults)}`;
+        }
+
+        // Abrir a página em uma nova aba
+        window.open(url, '_blank');
+    };
 
 function handleChatResponse(response) {
     if (response.error) {

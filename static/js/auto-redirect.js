@@ -1,7 +1,3 @@
-` tags. The intention is to correct issues with auto-redirection and the `openTripResultsPage` function.
-
-```python
-<replit_final_file>
 /**
  * Auto-Redirect Script
  * 
@@ -76,4 +72,6 @@ document.addEventListener('DOMContentLoaded', function() {
         childList: true, 
         subtree: true 
     });
+// Não interferir com os listeners de eventos existentes do chat
+    }
 });
