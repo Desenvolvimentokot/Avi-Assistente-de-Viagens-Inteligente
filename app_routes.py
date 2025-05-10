@@ -180,8 +180,8 @@ def get_flight_results(session_id=None):
 @api_blueprint.route('/api/flight_search', methods=['POST'])
 def direct_flight_search():
     """
-    Endpoint para busca direta de voos usando a API Amadeus.
-    Este endpoint só usar o flight_service_connector para 
+    Endpoint para busca direta de voos usando a API TravelPayouts.
+    Este endpoint só usa o travelpayouts_connector para 
     garantir que apenas dados reais sejam retornados.
     """
     try:
@@ -201,7 +201,7 @@ def direct_flight_search():
             })
         
         # Realizar a busca com o conector
-        search_results = flight_service_connector.search_flights_from_chat(
+        search_results = travelpayouts_connector.search_flights_from_chat(
             travel_info=data,
             session_id=session_id
         )
@@ -231,9 +231,10 @@ def direct_flight_search():
         }), 500
 
 
-# Página de resultados da API Amadeus
-@api_blueprint.route('/amadeus-results', methods=['GET'])
-def amadeus_results_page():
+# Página de resultados da API TravelPayouts
+@api_blueprint.route('/travelpayouts-results', methods=['GET'])
+@api_blueprint.route('/amadeus-results', methods=['GET'])  # Manter rota antiga para compatibilidade
+def travelpayouts_results_page():
     """
     Renderiza a página de resultados de voos com base nos parâmetros fornecidos.
     Esta página é o destino do botão "Clique aqui para ver suas melhores opções"
@@ -315,14 +316,15 @@ def amadeus_results_page():
         return render_template('error.html', message=f"Erro ao carregar resultados: {str(e)}")
 
 # Endpoint de API para busca de voos para a página de resultados
-@api_blueprint.route('/amadeus-test', methods=['GET'])
-def amadeus_test():
+@api_blueprint.route('/travelpayouts-test', methods=['GET'])
+@api_blueprint.route('/amadeus-test', methods=['GET'])  # Manter rota antiga para compatibilidade
+def travelpayouts_test():
     """
-    Endpoint para buscar dados reais de voos da API Amadeus.
+    Endpoint para buscar dados reais de voos da API TravelPayouts.
     Usado pela página de resultados para obter dados via JavaScript.
     """
     try:
-        logger.warning("📡 TESTE AMADEUS: Iniciando teste de conexão direta")
+        logger.warning("📡 TESTE TRAVELPAYOUTS: Iniciando teste de conexão direta")
         
         # Tentar obter session_id do cookie
         session_id = request.cookies.get('flai_session_id')
@@ -361,10 +363,10 @@ def amadeus_test():
                         "adults": travel_info.get('adults', 1),
                     }
                     
-                    # Usar o flight_service_connector com a travel_info da sessão
+                    # Usar o travelpayouts_connector com a travel_info da sessão
                     logger.warning(f"🔍 Buscando voos com dados da sessão para {search_data['origin']} → {search_data['destination']}")
                     
-                    search_results = flight_service_connector.search_flights_from_chat(
+                    search_results = travelpayouts_connector.search_flights_from_chat(
                         travel_info=travel_info,
                         session_id=session_id
                     )
@@ -383,7 +385,7 @@ def amadeus_test():
         
         # Verificar se temos parâmetros suficientes
         if not (origin and destination and departure_date):
-            logger.error("❌ TESTE AMADEUS: Parâmetros insuficientes para busca")
+            logger.error("❌ TESTE TRAVELPAYOUTS: Parâmetros insuficientes para busca")
             return jsonify({
                 "error": "Parâmetros insuficientes. Por favor, forneça origem, destino e data na conversa com a AVI.",
                 "data": [],
@@ -398,9 +400,9 @@ def amadeus_test():
             "adults": int(adults)
         }
         
-        # Usar o flight_service_connector para buscar resultados reais
+        # Usar o travelpayouts_connector para buscar resultados reais
         logger.warning(f"🔍 Buscando voos com parâmetros diretos para {origin} → {destination}")
-        search_results = flight_service_connector.search_flights_from_chat(
+        search_results = travelpayouts_connector.search_flights_from_chat(
             travel_info=search_data,
             session_id=session_id
         )
