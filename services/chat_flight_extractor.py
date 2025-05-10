@@ -159,6 +159,9 @@ class ChatFlightExtractor:
             dict: Dicionário com informações extraídas (origin, destination, etc.)
                   ou None se não encontrar informações suficientes
         """
+        if not message:
+            return None
+            
         message = message.lower()
         context = context or {}
         prior_info = context.get('travel_info', {})
@@ -180,7 +183,7 @@ class ChatFlightExtractor:
         origin = None
         for pattern in self.origin_patterns:
             match = re.search(pattern, message)
-            if match:
+            if match and match.group(1):
                 origin_city = match.group(1).strip().lower()
                 if origin_city in self.city_to_iata:
                     origin = self.city_to_iata[origin_city]
@@ -190,7 +193,7 @@ class ChatFlightExtractor:
         destination = None
         for pattern in self.destination_patterns:
             match = re.search(pattern, message)
-            if match:
+            if match and match.group(1):
                 dest_city = match.group(1).strip().lower()
                 if dest_city in self.city_to_iata:
                     destination = self.city_to_iata[dest_city]
@@ -201,7 +204,7 @@ class ChatFlightExtractor:
         current_year = datetime.now().year
         for pattern in self.date_patterns:
             match = re.search(pattern, message)
-            if match:
+            if match and match.group(1):
                 date_str = match.group(1)
                 
                 # Processar datas no formato DD/MM ou DD/MM/YYYY
@@ -267,7 +270,7 @@ class ChatFlightExtractor:
         adults = 1  # valor padrão
         for pattern in self.adults_patterns:
             match = re.search(pattern, message)
-            if match:
+            if match and match.group(1):
                 try:
                     adults = int(match.group(1))
                     if adults <= 0:
