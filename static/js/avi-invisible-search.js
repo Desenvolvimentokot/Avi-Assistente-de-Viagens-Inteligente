@@ -134,8 +134,9 @@
                     setCookie('flai_session_id', data.session_id, 30);
                 }
                 
-                // Iniciar busca oculta
+                // Iniciar busca oculta usando o objeto correto da integração
                 if (window.hiddenSearchIntegration) {
+                    console.log("Usando hiddenSearchIntegration para iniciar busca");
                     window.hiddenSearchIntegration.startSearch(
                         flightInfo.origin,
                         flightInfo.destination,
@@ -143,13 +144,27 @@
                         flightInfo.return_date,
                         flightInfo.adults || 1
                     ).then(() => {
-                        // Busca iniciada com sucesso
+                        console.log("Busca iniciada com sucesso via hiddenSearchIntegration");
+                    }).catch(error => {
+                        console.error("Erro ao iniciar busca oculta:", error);
+                        searchInProgress = false;
+                    });
+                } else if (window.hiddenFlightSearch) {
+                    console.log("Usando hiddenFlightSearch para iniciar busca");
+                    window.hiddenFlightSearch.start(
+                        flightInfo.origin,
+                        flightInfo.destination,
+                        flightInfo.departure_date,
+                        flightInfo.return_date,
+                        flightInfo.adults || 1
+                    ).then(() => {
+                        console.log("Busca iniciada com sucesso via hiddenFlightSearch");
                     }).catch(error => {
                         console.error("Erro ao iniciar busca oculta:", error);
                         searchInProgress = false;
                     });
                 } else {
-                    console.error("Módulo hiddenSearchIntegration não encontrado");
+                    console.error("Nenhum módulo de busca oculta encontrado");
                     searchInProgress = false;
                 }
             } else {

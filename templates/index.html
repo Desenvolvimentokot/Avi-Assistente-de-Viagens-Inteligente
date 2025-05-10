@@ -24,18 +24,22 @@
     <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
     <!-- Script do novo painel de voos -->
     <script src="{{ url_for('static', filename='js/flight-panel.js') }}" defer></script>
-    <!-- Script para redirecionamento para resultados TravelPayouts -->
-    <script src="{{ url_for('static', filename='js/travelpayouts-results-redirect.js') }}" defer></script>
     <!-- Script para API do widget Trip.com -->
     <script src="{{ url_for('static', filename='js/widget-api-client.js') }}" defer></script>
+    
+    <!-- SISTEMA DE BUSCA INVISÍVEL (ordem correta para dependências) -->
+    <!-- 1. Script base para busca oculta de voos -->
+    <script src="{{ url_for('static', filename='js/hidden-search.js') }}"></script>
+    <!-- 2. Script para integração da busca oculta com o chat -->
+    <script src="{{ url_for('static', filename='js/chat-hidden-search-integration.js') }}"></script>
+    <!-- 3. Script para detecção de intenção de voos no chat AVI -->
+    <script src="{{ url_for('static', filename='js/avi-invisible-search.js') }}"></script>
+    
     <!-- Script para integração do widget com o chat -->
     <script src="{{ url_for('static', filename='js/chat-widget-integration.js') }}" defer></script>
-    <!-- Script para busca oculta de voos -->
-    <script src="{{ url_for('static', filename='js/hidden-search.js') }}" defer></script>
-    <!-- Script para integração da busca oculta com o chat -->
-    <script src="{{ url_for('static', filename='js/chat-hidden-search-integration.js') }}" defer></script>
-    <!-- Script para detecção de intenção de voos no chat AVI -->
-    <script src="{{ url_for('static', filename='js/avi-invisible-search.js') }}" defer></script>
+    
+    <!-- Script para redirecionamento para resultados TravelPayouts DESATIVADO -->
+    <!-- <script src="{{ url_for('static', filename='js/travelpayouts-results-redirect.js') }}" defer></script> -->
 </head>
 <body>
     <div class="container">

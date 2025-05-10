@@ -4,11 +4,31 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Inicializando integração de busca oculta com chat');
+    console.log('🔄 Inicializando integração de busca oculta com chat');
     
     // Verifica se as dependências estão presentes
     if (!window.hiddenFlightSearch) {
-        console.error('Erro: módulo hiddenFlightSearch não encontrado!');
+        console.error('⚠️ Erro: módulo hiddenFlightSearch não encontrado!');
+        console.log('Tentando carregar o módulo hiddenFlightSearch...');
+        
+        // Tentar carregar o script se não estiver disponível
+        const script = document.createElement('script');
+        script.src = '/static/js/hidden-search.js';
+        document.head.appendChild(script);
+        
+        script.onload = function() {
+            console.log('✅ Módulo hiddenFlightSearch carregado com sucesso!');
+            console.log('Objetos disponíveis:', { 
+                hiddenFlightSearch: !!window.hiddenFlightSearch,
+                hiddenSearchIntegration: !!window.hiddenSearchIntegration,
+                aviInvisibleSearch: !!window.aviInvisibleSearch 
+            });
+        };
+        
+        script.onerror = function() {
+            console.error('❌ Falha ao carregar o módulo hiddenFlightSearch');
+        };
+        
         return;
     }
     
@@ -204,9 +224,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             searchInProgress = false;
             waitingForResults = false;
-            window.hiddenFlightSearch.finish();
+            if (window.hiddenFlightSearch && window.hiddenFlightSearch.finish) {
+                window.hiddenFlightSearch.finish();
+            }
         }
     };
+    
+    // Log para debug
+    console.log('📊 Estado atual dos objetos de busca:', {
+        hiddenFlightSearch: !!window.hiddenFlightSearch,
+        hiddenSearchIntegration: !!window.hiddenSearchIntegration,
+        aviInvisibleSearch: !!window.aviInvisibleSearch
+    });
     
     // Monitorar mensagens que indicam intenção de busca
     // Isso será integrado pelo backend via API
