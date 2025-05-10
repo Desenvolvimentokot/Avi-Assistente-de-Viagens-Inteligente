@@ -298,31 +298,7 @@ class FlightWidgetLoader:
         search_data['results'] = []
         return []
     
-    def _generate_sample_results(self, origin, destination, departure_date):
-        """
-        Gera resultados de exemplo para testes
-        IMPORTANTE: Esta função deve ser removida na implementação final,
-        usar apenas dados reais da API Trip.com/TravelPayouts.
-        """
-        airlines = ["LATAM", "GOL", "Azul", "Avianca", "American Airlines"]
-        prices = [1250.99, 1450.50, 1850.00, 2100.75, 1999.99]
-        departure_times = ["08:00", "10:30", "13:45", "15:20", "19:10"]
-        arrival_times = ["10:00", "12:45", "16:15", "17:50", "21:40"]
-        durations = ["2h", "2h 15m", "2h 30m", "2h 30m", "2h 30m"]
-        
-        return [
-            {
-                "airline": airlines[i % len(airlines)],
-                "price": prices[i % len(prices)],
-                "currency": "BRL",
-                "departure": departure_times[i % len(departure_times)],
-                "arrival": arrival_times[i % len(arrival_times)],
-                "duration": durations[i % len(durations)],
-                "stops": 0 if i % 3 == 0 else 1,
-                "bookingUrl": f"https://www.travelpayouts.com/flight?marker={self.tp_marker}&origin={origin}&destination={destination}&departure_at={departure_date}&adults=1&with_request=true"
-            }
-            for i in range(5)  # Gerar 5 resultados de exemplo
-        ]
+    # Esta função foi removida para garantir que apenas dados reais sejam utilizados
     
     def cleanup(self):
         """Limpa recursos (browsers, etc)"""

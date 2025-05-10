@@ -1,92 +1,74 @@
 /**
- * Integração do Chat com o Widget Trip.com
+ * Chat-Widget Integration
  * 
- * Este script integra o chat com a API do widget headless Trip.com/TravelPayouts,
- * permitindo a exibição dos resultados de busca diretamente na interface de chat.
+ * Este script integra a busca de voos via widget Trip.com com a interface
+ * de chat, permitindo exibir cards de resultados diretamente no chat e
+ * no painel lateral.
  */
 
-// Funções auxiliares para interface
-function showLoadingIndicator(message, progress = 0) {
-    // Verifica se o elemento de loading já existe
-    let loadingElement = document.getElementById('flight-loading-indicator');
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar se estamos em uma página com chat
+    if (!document.querySelector('.chat-messages')) return;
     
-    if (!loadingElement) {
-        // Criar elemento de loading
-        loadingElement = document.createElement('div');
-        loadingElement.id = 'flight-loading-indicator';
-        loadingElement.className = 'message assistant-message';
-        loadingElement.innerHTML = `
-            <div class="message-content">
-                <div class="loading-container">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">${message || 'Buscando voos...'}</div>
-                    <div class="loading-progress">
-                        <div class="loading-progress-bar" style="width: ${progress}%"></div>
-                    </div>
-                </div>
-            </div>
-        `;
+    // Exportar função para exibir cartões de voos no chat
+    window.displayFlightCardsInChat = function(flights) {
+        // Verificar se temos voos para exibir
+        if (!flights || !flights.length) return;
         
-        // Inserir no chat
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.appendChild(loadingElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    } else {
-        // Atualizar mensagem de loading
-        const loadingText = loadingElement.querySelector('.loading-text');
-        if (loadingText) {
-            loadingText.textContent = message || 'Buscando voos...';
+        // Criar mensagem para cartões de voo
+        const flightMessage = document.createElement('div');
+        flightMessage.className = 'message assistant-message';
+        
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        
+        // Adicionar texto explicativo
+        const introText = document.createElement('p');
+        introText.textContent = 'Encontrei estas opções de voo para você:';
+        content.appendChild(introText);
+        
+        // Adicionar container de cartões
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'flight-cards-container';
+        
+        // Limitar a 3 cartões para não sobrecarregar o chat
+        const displayFlights = flights.slice(0, 3);
+        
+        // Criar cartões para cada voo
+        displayFlights.forEach(flight => {
+            const card = createFlightCard(flight);
+            cardsContainer.appendChild(card);
+        });
+        
+        // Adicionar link para ver mais
+        if (flights.length > 3) {
+            const viewMoreLink = document.createElement('div');
+            viewMoreLink.className = 'view-more-flights';
+            viewMoreLink.innerHTML = `<a href="/widget-api/chat_search" class="view-more-link">Ver todas as ${flights.length} opções</a>`;
+            cardsContainer.appendChild(viewMoreLink);
         }
         
-        // Atualizar barra de progresso
-        const progressBar = loadingElement.querySelector('.loading-progress-bar');
-        if (progressBar) {
-            progressBar.style.width = `${progress}%`;
-        }
-    }
-}
-
-function hideLoadingIndicator() {
-    const loadingElement = document.getElementById('flight-loading-indicator');
-    if (loadingElement) {
-        loadingElement.remove();
-    }
-}
-
-function displayMessage(message) {
-    // Criar mensagem da assistente
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message assistant-message';
-    messageElement.innerHTML = `
-        <div class="message-content">
-            <p>${message}</p>
-        </div>
-    `;
+        content.appendChild(cardsContainer);
+        flightMessage.appendChild(content);
+        
+        // Adicionar ao chat
+        document.querySelector('.chat-messages').appendChild(flightMessage);
+        
+        // Scroll para mostrar novas mensagens
+        document.querySelector('.chat-messages').scrollTop = document.querySelector('.chat-messages').scrollHeight;
+    };
     
-    // Inserir no chat
-    const chatMessages = document.getElementById('chat-messages');
-    if (chatMessages) {
-        chatMessages.appendChild(messageElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-}
-
-function displayFlightCard(flight) {
-    // Validar dados do voo
-    if (!flight) return;
-    
-    // Elementos de preço
-    const price = typeof flight.price === 'number' 
-        ? flight.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-        : flight.price;
-    
-    // Criar card de voo
-    const cardElement = document.createElement('div');
-    cardElement.className = 'message assistant-message';
-    cardElement.innerHTML = `
-        <div class="message-content flight-card">
+    // Função auxiliar para criar um cartão de voo
+    function createFlightCard(flight) {
+        const card = document.createElement('div');
+        card.className = 'flight-card';
+        
+        // Formatação do preço
+        const price = typeof flight.price === 'number' 
+            ? flight.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+            : flight.price;
+        
+        card.innerHTML = `
             <div class="flight-card-header">
                 <div class="flight-airline">${flight.airline || 'Companhia Aérea'}</div>
                 <div class="flight-price">${flight.currency || 'R$'} ${price}</div>
@@ -98,6 +80,10 @@ function displayFlightCard(flight) {
                         <span class="flight-arrow">→</span>
                         <span class="arrival-time">${flight.arrival || 'Chegada'}</span>
                     </div>
+                    <div class="flight-duration">
+                        ${flight.duration || ''}
+                        ${flight.stops > 0 ? `(${flight.stops} ${flight.stops > 1 ? 'paradas' : 'parada'})` : 'Direto'}
+                    </div>
                 </div>
             </div>
             <div class="flight-card-footer">
@@ -105,76 +91,8 @@ function displayFlightCard(flight) {
                     `<a href="${flight.bookingUrl}" target="_blank" class="flight-book-btn">Ver oferta</a>` :
                     '<span class="flight-notice">Oferta indisponível</span>'}
             </div>
-        </div>
-    `;
-    
-    // Inserir no chat
-    const chatMessages = document.getElementById('chat-messages');
-    if (chatMessages) {
-        chatMessages.appendChild(cardElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        `;
+        
+        return card;
     }
-}
-
-function displayFlightCardsInChat(flights) {
-    if (!flights || !flights.length) {
-        displayMessage('Não encontramos voos para esta rota. Tente outra combinação de datas ou aeroportos.');
-        return;
-    }
-    
-    // Mostrar mensagem introdutória
-    displayMessage('Encontrei as seguintes opções de voo para você:');
-    
-    // Mostrar cards de voo
-    flights.forEach(flight => {
-        displayFlightCard(flight);
-    });
-}
-
-/**
- * Inicia uma busca de voos a partir dos parâmetros de viagem
- * 
- * @param {Object} travelParams - Parâmetros da viagem
- */
-function searchFlights(travelParams) {
-    // Validar parâmetros obrigatórios
-    if (!travelParams.origin || !travelParams.destination || !travelParams.departure_date) {
-        displayMessage('Não foi possível buscar voos: parâmetros de viagem incompletos.');
-        return;
-    }
-    
-    // Mostrar indicador de carregamento
-    showLoadingIndicator('🔄 Estou buscando os melhores voos...');
-    
-    // Verificar se o cliente da API foi carregado
-    if (typeof window.widgetApiClient === 'undefined') {
-        console.error('Cliente da API de widget não carregado');
-        hideLoadingIndicator();
-        displayMessage('Desculpe, não foi possível iniciar a busca de voos. Por favor, tente novamente mais tarde.');
-        return;
-    }
-    
-    // Iniciar busca usando o cliente da API
-    window.widgetApiClient.startSearch(
-        travelParams,
-        // Callback de status
-        (status, message, progress = 0) => {
-            if (status === 'searching') {
-                showLoadingIndicator(message, progress);
-            }
-        },
-        // Callback de sucesso
-        (results) => {
-            hideLoadingIndicator();
-            displayFlightCardsInChat(results);
-        },
-        // Callback de erro
-        (error) => {
-            hideLoadingIndicator();
-            displayMessage(`Desculpe, ocorreu um erro durante a busca: ${error}`);
-        }
-    );
-}
-
-// Adicionar função ao contexto global para uso pelo chat
-window.aviSearchFlights = searchFlights;
+});
