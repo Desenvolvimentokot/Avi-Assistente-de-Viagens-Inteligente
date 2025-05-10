@@ -15,6 +15,12 @@
     
     // Função para inicializar os elementos UI quando o DOM estiver pronto
     function initializeUIElements() {
+        // Verificar se estamos em uma página que tem o chat
+        if (!document.querySelector('.chat-container')) {
+            console.log('Chat não encontrado nesta página, pulando inicialização');
+            return;
+        }
+        
         messageInput = document.querySelector('.message-input');
         sendButton = document.querySelector('.send-button');
 
@@ -33,18 +39,32 @@
                 }
             };
 
-            // Interceptar tecla Enter no input
-            messageInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    handleUserMessage();
-                    // Não precisamos chamar preventDefault() ou stopPropagation()
-                    // porque estamos apenas observando, não substituindo o comportamento
-                }
-            });
+            // Interceptar tecla Enter no input - usando try/catch para evitar erros
+            try {
+                messageInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        handleUserMessage();
+                        // Não precisamos chamar preventDefault() ou stopPropagation()
+                        // porque estamos apenas observando, não substituindo o comportamento
+                    }
+                });
+            } catch (error) {
+                console.error("Erro ao configurar listener de keypress:", error);
+            }
         } else {
             console.log('Elementos de UI não encontrados, tentando novamente em 1s');
-            // Tentar novamente após um atraso
-            setTimeout(initializeUIElements, 1000);
+            // Tentar novamente após um atraso (máximo 5 tentativas)
+            if (!window.uiInitAttempts) {
+                window.uiInitAttempts = 1;
+            } else {
+                window.uiInitAttempts++;
+            }
+            
+            if (window.uiInitAttempts <= 5) {
+                setTimeout(initializeUIElements, 1000);
+            } else {
+                console.log('Desistindo após 5 tentativas de encontrar elementos UI');
+            }
         }
     }
     
