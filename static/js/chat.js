@@ -32,10 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
             scrollToBottom();
         }
     });
-
-    // Elementos do DOM - obtenção segura com verificação
+    // Elementos do DOM
     const chatMessages = document.querySelector('.chat-messages');
-    // Usar querySelector para garantir que os elementos sejam encontrados corretamente
     const messageInput = document.querySelector('.message-input');
     const sendButton = document.querySelector('.send-button');
     const modeButtons = document.querySelectorAll('.mode-button');
@@ -44,10 +42,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let chatMode = 'quick-search'; // Modo padrão
     let currentConversationId = null;
     let sessionId = null; // Para manter a sessão com o servidor
-
+    
     // Expor a variável de sessão globalmente para que outros scripts possam acessá-la
     window.chatSessionId = null;
-
+    
     let chatHistory = []; // Para manter o histórico da conversa
     let awaitingFlightSelection = false; // Flag para controlar se estamos esperando o usuário selecionar um voo
     let chatContext = {
@@ -58,19 +56,11 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Inicialização
-    console.log("Inicializando chat - adicionando mensagem de boas-vindas");
     addWelcomeMessage();
-
-    // Garantir que a área de chat role para mostrar a mensagem de boas-vindas
-    setTimeout(function() {
-        scrollToBottom();
-    }, 100);
 
     // Eventos
     if (sendButton) {
         sendButton.addEventListener('click', sendMessage);
-    } else {
-        console.error("Botão de envio não encontrado!");
     }
 
     if (messageInput) {
@@ -80,8 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendMessage();
             }
         });
-    } else {
-        console.error("Campo de mensagem não encontrado!");
     }
 
     // Alternar entre modos de chat
@@ -188,13 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Armazena o session_id retornado pelo servidor
             if (data.session_id) {
                 sessionId = data.session_id;
-
-                // ATUALIZAÇÃO CRÍTICA: Expor o ID de sessão globalmente para que outros scripts possam acessá-la
+                
+                // ATUALIZAÇÃO CRÍTICA: Expor o ID de sessão globalmente para que outros scripts possam acessá-lo
                 window.chatSessionId = sessionId;
-
+                
                 // Salvar no localStorage para uso posterior
                 localStorage.setItem('chat_session_id', sessionId);
-
+                
                 console.log("Sessão ativa:", sessionId);
                 console.log("ID de sessão global atualizado e salvo no localStorage");
             }
@@ -229,10 +217,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.session_id) {
                     // Atualizar a variável global sessionId
                     sessionId = data.session_id;
-
+                    
                     // ATUALIZAÇÃO CRÍTICA: Atualizar a variável global
                     window.chatSessionId = sessionId;
-
+                    
                     console.log("Session ID atualizado para:", sessionId);
 
                     // Salvar no localStorage para persistência entre reloads
@@ -358,14 +346,14 @@ document.addEventListener('DOMContentLoaded', function() {
             text = convertMarkdownBold(text);
             text = convertMarkdownItalic(text);
             text = convertMarkdownLists(text);
-
-            // Detectar botão de resultados na mensagem e adicionar classe específica para automação
+            
+            // Processa os botões da travelpayouts-results-btn
             if (text.includes('travelpayouts-results-btn')) {
                 console.log("Detectado botão de resultados na mensagem");
             }
-
+            
             contentElement.innerHTML = text;
-
+            
             // Detecta e inicializa botões de resultados da TravelPayouts
             const resultButtons = contentElement.querySelectorAll('.travelpayouts-results-btn');
             if (resultButtons.length > 0) {
@@ -375,43 +363,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     button.style.display = "block";
                     button.style.margin = "20px auto";
                     button.style.textAlign = "center";
-
+                    
                     // Adiciona um ícone ao botão para torná-lo mais atraente
                     const buttonText = button.textContent;
                     button.innerHTML = `<i class="fas fa-plane-departure"></i> ${buttonText}`;
-
+                    
                     // CORREÇÃO: Adiciona o event listener diretamente aqui
                     button.addEventListener('click', function(event) {
                         event.preventDefault();
-
+                        
                         // Extrair os parâmetros do botão
                         const origin = this.getAttribute('data-origin');
                         const destination = this.getAttribute('data-destination');
                         const departureDate = this.getAttribute('data-departure');
                         const adults = this.getAttribute('data-adults');
-
+                        
                         console.log(`Clique no botão de resultados! Parâmetros: ${origin} → ${destination}`);
-
+                        
                         // Não precisamos mais se preocupar com o session_id na URL
                         // O cookie flai_session_id é enviado automaticamente pelo navegador
                         console.log(`✓ Usando cookie flai_session_id para autenticação`);
-
+                        
                         // Construir a URL para a página de resultados (somente para exibição)
                         // Os parâmetros serão usados apenas como fallback se o cookie não estiver disponível
                         let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-
+                        
                         if (departureDate) {
                             url += `&departure_date=${encodeURIComponent(departureDate)}`;
                         }
-
+                        
                         if (adults) {
                             url += `&adults=${encodeURIComponent(adults)}`;
                         }
-
+                        
                         console.log(`Abrindo resultados em nova aba: ${url}`);
                         window.open(url, '_blank');
                     });
-
+                    
                     console.log("Botão de resultados formatado e preparado com evento de clique");
                 });
             }
@@ -791,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 ${flightNumber ? `
                                 <div class="detail-item">
-                                                                   <div class="detail-label">Número do Voo</div>
+                                    <div class="detail-label">Número do Voo</div>
                                     <div class="detail-value">${flightNumber}</div>
                                 </div>` : ''}
                                 <div class="detail-item">
@@ -1076,87 +1064,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTravelPlans();
     startPriceMonitoring();
 });
-
-function monitorChatForConfirmation() {
-        // Inicializar o observador
-        const observer = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                // Verificar se algum nó foi adicionado
-                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                    mutation.addedNodes.forEach(node => {
-                        // Verificar se o nó é um elemento
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            // Verificar se o nó contém um box de mensagem
-                            if (node.classList.contains('message-box') || node.querySelector('.message-box')) {
-
-                                // Encontrar o texto da mensagem
-                                const messageText = node.textContent.toLowerCase();
-
-                                // Verificar se há mensagem de confirmação
-                                if ((messageText.includes('confirmado') || messageText.includes('confirmei')) && 
-                                    messageText.includes('dados') && 
-                                    (messageText.includes('voo') || messageText.includes('viagem'))) {
-
-                                    console.log('Confirmação detectada! Procurando botões de resultados...');
-
-                                    // Procurar botões de resultados na mensagem
-                                    setTimeout(() => {
-                                        const resultButtons = node.querySelectorAll('a.travelpayouts-results-btn');
-                                        console.log(`Encontrados ${resultButtons.length} botões de resultados`);
-
-                                        if (resultButtons.length > 0) {
-                                            console.log('Clicando automaticamente no primeiro botão de resultados em 1.5 segundos...');
-
-                                            setTimeout(() => {
-                                                try {
-                                                    resultButtons[0].click();
-                                                    console.log('Botão clicado automaticamente!');
-                                                } catch (err) {
-                                                    console.error('Erro ao clicar no botão:', err);
-                                                }
-                                            }, 1500);
-                                        }
-                                    }, 1000);
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-        });
-
-        // Configurar o observador com verificação de existência do elemento
-        if (chatMessages) {
-            observer.observe(chatMessages, { 
-                childList: true,
-                subtree: true 
-            });
-            console.log('📊 Monitoramento de confirmação de viagem iniciado');
-        } else {
-            console.error('Elemento de mensagens do chat não encontrado');
-        }
-    }
-
-    // Função global para abrir a página de resultados
-    window.openTripResultsPage = function(origin, destination, departureDate, returnDate, adults) {
-        // Construir a URL para a página de resultados
-        let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-
-        if (departureDate) {
-            url += `&departure_date=${encodeURIComponent(departureDate)}`;
-        }
-
-        if (returnDate) {
-            url += `&return_date=${encodeURIComponent(returnDate)}`;
-        }
-
-        if (adults) {
-            url += `&adults=${encodeURIComponent(adults)}`;
-        }
-
-        // Abrir a página em uma nova aba
-        window.open(url, '_blank');
-    };
 
 function handleChatResponse(response) {
     if (response.error) {
