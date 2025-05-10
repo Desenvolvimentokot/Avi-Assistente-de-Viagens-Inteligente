@@ -132,14 +132,36 @@ class TravelPayoutsRestAPI:
                 return []
             
             # Processar a resposta
-            data = response.json()
+            try:
+                data = response.json()
+                
+                # Tentar converter para JSON se for uma string
+                if isinstance(data, str):
+                    try:
+                        data = json.loads(data)
+                    except:
+                        logger.error(f"API calendário retornou string inválida: {data[:100]}")
+                        return []
+                
+                # Verificar estrutura da resposta
+                logger.debug(f"Estrutura da resposta da API calendário: {type(data)}")
+            except Exception as json_error:
+                logger.error(f"Erro ao processar JSON da API calendário: {str(json_error)}")
+                return []
+            
             if not data.get("success", False):
                 logger.error(f"API calendário retornou sucesso=false: {data.get('error', 'Erro desconhecido')}")
                 return []
                 
             # Processar e formatar os resultados
             flights = []
-            raw_data = data.get("data", {})
+            
+            # Em algumas respostas, data pode ser uma string ou um dicionário
+            if isinstance(data.get("data"), dict):
+                raw_data = data.get("data", {})
+            else:
+                logger.warning(f"Formato de dados inesperado na API calendário. Tipo: {type(data.get('data'))}")
+                raw_data = {}
             
             for date_str, prices in raw_data.items():
                 if not prices:
@@ -208,7 +230,23 @@ class TravelPayoutsRestAPI:
                 return []
             
             # Processar a resposta
-            data = response.json()
+            try:
+                data = response.json()
+                
+                # Tentar converter para JSON se for uma string
+                if isinstance(data, str):
+                    try:
+                        data = json.loads(data)
+                    except:
+                        logger.error(f"API preços baratos retornou string inválida: {data[:100]}")
+                        return []
+                
+                # Verificar estrutura da resposta
+                logger.debug(f"Estrutura da resposta da API preços baratos: {type(data)}")
+            except Exception as json_error:
+                logger.error(f"Erro ao processar JSON da API preços baratos: {str(json_error)}")
+                return []
+                
             if not data.get("success", False):
                 logger.error(f"API preços baratos retornou sucesso=false: {data.get('error', 'Erro desconhecido')}")
                 return []
