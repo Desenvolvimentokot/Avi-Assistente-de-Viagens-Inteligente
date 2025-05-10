@@ -560,10 +560,10 @@ def process_avi_message(message, roteiro_data):
     Returns:
         tuple: (resposta da AVI, atualizações para o roteiro)
     """
-    from services.amadeus_service import AmadeusService
+    from services.travelpayouts_service import TravelPayoutsService
     
-    # Inicializar serviço Amadeus (para buscar voos se necessário)
-    amadeus_service = AmadeusService()
+    # Inicializar serviço TravelPayouts (para buscar voos se necessário)
+    travelpayouts_service = TravelPayoutsService()
     
     # Extrair informações do roteiro atual
     destination = roteiro_data.get('destination', '')
@@ -646,10 +646,10 @@ def process_avi_message(message, roteiro_data):
         
         # Verificar se temos datas para a busca
         if start_date:
-            # Buscar voos na API Amadeus
+            # Buscar voos na API TravelPayouts
             try:
                 logger.info(f"Buscando voos: {origin} -> {destination}, data: {start_date}")
-                flight_results = amadeus_service.search_flights(params={
+                flight_results = travelpayouts_service.search_flights(params={
                     'originLocationCode': origin, 
                     'destinationLocationCode': destination,
                     'departureDate': start_date.split('T')[0] if 'T' in start_date else start_date,

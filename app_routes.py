@@ -410,7 +410,7 @@ def travelpayouts_test():
         # Verificar resultados
         if not search_results or 'error' in search_results:
             error_msg = search_results.get('error', 'Erro desconhecido') if search_results else 'Sem resultados'
-            logger.error(f"❌ TESTE AMADEUS: Falha na conexão - {error_msg}")
+            logger.error(f"❌ TESTE TRAVELPAYOUTS: Falha na conexão - {error_msg}")
             return jsonify({
                 "error": error_msg,
                 "data": [],
@@ -429,11 +429,11 @@ def travelpayouts_test():
             'adults': adults
         }
         
-        logger.warning(f"✅ TESTE AMADEUS: Conexão bem-sucedida - {flight_count} voos encontrados")
+        logger.warning(f"✅ TESTE TRAVELPAYOUTS: Conexão bem-sucedida - {flight_count} voos encontrados")
         return jsonify(search_results)
         
     except Exception as e:
-        logger.error(f"❌ TESTE AMADEUS: Erro durante o teste - {str(e)}")
+        logger.error(f"❌ TESTE TRAVELPAYOUTS: Erro durante o teste - {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
