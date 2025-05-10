@@ -273,6 +273,14 @@ def chat_search():
     Renderiza a interface de chat com integração de busca de voos.
     """
     return render_template('chat_flight_search.html')
+    
+@widget_api.route('/rest-demo', methods=['GET'])
+def rest_demo_search():
+    """
+    Renderiza uma interface de demonstração para testar a API REST do TravelPayouts.
+    Esta é uma versão que usa chamadas diretas à API REST sem Playwright.
+    """
+    return render_template('search_rest_api.html')
 
 @widget_api.route('/travelpayouts-results', methods=['GET'])
 def travelpayouts_results_page():

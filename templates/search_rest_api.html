@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca de Voos - TravelPayouts REST API</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 2rem;
+            background-color: #f5f7fa;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            background-color: #3a86ff;
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1rem;
+        }
+        .card-footer {
+            background-color: #f8f9fa;
+            border-radius: 0 0 15px 15px !important;
+        }
+        .flight-item {
+            border-left: 3px solid #3a86ff;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        .flight-item:hover {
+            background-color: #f0f5ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(58, 134, 255, 0.1);
+        }
+        .price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #3a86ff;
+        }
+        .airline {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .date-picker {
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+        }
+        .btn-search {
+            background-color: #3a86ff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+        }
+        .btn-search:hover {
+            background-color: #2a76ef;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3a86ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .segment {
+            padding: 0.5rem;
+            border-bottom: 1px dashed #e9ecef;
+        }
+        .segment:last-child {
+            border-bottom: none;
+        }
+        .time {
+            font-weight: bold;
+        }
+        .airport {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-md-12 text-center">
+                <h1 class="mb-4">Busca de Voos via TravelPayouts REST API</h1>
+                <p class="text-muted">Pesquise voos em tempo real usando a API TravelPayouts</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Parâmetros de Busca</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="searchForm">
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="origin" class="form-label">Origem (IATA)</label>
+                                    <input type="text" class="form-control" id="origin" name="origin" placeholder="GRU" required>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="destination" class="form-label">Destino (IATA)</label>
+                                    <input type="text" class="form-control" id="destination" name="destination" placeholder="JFK" required>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="departureDate" class="form-label">Data de Ida</label>
+                                    <input type="date" class="form-control date-picker" id="departureDate" name="departureDate" required>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="returnDate" class="form-label">Data de Volta (opcional)</label>
+                                    <input type="date" class="form-control date-picker" id="returnDate" name="returnDate">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="adults" class="form-label">Adultos</label>
+                                    <select class="form-select" id="adults" name="adults">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-9 mb-3 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary btn-search">Buscar Voos</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="d-none">
+            <div class="loader"></div>
+            <p class="text-center">Buscando voos, por favor aguarde...</p>
+        </div>
+
+        <div id="results" class="row mt-4 d-none">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Resultados da Busca</h5>
+                        <span id="resultCount" class="badge bg-primary">0 voos</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="flightList" class="flights-container">
+                            <!-- Resultados serão inseridos aqui via JavaScript -->
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Dados fornecidos por TravelPayouts API</small>
+                            <span id="searchTimestamp" class="text-muted"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="noResults" class="row mt-4 d-none">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5>Nenhum resultado encontrado</h5>
+                        <p>Tente buscar com outros parâmetros ou datas diferentes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="error" class="row mt-4 d-none">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="text-danger">Erro na busca</h5>
+                        <p id="errorMessage">Ocorreu um erro ao buscar voos. Por favor, tente novamente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar data padrão: hoje + 30 dias para ida
+            const setDefaultDates = () => {
+                const today = new Date();
+                const thirtyDaysLater = new Date();
+                thirtyDaysLater.setDate(today.getDate() + 30);
+                
+                const formatDate = (date) => {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+                
+                document.getElementById('departureDate').value = formatDate(thirtyDaysLater);
+                
+                // Data de volta: 7 dias após ida
+                const returnDate = new Date(thirtyDaysLater);
+                returnDate.setDate(thirtyDaysLater.getDate() + 7);
+                document.getElementById('returnDate').value = formatDate(returnDate);
+            };
+            
+            setDefaultDates();
+            
+            // Handler do formulário de busca
+            document.getElementById('searchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Obter valores do formulário
+                const origin = document.getElementById('origin').value.trim().toUpperCase();
+                const destination = document.getElementById('destination').value.trim().toUpperCase();
+                const departureDate = document.getElementById('departureDate').value;
+                const returnDate = document.getElementById('returnDate').value || null;
+                const adults = document.getElementById('adults').value;
+                
+                // Validação básica
+                if (!origin || !destination || !departureDate) {
+                    showError('Por favor, preencha todos os campos obrigatórios.');
+                    return;
+                }
+                
+                // Mostrar loading
+                document.getElementById('loading').classList.remove('d-none');
+                document.getElementById('results').classList.add('d-none');
+                document.getElementById('noResults').classList.add('d-none');
+                document.getElementById('error').classList.add('d-none');
+                
+                // Montar payload da requisição
+                const payload = {
+                    origin: origin,
+                    destination: destination,
+                    departure_date: departureDate,
+                    adults: parseInt(adults)
+                };
+                
+                if (returnDate) {
+                    payload.return_date = returnDate;
+                }
+                
+                // Fazer requisição para a API
+                fetch('/widget/direct_search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Esconder loading
+                    document.getElementById('loading').classList.add('d-none');
+                    
+                    // Processar resultados
+                    if (data.data && data.data.length > 0) {
+                        displayResults(data);
+                    } else {
+                        document.getElementById('noResults').classList.remove('d-none');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('loading').classList.add('d-none');
+                    showError(error.message || 'Erro ao buscar voos. Por favor, tente novamente.');
+                });
+            });
+            
+            // Função para mostrar erros
+            function showError(message) {
+                document.getElementById('error').classList.remove('d-none');
+                document.getElementById('errorMessage').textContent = message;
+            }
+            
+            // Função para exibir resultados
+            function displayResults(data) {
+                const flightList = document.getElementById('flightList');
+                flightList.innerHTML = '';
+                
+                // Atualizar contador de resultados
+                document.getElementById('resultCount').textContent = `${data.data.length} voo(s)`;
+                
+                // Timestamp de busca
+                if (data.search_timestamp) {
+                    const date = new Date(data.search_timestamp);
+                    document.getElementById('searchTimestamp').textContent = `Busca realizada em ${date.toLocaleString()}`;
+                }
+                
+                // Adicionar cada voo ao container
+                data.data.forEach(flight => {
+                    const flightItem = document.createElement('div');
+                    flightItem.className = 'flight-item';
+                    
+                    let itinerariesHtml = '';
+                    
+                    // Processar ida
+                    if (flight.itineraries && flight.itineraries.length > 0) {
+                        itinerariesHtml += `
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h6 class="mb-2">Itinerário de ida</h6>
+                                </div>
+                            </div>
+                        `;
+                        
+                        const outboundSegments = flight.itineraries[0].segments || [];
+                        outboundSegments.forEach(segment => {
+                            // Extrair data e hora
+                            let departureTime = 'N/A';
+                            let arrivalTime = 'N/A';
+                            
+                            if (segment.departure && segment.departure.at) {
+                                const depDate = new Date(segment.departure.at);
+                                departureTime = depDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                            
+                            if (segment.arrival && segment.arrival.at) {
+                                const arrDate = new Date(segment.arrival.at);
+                                arrivalTime = arrDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                            
+                            itinerariesHtml += `
+                                <div class="segment">
+                                    <div class="row">
+                                        <div class="col-5">
+                                            <div class="time">${departureTime}</div>
+                                            <div class="airport">${segment.departure.iataCode}</div>
+                                        </div>
+                                        <div class="col-2 text-center">
+                                            <i class="fas fa-plane"></i>
+                                            <div class="airline">${segment.carrierCode} ${segment.number}</div>
+                                        </div>
+                                        <div class="col-5 text-end">
+                                            <div class="time">${arrivalTime}</div>
+                                            <div class="airport">${segment.arrival.iataCode}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    // Processar volta (se existir)
+                    if (flight.itineraries && flight.itineraries.length > 1) {
+                        itinerariesHtml += `
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <h6 class="mb-2">Itinerário de volta</h6>
+                                </div>
+                            </div>
+                        `;
+                        
+                        const inboundSegments = flight.itineraries[1].segments || [];
+                        inboundSegments.forEach(segment => {
+                            // Extrair data e hora
+                            let departureTime = 'N/A';
+                            let arrivalTime = 'N/A';
+                            
+                            if (segment.departure && segment.departure.at) {
+                                const depDate = new Date(segment.departure.at);
+                                departureTime = depDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                            
+                            if (segment.arrival && segment.arrival.at) {
+                                const arrDate = new Date(segment.arrival.at);
+                                arrivalTime = arrDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            }
+                            
+                            itinerariesHtml += `
+                                <div class="segment">
+                                    <div class="row">
+                                        <div class="col-5">
+                                            <div class="time">${departureTime}</div>
+                                            <div class="airport">${segment.departure.iataCode}</div>
+                                        </div>
+                                        <div class="col-2 text-center">
+                                            <i class="fas fa-plane"></i>
+                                            <div class="airline">${segment.carrierCode} ${segment.number}</div>
+                                        </div>
+                                        <div class="col-5 text-end">
+                                            <div class="time">${arrivalTime}</div>
+                                            <div class="airport">${segment.arrival.iataCode}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    // Exibir preço e link para reserva
+                    const price = flight.price ? `${flight.price.total} ${flight.price.currency}` : 'Preço indisponível';
+                    const bookingUrl = flight.booking_url || '#';
+                    const isRedirect = flight.is_redirect ? '<span class="badge bg-warning text-dark ms-2">Redirecionamento</span>' : '';
+                    const label = flight.label || 'Ver oferta';
+                    
+                    flightItem.innerHTML = `
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                ${itinerariesHtml}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="price mb-2">${price}</div>
+                                <a href="${bookingUrl}" target="_blank" class="btn btn-sm btn-success">
+                                    ${label}
+                                </a>
+                                ${isRedirect}
+                            </div>
+                        </div>
+                    `;
+                    
+                    flightList.appendChild(flightItem);
+                });
+                
+                // Mostrar resultados
+                document.getElementById('results').classList.remove('d-none');
+            }
+        });
+    </script>
+    <!-- FontAwesome para ícones -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</body>
+</html>
