@@ -306,7 +306,7 @@ def chat():
                     step = 2
                     system_context = """
                     O usuário confirmou as informações. Informe que você está buscando voos reais
-                    através da API da Amadeus. Não forneça resultados simulados, apenas explique
+                    através da API do TravelPayouts. Não forneça resultados simulados, apenas explique
                     que está consultando os dados reais.
                     """
                 else:
@@ -372,9 +372,9 @@ def chat():
             if skip_gpt_call:
                 # Definir resposta padrão sem chamar OpenAI
                 gpt_result = {
-                    "response": "Estou consultando a API da Amadeus para encontrar as melhores opções reais de voos para sua viagem. Aguarde um momento..."
+                    "response": "Estou consultando a API do TravelPayouts para encontrar as melhores opções reais de voos para sua viagem. Aguarde um momento..."
                 }
-                logger.warning("✅ Fluxo desviado com sucesso para API Amadeus direta")
+                logger.warning("✅ Fluxo desviado com sucesso para API TravelPayouts direta")
             else:
                 # Apenas para casos onde não estamos fazendo busca real
                 logger.info(f"Chamando OpenAI normalmente para etapa {step} com session_id {session_id}")
@@ -422,8 +422,8 @@ def chat():
                                       f"Data volta: {current_travel_info.get('return_date', 'N/A')}, " +
                                       f"Adultos: {current_travel_info.get('adults', 1)}")
 
-                        # ÚNICO PONTO DE BUSCA REAL: using flight_service_connector
-                        search_results = flight_service_connector.search_flights_from_chat(
+                        # ÚNICO PONTO DE BUSCA REAL: using travelpayouts_connector
+                        search_results = travelpayouts_connector.search_flights_from_chat(
                             travel_info=current_travel_info,
                             session_id=session_id
                         )
@@ -448,7 +448,7 @@ def chat():
                             search_results['session_id'] = session_id
 
                             # Usar o formatador do conector para preparar a resposta
-                            formatted_response = flight_service_connector.format_flight_results_for_chat(search_results)
+                            formatted_response = travelpayouts_connector.format_flight_results_for_chat(search_results)
 
                             # Extrair a mensagem e a flag para mostrar o painel
                             response_text = formatted_response.get('message', 'Encontrei algumas opções de voos para você! Confira no painel lateral.')
@@ -642,8 +642,9 @@ def search():
             if 'max' not in search_params:
                 search_params['max'] = 10
 
-            # Chamar a API da Amadeus
-            result = amadeus_service.search_flights(search_params)
+            # Chamar a API do TravelPayouts
+            from services.travelpayouts_service import travelpayouts_service
+            result = travelpayouts_service.search_flights(search_params)
 
             if 'error' in result:
                 logging.error(f"Erro na busca de voos: {result['error']}")
@@ -684,8 +685,9 @@ def search():
             return jsonify({"flights": flights})
 
         elif search_type == 'hotels':
-            # Chamar a API da Amadeus
-            result = amadeus_service.search_hotels(search_params)
+            # Chamar a API do TravelPayouts
+            from services.travelpayouts_service import travelpayouts_service
+            result = travelpayouts_service.search_hotels(search_params)
 
             if 'error' in result:
                 logging.error(f"Erro na busca de hotéis: {result['error']}")
