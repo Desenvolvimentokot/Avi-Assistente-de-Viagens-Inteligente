@@ -1,9 +1,9 @@
 """
 Rotas da API para o painel de resultados de voos reais
 Este módulo contém as rotas necessárias para fornecer dados reais 
-da API Amadeus para exibição no frontend.
+da API TravelPayouts para exibição no frontend.
 
-IMPORTANTE: Este módulo garante que apenas dados reais da API Amadeus
+IMPORTANTE: Este módulo garante que apenas dados reais da API TravelPayouts
 sejam retornados, nunca usando dados simulados ou falsos.
 """
 
@@ -21,8 +21,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Importar os serviços necessários
-from services.amadeus_sdk_service import AmadeusSDKService
-from services.flight_service_connector import flight_service_connector
+from services.travelpayouts_service import TravelPayoutsService
+from services.travelpayouts_connector import travelpayouts_connector
 
 # Criar blueprint para as rotas da API de resultados de voos
 api_blueprint = Blueprint('flight_results_api', __name__)
@@ -37,9 +37,9 @@ def get_flight_results(session_id=None):
     """
     ENDPOINT DEFINITIVO PARA MURAL DE VOOS
     
-    Obtém os resultados de voos reais da API Amadeus para uma sessão específica,
-    usando exclusivamente o serviço FlightServiceConnector para garantir que
-    apenas dados reais da API Amadeus sejam retornados.
+    Obtém os resultados de voos reais da API TravelPayouts para uma sessão específica,
+    usando exclusivamente o serviço travelpayouts_connector para garantir que
+    apenas dados reais da API TravelPayouts sejam retornados.
     
     Este endpoint é o ÚNICO ponto de acesso para o painel lateral obter dados,
     eliminando qualquer caminho que possa mostrar dados não-reais.
@@ -120,13 +120,13 @@ def get_flight_results(session_id=None):
                 "data": []
             }), 400
         
-        # Usar o serviço FlightServiceConnector para buscar resultados novos
-        logger.warning(f"🔄 Buscando NOVOS resultados reais da API Amadeus para sessão {session_id}")
+        # Usar o serviço TravelPayoutsConnector para buscar resultados novos
+        logger.warning(f"🔄 Buscando NOVOS resultados reais da API TravelPayouts para sessão {session_id}")
         
         # Connector já está disponível no topo do arquivo
         
         # Realizar a busca com o conector direto
-        search_results = flight_service_connector.search_flights_from_chat(
+        search_results = travelpayouts_connector.search_flights_from_chat(
             travel_info=travel_info,
             session_id=session_id
         )

@@ -397,7 +397,7 @@ def chat():
                     gpt_response = gpt_result['response']
                 else:
                     # Se não existir, usa o valor padrão
-                    gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_AMADEUS"
+                    gpt_response = "BUSCANDO_DADOS_REAIS_NA_API_TRAVELPAYOUTS"
 
                 # Se estamos na etapa 2 e confirmado, realizar a busca real agora
                 if step == 2 and current_travel_info.get('confirmed') and not current_travel_info.get('search_results'):

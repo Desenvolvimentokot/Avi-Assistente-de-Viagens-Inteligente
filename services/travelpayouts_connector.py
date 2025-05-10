@@ -339,3 +339,6 @@ class TravelPayoutsConnector:
         except Exception as e:
             logger.error(f"Erro ao gerar link de parceiro: {str(e)}")
             return None
+
+# Criar uma instância global do conector para ser usada em outras partes do código
+travelpayouts_connector = TravelPayoutsConnector()
