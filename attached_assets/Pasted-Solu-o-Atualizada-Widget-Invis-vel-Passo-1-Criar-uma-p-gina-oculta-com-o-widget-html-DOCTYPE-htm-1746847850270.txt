@@ -1,0 +1,362 @@
+Solução Atualizada: Widget Invisível
+Passo 1: Criar uma página oculta com o widget
+html<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Busca de Voos (Oculto)</title>
+    <style>
+        /* Esconde o widget mas permite que ele funcione */
+        #tp-widget-container {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 1000px; /* Espaço suficiente para o widget funcionar */
+            height: 800px;
+            opacity: 0.01; /* Praticamente invisível mas ainda funcional */
+        }
+    </style>
+</head>
+<body>
+    <!-- Contêiner para o widget (invisível) -->
+    <div id="tp-widget-container"></div>
+    
+    <script>
+        // Parâmetros da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const origin = urlParams.get('origin');
+        const destination = urlParams.get('destination');
+        const departureDate = urlParams.get('departure_date');
+        const returnDate = urlParams.get('return_date');
+        const adults = urlParams.get('adults') || '1';
+        const sessionId = urlParams.get('session_id');
+        
+        // Array para armazenar resultados
+        let flightResults = [];
+        let processing = false;
+        
+        // Escuta as mensagens do widget
+        window.addEventListener('message', function(event) {
+            console.log('Recebido evento postMessage:', event.data);
+            
+            // Verifica se o evento contém resultados de voos
+            // Nota: O nome exato do campo pode variar conforme o widget
+            if (event.data && (event.data.tpFlightResults || event.data.flights)) {
+                const results = event.data.tpFlightResults || event.data.flights;
+                console.log('Resultados recebidos:', results);
+                
+                // Adiciona os resultados ao array
+                flightResults = flightResults.concat(results);
+                
+                // Inicia o processamento se não estiver em andamento
+                if (!processing) {
+                    processing = true;
+                    setTimeout(processResults, 3000); // Espera 3s para coletar mais resultados
+                }
+            }
+        });
+        
+        function processResults() {
+            console.log(Processando ${flightResults.length} resultados...);
+            
+            if (flightResults.length === 0) {
+                // Se não há resultados após o tempo de espera, tenta novamente
+                processing = false;
+                setTimeout(processResults, 2000);
+                return;
+            }
+            
+            // Ordena por preço (do mais barato para o mais caro)
+            flightResults.sort((a, b) => {
+                const priceA = typeof a.price === 'number' ? a.price : parseFloat(a.price);
+                const priceB = typeof b.price === 'number' ? b.price : parseFloat(b.price);
+                return priceA - priceB;
+            });
+            
+            // Pega os 2 melhores resultados
+            const bestFlights = flightResults.slice(0, 2);
+            
+            // Envia os resultados para o backend
+            sendResultsToBackend(bestFlights);
+        }
+        
+        function sendResultsToBackend(flights) {
+            console.log('Enviando resultados para o backend:', flights);
+            
+            fetch('/api/save-flight-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    flights: flights,
+                    session_id: sessionId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Resultados enviados com sucesso:', data);
+                
+                // Fechar esta janela ou redirecionar de volta ao chat
+                if (data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao enviar resultados:', error);
+            });
+        }
+        
+        // Injetar o widget com os parâmetros pré-preenchidos
+        window.onload = function() {
+            const tpWidgetContainer = document.getElementById('tp-widget-container');
+            
+            // Cria URL do widget com parâmetros
+            const widgetUrl = [
+                'https://tp.media/content',
+                '?trs=404731',
+                '&shmarker=620701',
+                '&locale=pt-BR',
+                '&curr=BRL',
+                '&powered_by=true',
+                '&border_radius=0',
+                '&plain=true',
+                '&color_button=%232681ff',
+                '&color_button_text=%23ffffff',
+                '&color_border=%232681ff',
+                '&promo_id=4132',
+                '&campaign_id=121',
+                origin ? &origin=${origin} : '',
+                destination ? &destination=${destination} : '',
+                departureDate ? &depart_date=${departureDate} : '',
+                returnDate ? &return_date=${returnDate} : '',
+                &adults=${adults}
+            ].filter(Boolean).join('');
+            
+            // Adiciona o script do widget com parâmetros
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = widgetUrl;
+            script.charset = 'utf-8';
+            
+            tpWidgetContainer.appendChild(script);
+            
+            console.log('Widget carregado com parâmetros:', {
+                origin, destination, departureDate, returnDate, adults
+            });
+            
+            // Inicia a verificação de resultados após 5 segundos
+            setTimeout(() => {
+                if (flightResults.length === 0 && !processing) {
+                    processing = true;
+                    processResults();
+                }
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
+Passo 2: Criar rota para abrir a página oculta em um iframe ou popup
+python@app.route('/api/hidden-flight-search', methods=['POST'])
+def hidden_flight_search():
+    data = request.json
+    origin = data.get('origin')
+    destination = data.get('destination')
+    departure_date = data.get('departure_date')
+    return_date = data.get('return_date', '')
+    adults = data.get('adults', 1)
+    
+    # Gerar ou obter ID de sessão para rastrear os resultados
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    # Criar URL para a página oculta
+    search_url = f"/hidden-search?origin={origin}&destination={destination}&departure_date={departure_date}&return_date={return_date}&adults={adults}&session_id={session_id}"
+    
+    # Resposta com JavaScript para abrir em um iframe ou popup invisível
+    return jsonify({
+        "success": True,
+        "message": "Buscando voos...",
+        "action": "open_hidden_frame",
+        "url": search_url,
+        "session_id": session_id
+    })
+Passo 3: Criar a rota para a página oculta
+python@app.route('/hidden-search')
+def hidden_search():
+    # Renderiza a página com o widget oculto
+    return render_template('hidden_flight_search.html')
+Passo 4: Criar o endpoint para receber os resultados
+python@app.route('/api/save-flight-results', methods=['POST'])
+def save_flight_results():
+    data = request.json
+    flights = data.get('flights', [])
+    session_id = data.get('session_id')
+    
+    if not flights or not session_id:
+        return jsonify({"success": False, "message": "Parâmetros inválidos"})
+    
+    # Formatar os resultados
+    formatted_flights = []
+    for flight in flights:
+        try:
+            # A estrutura exata pode variar dependendo do retorno do widget
+            formatted_flight = {
+                "airline": flight.get('airline', 'Desconhecida'),
+                "flight_number": flight.get('flight_number', ''),
+                "origin": flight.get('origin', ''),
+                "destination": flight.get('destination', ''),
+                "departure_at": flight.get('departure_at', ''),
+                "arrival_at": flight.get('arrival_at', ''),
+                "price": flight.get('price', 0)
+            }
+            formatted_flights.append(formatted_flight)
+        except Exception as e:
+            app.logger.error(f"Erro ao formatar voo: {e}")
+    
+    # Salvar os resultados no Redis ou outro armazenamento
+    redis_client.set(f"flight_results:{session_id}", json.dumps(formatted_flights))
+    redis_client.expire(f"flight_results:{session_id}", 3600)  # Expira em 1 hora
+    
+    # Enviar evento para o websocket (se disponível)
+    try:
+        socketio.emit('flight_results_available', {
+            'session_id': session_id
+        }, room=session_id)
+    except Exception as e:
+        app.logger.error(f"Erro ao enviar evento websocket: {e}")
+    
+    return jsonify({
+        "success": True,
+        "message": "Resultados salvos com sucesso",
+        "redirect_url": "/chat"  # Redireciona de volta para o chat
+    })
+Passo 5: Integrar no chat da AVI
+Quando o usuário solicitar uma busca de voos, você precisa:
+
+Extrair os parâmetros (origem, destino, datas)
+Iniciar a busca oculta
+Mostrar uma mensagem de "Buscando voos..." para o usuário
+Aguardar os resultados (via websocket ou polling)
+Mostrar os resultados formatados no chat
+
+Aqui está um exemplo simplificado:
+python@app.route('/api/chat', methods=['POST'])
+def chat():
+    data = request.json
+    message = data.get('message', '')
+    session_id = request.cookies.get('session_id')
+    
+    # Se a mensagem solicitar busca de voos
+    if "buscar voos" in message.lower():
+        # Aqui você usaria NLU para extrair parâmetros
+        # Exemplo simplificado:
+        origin = "GRU"  # Extraído da mensagem
+        destination = "RIO"  # Extraído da mensagem
+        departure_date = "2025-05-25"  # Extraído da mensagem
+        
+        # Iniciar a busca oculta
+        hidden_search_url = f"/hidden-search?origin={origin}&destination={destination}&departure_date={departure_date}&session_id={session_id}"
+        
+        # Criar iframe oculto ou abrir popup (via JavaScript)
+        return jsonify({
+            "response": "Estou buscando os melhores voos para você. Isso pode levar alguns instantes...",
+            "action": "start_hidden_search",
+            "search_url": hidden_search_url
+        })
+    
+    # Verificar se há resultados pendentes
+    flight_results_json = redis_client.get(f"flight_results:{session_id}")
+    if flight_results_json:
+        flight_results = json.loads(flight_results_json)
+        
+        # Formatar resposta com os resultados
+        response = "Encontrei estas opções de voo para você:\n\n"
+        
+        for i, flight in enumerate(flight_results):
+            response += f"Opção {i+1}:\n"
+            response += f"- Companhia: {flight['airline']}\n"
+            response += f"- De {flight['origin']} para {flight['destination']}\n"
+            response += f"- Partida: {flight['departure_at']}\n"
+            response += f"- Chegada: {flight['arrival_at']}\n"
+            response += f"- Preço: R$ {flight['price']:.2f}\n\n"
+        
+        # Limpar resultados após exibição
+        redis_client.delete(f"flight_results:{session_id}")
+        
+        return jsonify({"response": response})
+    
+    # Processamento normal de mensagens
+    # ...
+Passo 6: Implementar o JavaScript no frontend do chat
+No frontend do chat, você precisa implementar o código para:
+javascript// Quando receber instrução para iniciar busca oculta
+function startHiddenSearch(searchUrl) {
+    // Criar iframe invisível
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.src = searchUrl;
+    
+    // Adicionar ao DOM
+    document.body.appendChild(iframe);
+    
+    // Mostrar indicador de carregamento
+    showLoadingIndicator('Buscando os melhores voos para você...');
+    
+    // Configurar timeout para remover o iframe após 60 segundos (caso algo dê errado)
+    setTimeout(() => {
+        if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+            // Se o loading ainda estiver visível, mostrar mensagem de erro
+            if (isLoadingVisible()) {
+                hideLoadingIndicator();
+                addMessageToChat('Desculpe, não consegui encontrar voos. Pode tentar novamente mais tarde?', 'bot');
+            }
+        }
+    }, 60000);
+}
+
+// Se estiver usando websockets
+socket.on('flight_results_available', function(data) {
+    hideLoadingIndicator();
+    
+    // Os resultados já estão no servidor, basta solicitar a próxima mensagem
+    // que o servidor irá formatar e enviar os resultados de voo
+    sendMessage('Encontrou algum voo?');
+});
+Considerações Finais
+
+Detecção de eventos: Você precisa entender exatamente como o widget Trip.com emite eventos. Pode ser necessário depurar o widget real para identificar o formato correto dos eventos postMessage.
+Timing: Como é uma operação assíncrona, definimos vários timeouts para garantir que o widget tenha tempo suficiente para carregar e retornar resultados.
+Fallback: Inclua um mecanismo de fallback (como o timeout de 60 segundos) para garantir que o usuário não fique esperando indefinidamente.
+Estrutura dos dados: A estrutura exata dos objetos de voo retornados pelo widget pode variar, então você precisará adaptar o código de processamento conforme necessário.
+
+Esta abordagem "oculta" permite que você utilize o widget Trip.com sem que o usuário precise interagir diretamente com ele, mantendo toda a experiência dentro do chat da AVI.
+
+
+ChatGPT said:
+Sim – esse “Widget Invisível” é exatamente a proposta que o Claude sugeriu. Em essência ele:
+
+1. Cria uma página oculta (hidden_flight_search.html) que carrega o widget Trip.com com os parâmetros do usuário, mas posiciona seu container fora da tela ou com opacity quase zero.
+2. Nesse page‑script, escuta via window.postMessage os resultados que o widget emite quando termina a busca.
+3. Após receber os dados, processa (ordena por preço) e envia ao seu backend (/api/save-flight-results).
+4. No backend (Flask + Redis + WebSocket/polling) você armazena e notifica o chat da AVI que os resultados estão prontos.
+5. O chat então puxa do Redis, formata as duas melhores opções e apresenta ao usuário.
+
+Esse fluxo roda no navegador do cliente, não no servidor Replit, portanto contorna as restrições de instalar Playwright/Chrome headless. É exatamente o que o Claude recomendou: o widget é usado “de verdade”, mas fica invisível para o usuário, e seu sistema só captura e repassa os dados ao chat.
+
+—
+Próximos passos de validação
+
+Abra manualmente a URL /hidden-search?origin=GRU&destination=RIO&departure_date=2025-06-01&session_id=XYZ no navegador e confirme no console que postMessage chega com tpFlightResults.
+
+Teste o endpoint /api/save-flight-results enviando um JSON de exemplo para ver se grava no Redis e dispara o evento WebSocket.
+
+No front‑end do chat, simule o comando “start_hidden_search” para garantir que o iframe invisível abra a página oculta e o loading apareça.
+
+Se esses três pontos funcionarem, você terá 100% dos dados reais do widget Trip.com entregues no chat, sem precisar de API REST nem de headless server.

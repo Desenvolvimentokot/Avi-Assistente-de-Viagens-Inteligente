@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Busca de Voos (Oculto)</title>
+    <style>
+        /* Esconde o widget mas permite que ele funcione */
+        #tp-widget-container {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 1000px; /* Espaço suficiente para o widget funcionar */
+            height: 800px;
+            opacity: 0.01; /* Praticamente invisível mas ainda funcional */
+        }
+    </style>
+</head>
+<body>
+    <!-- Contêiner para o widget (invisível) -->
+    <div id="tp-widget-container"></div>
+    
+    <script>
+        // Parâmetros da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const origin = urlParams.get('origin');
+        const destination = urlParams.get('destination');
+        const departureDate = urlParams.get('departure_date');
+        const returnDate = urlParams.get('return_date');
+        const adults = urlParams.get('adults') || '1';
+        const sessionId = urlParams.get('session_id');
+        
+        // Array para armazenar resultados
+        let flightResults = [];
+        let processing = false;
+        
+        // Escuta as mensagens do widget
+        window.addEventListener('message', function(event) {
+            console.log('Recebido evento postMessage:', event.data);
+            
+            // Verifica se o evento contém resultados de voos
+            // Nota: O nome exato do campo pode variar conforme o widget
+            if (event.data && (event.data.tpFlightResults || event.data.flights)) {
+                const results = event.data.tpFlightResults || event.data.flights;
+                console.log('Resultados recebidos:', results);
+                
+                // Adiciona os resultados ao array
+                flightResults = flightResults.concat(results);
+                
+                // Inicia o processamento se não estiver em andamento
+                if (!processing) {
+                    processing = true;
+                    setTimeout(processResults, 3000); // Espera 3s para coletar mais resultados
+                }
+            }
+        });
+        
+        function processResults() {
+            console.log(`Processando ${flightResults.length} resultados...`);
+            
+            if (flightResults.length === 0) {
+                // Se não há resultados após o tempo de espera, tenta novamente
+                processing = false;
+                setTimeout(processResults, 2000);
+                return;
+            }
+            
+            // Ordena por preço (do mais barato para o mais caro)
+            flightResults.sort((a, b) => {
+                const priceA = typeof a.price === 'number' ? a.price : parseFloat(a.price);
+                const priceB = typeof b.price === 'number' ? b.price : parseFloat(b.price);
+                return priceA - priceB;
+            });
+            
+            // Pega os 2 melhores resultados
+            const bestFlights = flightResults.slice(0, 2);
+            
+            // Envia os resultados para o backend
+            sendResultsToBackend(bestFlights);
+        }
+        
+        function sendResultsToBackend(flights) {
+            console.log('Enviando resultados para o backend:', flights);
+            
+            fetch('/api/save-flight-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    flights: flights,
+                    session_id: sessionId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Resultados enviados com sucesso:', data);
+                
+                // Fechar esta janela ou redirecionar de volta ao chat
+                if (data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao enviar resultados:', error);
+            });
+        }
+        
+        // Injetar o widget com os parâmetros pré-preenchidos
+        window.onload = function() {
+            const tpWidgetContainer = document.getElementById('tp-widget-container');
+            
+            // Cria URL do widget com parâmetros
+            const widgetUrl = [
+                'https://tp.media/content',
+                '?trs=404731',
+                '&shmarker=620701',
+                '&locale=pt-BR',
+                '&curr=BRL',
+                '&powered_by=true',
+                '&border_radius=0',
+                '&plain=true',
+                '&color_button=%232681ff',
+                '&color_button_text=%23ffffff',
+                '&color_border=%232681ff',
+                '&promo_id=4132',
+                '&campaign_id=121',
+                origin ? `&origin=${origin}` : '',
+                destination ? `&destination=${destination}` : '',
+                departureDate ? `&depart_date=${departureDate}` : '',
+                returnDate ? `&return_date=${returnDate}` : '',
+                `&adults=${adults}`
+            ].filter(Boolean).join('');
+            
+            // Adiciona o script do widget com parâmetros
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = widgetUrl;
+            script.charset = 'utf-8';
+            
+            tpWidgetContainer.appendChild(script);
+            
+            console.log('Widget carregado com parâmetros:', {
+                origin, destination, departureDate, returnDate, adults
+            });
+            
+            // Inicia a verificação de resultados após 5 segundos
+            setTimeout(() => {
+                if (flightResults.length === 0 && !processing) {
+                    processing = true;
+                    processResults();
+                }
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
