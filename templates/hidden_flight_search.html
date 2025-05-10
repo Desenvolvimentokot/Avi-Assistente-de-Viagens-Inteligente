@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Busca de Voos (Visível para Testes)</title>
+    <title>Busca Automática de Voos</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,6 +26,28 @@
         
         .status-info {
             margin-bottom: 15px;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #2681ff;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        
+        .status-message {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #2681ff;
         }
         
         .loading-indicator {
@@ -88,7 +110,7 @@
 </head>
 <body>
     <div class="status-container">
-        <h1>Busca de Voos (Modo Teste)</h1>
+        <h1>Busca Automática de Voos</h1>
         <div class="status-info">
             <p>Esta página está buscando voos com os seguintes parâmetros:</p>
             <p><span class="parameter">Origem:</span> <span id="origin-display">Carregando...</span></p>
@@ -97,6 +119,12 @@
             <p><span class="parameter">Data de volta:</span> <span id="return-display">-</span></p>
             <p><span class="parameter">Passageiros:</span> <span id="adults-display">1</span></p>
         </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="status-message" id="status-message">Iniciando busca automática...</div>
+        
         <div class="loading-indicator">
             <div class="loading-spinner"></div>
             <p>Buscando voos... Esta página vai se fechar automaticamente quando a busca for concluída.</p>
@@ -106,6 +134,12 @@
     <div class="results-container">
         <h2>Resultados encontrados: <span id="results-count">0</span></h2>
         <div id="results-list"></div>
+        
+        <div id="debug-panel" style="display: none; margin-top: 20px; padding: 15px; background-color: #f0f0f0; border-radius: 8px;">
+            <h3>Debug Info</h3>
+            <div id="debug-info"></div>
+            <button onclick="this.parentNode.style.display = 'none'">Fechar</button>
+        </div>
         <button id="close-button" style="display: none;">Fechar esta janela e voltar ao chat</button>
     </div>
     
