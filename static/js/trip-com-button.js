@@ -103,19 +103,28 @@
         // HTML original
         const originalHTML = messageNode.innerHTML;
         
-        // Extrair códigos de cidade
+        // Armazenar os códigos de cidade para nosso sistema interno
         const dcity = getCityCodeFromAirport(flightInfo.origin);
         const acity = getCityCodeFromAirport(flightInfo.destination);
         
-        // Construir URL do Trip.com no formato correto
-        const tripUrl = `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${flightInfo.departure_date}&dairport=${flightInfo.origin}${flightInfo.return_date ? '&rdate=' + flightInfo.return_date + '&triptype=rt' : '&triptype=ow'}&class=y&quantity=${flightInfo.adults || 1}&locale=pt-BR&curr=BRL`;
+        // Gerar um session_id aleatório se não existir
+        const sessionId = getCookie('flai_session_id') || localStorage.getItem('chat_session_id') || 'session-' + Math.random().toString(36).substring(2, 15);
         
-        console.log('URL do Trip.com gerada:', tripUrl);
+        // Usar a URL da nossa página hidden-search, que depois carrega o widget Trip.com internamente
+        const internalUrl = `/hidden-search?origin=${flightInfo.origin}&destination=${flightInfo.destination}&departure_date=${flightInfo.departure_date}${flightInfo.return_date ? '&return_date=' + flightInfo.return_date : ''}&adults=${flightInfo.adults || 1}&session_id=${sessionId}`;
+        
+        // Armazenar a informação sobre os códigos de cidade para usar na página hidden-search
+        localStorage.setItem('trip_dcity', dcity);
+        localStorage.setItem('trip_acity', acity);
+        localStorage.setItem('trip_origin', flightInfo.origin);
+        localStorage.setItem('trip_destination', flightInfo.destination);
+        
+        console.log('URL da nossa página de busca gerada:', internalUrl);
         
         // Criar elemento do botão
         const buttonHTML = `
             <div class="trip-button-container" style="margin: 15px 0;">
-                <a href="${tripUrl}" 
+                <a href="${internalUrl}" 
                    target="_blank" 
                    class="trip-search-button" 
                    style="display: inline-block; padding: 12px 24px; background-color: #2681ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: background-color 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">

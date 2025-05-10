@@ -250,8 +250,27 @@
                 window.location.href = '/chat';
             });
             
-            // Cria URL do widget com parâmetros
-            const widgetUrl = [
+            // Recuperar códigos de cidade do localStorage, se disponíveis
+            const dcity = localStorage.getItem('trip_dcity') || origin.toLowerCase();
+            const acity = localStorage.getItem('trip_acity') || destination.toLowerCase();
+            
+            // Construir URL no formato do Trip.com
+            const tripUrl = `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${departureDate}&dairport=${origin}${returnDate ? '&rdate=' + returnDate + '&triptype=rt' : '&triptype=ow'}&class=y&quantity=${adults || 1}&locale=pt-BR&curr=BRL`;
+
+            // Para testes, exibir o URL do Trip.com
+            console.log("URL do Trip.com gerada:", tripUrl);
+            
+            // Criar iframe para o Trip.com
+            const iframe = document.createElement('iframe');
+            iframe.src = tripUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '800px';
+            iframe.style.border = 'none';
+            
+            document.getElementById('tp-widget-container').appendChild(iframe);
+            
+            // Manter o código antigo como referência, mas não usar mais
+            const widgetUrlOld = [
                 'https://tp.media/content',
                 '?trs=404731',
                 '&shmarker=620701',
