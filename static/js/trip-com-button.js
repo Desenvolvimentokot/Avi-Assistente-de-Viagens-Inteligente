@@ -72,15 +72,50 @@
         };
     }
 
+    // Função para extrair código de cidade a partir do código de aeroporto
+    function getCityCodeFromAirport(airportCode) {
+        // Mapeamento básico de aeroportos para cidades
+        const airportToCityMap = {
+            'GRU': 'sao', // São Paulo
+            'SDU': 'rio', // Rio de Janeiro - Santos Dumont
+            'GIG': 'rio', // Rio de Janeiro - Galeão
+            'BSB': 'bsb', // Brasília
+            'SSA': 'ssa', // Salvador
+            'FOR': 'for', // Fortaleza
+            'POA': 'poa', // Porto Alegre
+            'MCZ': 'mcz', // Maceió
+            'REC': 'rec', // Recife
+            'CWB': 'cwb', // Curitiba
+            'BEL': 'bel', // Belém
+            'VCP': 'sao', // Campinas (São Paulo)
+            'CNF': 'bho', // Belo Horizonte - Confins
+            'FLN': 'fln', // Florianópolis
+            'NAT': 'nat', // Natal
+            'MAO': 'mao', // Manaus
+        };
+        
+        // Retorna o código da cidade ou o próprio código do aeroporto em minúsculas como fallback
+        return airportToCityMap[airportCode] || airportCode.toLowerCase();
+    }
+    
     // Substitui a tag [BOTÃO_TRIP_COM] por um botão real
     function replaceTagWithButton(messageNode, flightInfo) {
         // HTML original
         const originalHTML = messageNode.innerHTML;
         
+        // Extrair códigos de cidade
+        const dcity = getCityCodeFromAirport(flightInfo.origin);
+        const acity = getCityCodeFromAirport(flightInfo.destination);
+        
+        // Construir URL do Trip.com no formato correto
+        const tripUrl = `https://br.trip.com/flights/showfarefirst?dcity=${dcity}&acity=${acity}&ddate=${flightInfo.departure_date}&dairport=${flightInfo.origin}${flightInfo.return_date ? '&rdate=' + flightInfo.return_date + '&triptype=rt' : '&triptype=ow'}&class=y&quantity=${flightInfo.adults || 1}&locale=pt-BR&curr=BRL`;
+        
+        console.log('URL do Trip.com gerada:', tripUrl);
+        
         // Criar elemento do botão
         const buttonHTML = `
             <div class="trip-button-container" style="margin: 15px 0;">
-                <a href="/hidden-search?origin=${flightInfo.origin}&destination=${flightInfo.destination}&departure_date=${flightInfo.departure_date}${flightInfo.return_date ? '&return_date=' + flightInfo.return_date : ''}&adults=${flightInfo.adults}" 
+                <a href="${tripUrl}" 
                    target="_blank" 
                    class="trip-search-button" 
                    style="display: inline-block; padding: 12px 24px; background-color: #2681ff; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: background-color 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
