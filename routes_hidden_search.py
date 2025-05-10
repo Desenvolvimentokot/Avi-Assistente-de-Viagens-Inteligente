@@ -178,6 +178,7 @@ def notify_search_started():
             "message": f"Erro ao notificar início da busca: {str(e)}"
         }), 500
 
+@hidden_search_bp.route('/api/save-flight-results', methods=['POST'])  # Rota antiga para compatibilidade
 @hidden_search_bp.route('/api/hidden-search/save-results', methods=['POST'])
 def save_flight_results():
     """
