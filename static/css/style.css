@@ -140,7 +140,8 @@ body {
     background-color: var(--primary-dark);
 }
 
-/* Estilos para o botão de resultados da Amadeus */
+/* Estilos para o botão de resultados da TravelPayouts e Amadeus (compatibilidade) */
+.travelpayouts-results-btn,
 .amadeus-results-btn {
     display: inline-block;
     background-color: var(--primary);
@@ -158,12 +159,14 @@ body {
     text-decoration: none;
 }
 
+.travelpayouts-results-btn:hover,
 .amadeus-results-btn:hover {
     background-color: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(119, 97, 255, 0.3);
 }
 
+.travelpayouts-results-btn:active,
 .amadeus-results-btn:active {
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(119, 97, 255, 0.2);

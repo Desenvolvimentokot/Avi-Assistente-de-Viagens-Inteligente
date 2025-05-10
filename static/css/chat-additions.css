@@ -17,7 +17,8 @@
     border-radius: 0 4px 4px 0;
 }
 
-/* Estilo para botão de redirecionamento para página de resultados Amadeus */
+/* Estilo para botão de redirecionamento para página de resultados TravelPayouts */
+.travelpayouts-results-btn,
 .amadeus-results-btn {
     display: block !important;
     background-color: #7761ff;
@@ -39,12 +40,14 @@
     position: relative;
 }
 
+.travelpayouts-results-btn i,
 .amadeus-results-btn i {
     margin-right: 8px;
     font-size: 1.2rem;
     vertical-align: middle;
 }
 
+.travelpayouts-results-btn:hover,
 .amadeus-results-btn:hover {
     background-color: #5e4acc;
     transform: translateY(-3px);
@@ -52,6 +55,7 @@
     animation: none;
 }
 
+.travelpayouts-results-btn:active,
 .amadeus-results-btn:active {
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(119, 97, 255, 0.3);

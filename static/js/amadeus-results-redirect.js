@@ -1,9 +1,13 @@
 /**
- * Amadeus Results Redirect
+ * [COMPATIBILIDADE LEGADA] Amadeus Results Redirect
  * 
- * Script para tratar o botão que redireciona para a página de resultados da Amadeus.
+ * Script mantido apenas para compatibilidade com páginas antigas.
+ * Todos os redirecionamentos agora vão para a página de resultados da TravelPayouts.
  * Escuta cliques em botões com a classe 'amadeus-results-btn' e extrai os parâmetros
  * para construir a URL de redirecionamento.
+ * 
+ * AVISO: Este arquivo será removido em versões futuras. 
+ * Use travelpayouts-results-redirect.js em vez disso.
  */
 document.addEventListener('DOMContentLoaded', function() {
     // Inicializa a detecção de botões de resultados
@@ -30,27 +34,42 @@ function initResultsButtons() {
  * Configura um observador de mutações para detectar novos botões adicionados ao chat
  */
 function setupMutationObserver() {
-    const chatContainer = document.getElementById('chat-messages');
-    if (!chatContainer) return;
-    
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) { // Elemento
-                        const newButtons = node.querySelectorAll('.amadeus-results-btn');
-                        newButtons.forEach(button => {
-                            button.addEventListener('click', handleResultsButtonClick);
-                            console.log('[Amadeus Redirect] Novo botão de resultados detectado e inicializado.');
-                        });
-                    }
-                });
-            }
+    try {
+        const chatContainer = document.getElementById('chat-messages');
+        if (!chatContainer) {
+            console.log('[Amadeus Redirect] Container de chat não encontrado.');
+            return;
+        }
+        
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        try {
+                            if (node && node.nodeType === 1) { // Elemento
+                                const newButtons = node.querySelectorAll('.amadeus-results-btn');
+                                if (newButtons && newButtons.length > 0) {
+                                    newButtons.forEach(button => {
+                                        if (button) {
+                                            button.addEventListener('click', handleResultsButtonClick);
+                                            console.log('[Amadeus Redirect] Novo botão de resultados detectado e inicializado.');
+                                        }
+                                    });
+                                }
+                            }
+                        } catch (err) {
+                            console.log(`[Amadeus Redirect] Erro ao processar nó: ${err.message}`);
+                        }
+                    });
+                }
+            });
         });
-    });
-    
-    observer.observe(chatContainer, { childList: true, subtree: true });
-    console.log('[Amadeus Redirect] Observador de mutações configurado para o chat.');
+        
+        observer.observe(chatContainer, { childList: true, subtree: true });
+        console.log('[Amadeus Redirect] Observador de mutações configurado para o chat.');
+    } catch (error) {
+        console.log(`[Amadeus Redirect] Erro ao configurar observador: ${error.message}`);
+    }
 }
 
 /**
@@ -89,8 +108,8 @@ function handleResultsButtonClick(event) {
     console.log(`[Amadeus Redirect] Parâmetros: ${origin} → ${destination}, Data: ${departureDate}, Adultos: ${adults}`);
     console.log(`[Amadeus Redirect] Usando session_id confiável: ${sessionId}`);
     
-    // Construir a URL para a página de resultados
-    let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    // Construir a URL para a página de resultados (agora apontando para TravelPayouts)
+    let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     
     if (departureDate) {
         url += `&departure_date=${encodeURIComponent(departureDate)}`;
@@ -103,7 +122,7 @@ function handleResultsButtonClick(event) {
     // SEMPRE usar o sessionId validado
     url += `&session_id=${encodeURIComponent(sessionId)}`;
     
-    console.log(`[Amadeus Redirect] Redirecionando para: ${url}`);
+    console.log(`[Amadeus Redirect] Redirecionando para TravelPayouts: ${url}`);
     
     // Abrir a página de resultados em uma nova aba para manter a conversa com a AVI
     window.open(url, '_blank');
