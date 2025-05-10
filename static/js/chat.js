@@ -69,6 +69,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Eventos
     if (sendButton) {
         sendButton.addEventListener('click', sendMessage);
+    } else {
+        console.error("Botão de envio não encontrado!");
     }
 
     if (messageInput) {
@@ -78,6 +80,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendMessage();
             }
         });
+    } else {
+        console.error("Campo de mensagem não encontrado!");
     }
 
     // Alternar entre modos de chat

@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Inicializando integração do widget Trip.com com o chat");
     
     // Verificar se estamos em uma página com chat
-    if (!document.querySelector('.chat-messages')) {
+    const chatMessagesElement = document.querySelector('.chat-messages');
+    if (!chatMessagesElement) {
         console.log("Elemento .chat-messages não encontrado, pulando inicialização do widget");
         return;
     }
