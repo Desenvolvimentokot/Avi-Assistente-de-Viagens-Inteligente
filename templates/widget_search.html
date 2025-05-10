@@ -1,32 +1,273 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>Widget de Busca de Voos</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget de Busca - Trip.com</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        .widget-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-group {
+            flex: 1;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #2681ff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #1a6cd1;
+        }
+        .results-container {
+            margin-top: 30px;
+        }
+        .flight-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .flight-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .flight-airline {
+            font-weight: bold;
+        }
+        .flight-price {
+            color: #2681ff;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .flight-details {
+            display: flex;
+            justify-content: space-between;
+        }
+        .flight-times {
+            display: flex;
+            align-items: center;
+        }
+        .flight-arrow {
+            margin: 0 10px;
+            color: #999;
+        }
+        .flight-book {
+            margin-top: 15px;
+            text-align: right;
+        }
+        .flight-book-btn {
+            display: inline-block;
+            background-color: #2681ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        /* Estilos para o loader */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #2681ff;
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 15px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-  <!-- Container onde o widget Trip.com será injetado -->
-  <div id="widget-container"></div>
-
-  <!-- Código do widget Trip.com -->
-  <script async
-    src="https://tp.media/content?trs=404731&shmarker=620701&locale=en&curr=BRL&powered_by=true&border_radius=0&plain=true&color_button=%232681ff&color_button_text=%23ffffff&color_border=%232681ff&promo_id=4132&campaign_id=121"
-    charset="utf-8">
-  </script>
-  
-  <!-- Script para injetar parâmetros no widget -->
-  <script>
-    // Verificar se existem parâmetros para o widget
-    document.addEventListener('DOMContentLoaded', function() {
-      // Recuperar parâmetros definidos externamente
-      const travelParams = window._travelParams || {};
-      
-      console.log('Travel params loaded:', travelParams);
-      
-      // Aqui seria o código para preencher o widget com os parâmetros
-      // O widget do Trip.com não oferece uma API JS direta, mas podemos
-      // observar quando o widget for carregado e tentar interagir com ele
-    });
-  </script>
+    <div class="widget-container">
+        <h1>Busca de Voos</h1>
+        
+        <form id="search-form" class="search-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="origin-input">Origem:</label>
+                    <input type="text" id="origin-input" placeholder="GRU" required>
+                </div>
+                <div class="form-group">
+                    <label for="destination-input">Destino:</label>
+                    <input type="text" id="destination-input" placeholder="JFK" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="departure-date">Data de Ida:</label>
+                    <input type="date" id="departure-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="return-date">Data de Volta (opcional):</label>
+                    <input type="date" id="return-date">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="adults-select">Adultos:</label>
+                    <select id="adults-select">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <!-- Espaço para balanceamento -->
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <button type="submit" id="search-button">Buscar Voos</button>
+            </div>
+        </form>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div id="loading-message">Buscando voos...</div>
+        </div>
+        
+        <div id="results-container" class="results-container">
+            <!-- Os resultados serão inseridos aqui via JavaScript -->
+        </div>
+    </div>
+    
+    <script>
+        // Script que será manipulado pelo FlightWidgetLoader
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('search-form');
+            const loading = document.getElementById('loading');
+            const loadingMessage = document.getElementById('loading-message');
+            const resultsContainer = document.getElementById('results-container');
+            
+            // Preencher campo de data com a data atual
+            const today = new Date();
+            const nextMonth = new Date();
+            nextMonth.setMonth(today.getMonth() + 1);
+            
+            document.getElementById('departure-date').valueAsDate = nextMonth;
+            
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Mostrar loading
+                loading.classList.add('active');
+                loadingMessage.textContent = 'Buscando voos...';
+                resultsContainer.innerHTML = '';
+                
+                // Obter dados do formulário
+                const origin = document.getElementById('origin-input').value;
+                const destination = document.getElementById('destination-input').value;
+                const departureDate = document.getElementById('departure-date').value;
+                const returnDate = document.getElementById('return-date').value;
+                const adults = document.getElementById('adults-select').value;
+                
+                // Aqui normalmente faria uma requisição AJAX
+                // Mas como esse arquivo será manipulado pelo Playwright,
+                // apenas simulamos para poder visualizar resultados
+                
+                // Simular uma busca (para testes visuais)
+                setTimeout(function() {
+                    // Ocultar loading
+                    loading.classList.remove('active');
+                    
+                    // Exibir alguns resultados de exemplo
+                    displaySampleResults(origin, destination, departureDate);
+                    
+                    // Sinalizar que a busca está completa
+                    // Isso será detectado pelo Playwright
+                    document.body.setAttribute('data-search-complete', 'true');
+                }, 3000);
+            });
+            
+            function displaySampleResults(origin, destination, date) {
+                const airlines = ["LATAM", "GOL", "Azul", "Avianca", "American Airlines"];
+                const prices = [1250.99, 1450.50, 1850.00, 2100.75, 1999.99];
+                const departureTimes = ["08:00", "10:30", "13:45", "15:20", "19:10"];
+                const arrivalTimes = ["10:00", "12:45", "16:15", "17:50", "21:40"];
+                
+                let html = '';
+                
+                for (let i = 0; i < 5; i++) {
+                    html += `
+                        <div class="flight-card" data-flight-index="${i}">
+                            <div class="flight-header">
+                                <div class="flight-airline">${airlines[i % airlines.length]}</div>
+                                <div class="flight-price">R$ ${prices[i % prices.length].toFixed(2)}</div>
+                            </div>
+                            <div class="flight-details">
+                                <div class="flight-times">
+                                    <span>${departureTimes[i % departureTimes.length]}</span>
+                                    <span class="flight-arrow">→</span>
+                                    <span>${arrivalTimes[i % arrivalTimes.length]}</span>
+                                </div>
+                                <div class="flight-duration">
+                                    ${i % 3 === 0 ? 'Direto' : '1 parada'}
+                                </div>
+                            </div>
+                            <div class="flight-book">
+                                <a href="#" class="flight-book-btn" onclick="return false;">Ver oferta</a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                resultsContainer.innerHTML = html;
+            }
+        });
+    </script>
 </body>
 </html>

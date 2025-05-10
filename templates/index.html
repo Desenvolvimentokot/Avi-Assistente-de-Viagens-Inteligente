@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flight-results-panel.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat-additions.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flight-widget.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png" sizes="32x32">
     <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
@@ -25,6 +26,10 @@
     <script src="{{ url_for('static', filename='js/flight-panel.js') }}" defer></script>
     <!-- Script para redirecionamento para resultados TravelPayouts -->
     <script src="{{ url_for('static', filename='js/travelpayouts-results-redirect.js') }}" defer></script>
+    <!-- Script para API do widget Trip.com -->
+    <script src="{{ url_for('static', filename='js/widget-api-client.js') }}" defer></script>
+    <!-- Script para integração do widget com o chat -->
+    <script src="{{ url_for('static', filename='js/chat-widget-integration.js') }}" defer></script>
 </head>
 <body>
     <div class="container">

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - API de Widget</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #2681ff;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #555;
+            font-size: 18px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-col {
+            flex: 1;
+        }
+        button {
+            background-color: #2681ff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #1a6cd1;
+        }
+        pre {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .response-container {
+            margin-top: 20px;
+        }
+        .status-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            height: 20px;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #2681ff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .loading-spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-top: 3px solid #2681ff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .result-airline {
+            font-weight: bold;
+        }
+        .result-price {
+            color: #2681ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API de Widget - Demonstração</h1>
+        
+        <div class="card">
+            <h2>Iniciar Busca</h2>
+            
+            <form id="search-form">
+                <div class="form-row">
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="origin">Origem (código IATA):</label>
+                            <input type="text" id="origin" placeholder="GRU" required>
+                        </div>
+                    </div>
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="destination">Destino (código IATA):</label>
+                            <input type="text" id="destination" placeholder="JFK" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="departure-date">Data de Ida:</label>
+                            <input type="date" id="departure-date" required>
+                        </div>
+                    </div>
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="return-date">Data de Volta (opcional):</label>
+                            <input type="date" id="return-date">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="adults">Adultos:</label>
+                            <select id="adults">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-col">
+                        <!-- Espaço para balanceamento -->
+                    </div>
+                </div>
+                
+                <button type="submit" id="start-search-btn">Iniciar Busca</button>
+            </form>
+            
+            <div class="response-container">
+                <h3>Resposta:</h3>
+                <div class="loading-spinner" id="search-spinner"></div>
+                <pre id="search-response"></pre>
+            </div>
+        </div>
+        
+        <div class="card status-container" id="status-container">
+            <h2>Status da Busca</h2>
+            <div id="status-message">Buscando...</div>
+            
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+            
+            <div class="response-container">
+                <h3>Detalhes:</h3>
+                <div class="loading-spinner" id="status-spinner"></div>
+                <pre id="status-response"></pre>
+            </div>
+            
+            <button id="check-status-btn">Verificar Status</button>
+            <button id="get-results-btn" disabled>Obter Resultados</button>
+        </div>
+        
+        <div class="card status-container" id="results-container">
+            <h2>Resultados da Busca</h2>
+            
+            <div id="results-list"></div>
+            
+            <div class="response-container">
+                <h3>Resposta Completa:</h3>
+                <div class="loading-spinner" id="results-spinner"></div>
+                <pre id="results-response"></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Definir data padrão (próximo mês)
+            const today = new Date();
+            const nextMonth = new Date();
+            nextMonth.setMonth(today.getMonth() + 1);
+            
+            document.getElementById('departure-date').valueAsDate = nextMonth;
+            
+            // Variáveis globais
+            let currentSearchId = null;
+            let pollingInterval = null;
+            
+            // Formulário de busca
+            const searchForm = document.getElementById('search-form');
+            const searchSpinner = document.getElementById('search-spinner');
+            const searchResponse = document.getElementById('search-response');
+            
+            // Container de status
+            const statusContainer = document.getElementById('status-container');
+            const statusMessage = document.getElementById('status-message');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            const statusSpinner = document.getElementById('status-spinner');
+            const statusResponse = document.getElementById('status-response');
+            const checkStatusBtn = document.getElementById('check-status-btn');
+            const getResultsBtn = document.getElementById('get-results-btn');
+            
+            // Container de resultados
+            const resultsContainer = document.getElementById('results-container');
+            const resultsList = document.getElementById('results-list');
+            const resultsSpinner = document.getElementById('results-spinner');
+            const resultsResponse = document.getElementById('results-response');
+            
+            // Iniciar busca
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Resetar estado
+                statusContainer.style.display = 'none';
+                resultsContainer.style.display = 'none';
+                getResultsBtn.disabled = true;
+                
+                // Mostrar spinner
+                searchSpinner.style.display = 'block';
+                searchResponse.textContent = '';
+                
+                // Obter dados do formulário
+                const searchData = {
+                    origin: document.getElementById('origin').value,
+                    destination: document.getElementById('destination').value,
+                    departure_date: document.getElementById('departure-date').value,
+                    adults: parseInt(document.getElementById('adults').value)
+                };
+                
+                // Adicionar data de retorno se fornecida
+                const returnDate = document.getElementById('return-date').value;
+                if (returnDate) {
+                    searchData.return_date = returnDate;
+                }
+                
+                // Fazer requisição para iniciar busca
+                fetch('/widget/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(searchData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Ocultar spinner
+                    searchSpinner.style.display = 'none';
+                    
+                    // Exibir resposta
+                    searchResponse.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Se busca iniciada com sucesso
+                    if (data.search_id) {
+                        currentSearchId = data.search_id;
+                        statusContainer.style.display = 'block';
+                        startPolling();
+                    }
+                })
+                .catch(error => {
+                    searchSpinner.style.display = 'none';
+                    searchResponse.textContent = `Erro: ${error.message}`;
+                });
+            });
+            
+            // Verificar status
+            checkStatusBtn.addEventListener('click', function() {
+                checkStatus();
+            });
+            
+            // Obter resultados
+            getResultsBtn.addEventListener('click', function() {
+                fetchResults();
+            });
+            
+            // Função para iniciar polling de status
+            function startPolling() {
+                // Limpar intervalo anterior se existir
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                }
+                
+                // Verificar status imediatamente
+                checkStatus();
+                
+                // Definir intervalo de verificação
+                pollingInterval = setInterval(() => {
+                    checkStatus();
+                }, 2000);
+            }
+            
+            // Função para verificar status
+            function checkStatus() {
+                if (!currentSearchId) return;
+                
+                // Mostrar spinner
+                statusSpinner.style.display = 'block';
+                
+                fetch(`/widget/status/${currentSearchId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Ocultar spinner
+                        statusSpinner.style.display = 'none';
+                        
+                        // Exibir resposta
+                        statusResponse.textContent = JSON.stringify(data, null, 2);
+                        
+                        // Atualizar UI com status
+                        updateStatusUI(data);
+                        
+                        // Se busca concluída, parar polling
+                        if (data.status === 'complete') {
+                            if (pollingInterval) {
+                                clearInterval(pollingInterval);
+                            }
+                            getResultsBtn.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        statusSpinner.style.display = 'none';
+                        statusResponse.textContent = `Erro: ${error.message}`;
+                    });
+            }
+            
+            // Função para buscar resultados
+            function fetchResults() {
+                if (!currentSearchId) return;
+                
+                // Mostrar spinner
+                resultsSpinner.style.display = 'block';
+                resultsContainer.style.display = 'block';
+                resultsList.innerHTML = '';
+                
+                fetch(`/widget/results/${currentSearchId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Ocultar spinner
+                        resultsSpinner.style.display = 'none';
+                        
+                        // Exibir resposta
+                        resultsResponse.textContent = JSON.stringify(data, null, 2);
+                        
+                        // Exibir resultados
+                        if (data.flights && data.flights.length > 0) {
+                            displayResults(data.flights);
+                        } else {
+                            resultsList.innerHTML = '<p>Nenhum resultado encontrado.</p>';
+                        }
+                    })
+                    .catch(error => {
+                        resultsSpinner.style.display = 'none';
+                        resultsResponse.textContent = `Erro: ${error.message}`;
+                    });
+            }
+            
+            // Função para atualizar UI de status
+            function updateStatusUI(data) {
+                // Atualizar mensagem
+                statusMessage.textContent = data.message || 'Processando...';
+                
+                // Atualizar barra de progresso
+                progressBarFill.style.width = `${data.progress || 0}%`;
+                
+                // Se busca concluída, habilitar botão de resultados
+                if (data.status === 'complete') {
+                    getResultsBtn.disabled = false;
+                }
+            }
+            
+            // Função para exibir resultados
+            function displayResults(flights) {
+                resultsList.innerHTML = '';
+                
+                flights.forEach(flight => {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    
+                    card.innerHTML = `
+                        <div class="result-header">
+                            <div class="result-airline">${flight.airline || 'Companhia Aérea'}</div>
+                            <div class="result-price">${flight.currency || 'R$'} ${typeof flight.price === 'number' ? flight.price.toFixed(2) : flight.price}</div>
+                        </div>
+                        <div class="result-details">
+                            <div>Partida: ${flight.departure || '---'}</div>
+                            <div>Chegada: ${flight.arrival || '---'}</div>
+                            <div>Duração: ${flight.duration || '---'}</div>
+                            <div>Paradas: ${flight.stops === 0 ? 'Voo direto' : `${flight.stops} parada(s)`}</div>
+                        </div>
+                    `;
+                    
+                    resultsList.appendChild(card);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -7,9 +7,12 @@
 
 class WidgetApiClient {
     constructor() {
-        this.baseUrl = window.location.origin;
-        this.activeSearchId = null;
+        this.baseUrl = '/widget';
+        this.searchId = null;
         this.pollingInterval = null;
+        this.pollingDelay = 2000; // 2 segundos
+        this.maxPollingAttempts = 30; // 60 segundos total (30 * 2s)
+        this.currentAttempt = 0;
     }
 
     /**
@@ -26,85 +29,104 @@ class WidgetApiClient {
      * @param {Function} onError - Callback para quando ocorrer um erro
      */
     startSearch(params, onStatus, onComplete, onError) {
-        // Cancelar busca anterior se houver
-        this.stopPolling();
+        // Validar parâmetros obrigatórios
+        if (!params.origin || !params.destination || !params.departure_date) {
+            onError('Parâmetros de busca incompletos. É necessário fornecer origem, destino e data de ida.');
+            return;
+        }
+
+        // Callback para atualização de status inicial
+        onStatus('searching', 'Iniciando busca de voos...');
         
-        console.log('Iniciando busca de voos:', params);
-        
-        // Enviar solicitação para iniciar a busca
-        fetch(`${this.baseUrl}/api/widget/search`, {
+        // Fazer requisição para iniciar a busca
+        fetch(`${this.baseUrl}/search`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify(params)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ao iniciar busca: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.status === 'error') {
-                if (onError) onError(data.message);
-                return;
+            if (data.error) {
+                throw new Error(data.error);
             }
             
-            this.activeSearchId = data.search_id;
-            console.log('Busca iniciada, ID:', this.activeSearchId);
+            // Armazenar ID da busca
+            this.searchId = data.search_id;
             
-            if (onStatus) onStatus('searching', 'Busca iniciada, aguardando resultados...');
+            // Atualizar status
+            onStatus('searching', 'Busca iniciada, aguardando resultados...');
             
-            // Iniciar polling para verificar o status da busca
+            // Iniciar polling para verificar status
             this.startPolling(onStatus, onComplete, onError);
         })
         .catch(error => {
             console.error('Erro ao iniciar busca:', error);
-            if (onError) onError('Falha ao iniciar busca: ' + error.message);
+            onError(error.message || 'Erro desconhecido ao iniciar busca');
         });
     }
-    
+
     /**
      * Inicia polling para verificar o status da busca
      */
     startPolling(onStatus, onComplete, onError) {
-        // Verificar se já existe um polling ativo
+        this.currentAttempt = 0;
+        
+        // Limpar intervalo anterior se existir
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
         }
         
-        // Variáveis para controle de polling
-        let attempts = 0;
-        const maxAttempts = 60; // 60 tentativas = 30 segundos com intervalo de 500ms
-        
-        // Iniciar polling
+        // Criar novo intervalo de polling
         this.pollingInterval = setInterval(() => {
-            attempts++;
+            this.currentAttempt++;
             
             // Verificar se atingiu o número máximo de tentativas
-            if (attempts > maxAttempts) {
+            if (this.currentAttempt > this.maxPollingAttempts) {
                 clearInterval(this.pollingInterval);
-                if (onError) onError('Tempo limite de busca excedido');
+                onError('Tempo limite excedido para obter resultados. Por favor, tente novamente mais tarde.');
                 return;
             }
             
-            // Chamar API para verificar status
+            // Verificar status da busca
             this.checkStatus(
-                status => {
-                    if (status === 'complete') {
+                // Callback de sucesso
+                (statusData) => {
+                    // Atualizar mensagem de status
+                    onStatus('searching', `${statusData.message || 'Buscando voos...'} (${this.currentAttempt}/${this.maxPollingAttempts})`);
+                    
+                    // Se a busca estiver concluída, buscar resultados
+                    if (statusData.status === 'complete') {
                         clearInterval(this.pollingInterval);
-                        this.fetchResults(onComplete, onError);
-                    } else if (status === 'error') {
-                        clearInterval(this.pollingInterval);
-                        if (onError) onError('Erro durante a busca');
-                    } else {
-                        if (onStatus) onStatus('searching', `Buscando voos... (${attempts}/${maxAttempts})`);
+                        
+                        // Buscar resultados
+                        this.fetchResults(
+                            // Callback de sucesso
+                            (results) => {
+                                onComplete(results);
+                            },
+                            // Callback de erro
+                            (error) => {
+                                onError(error);
+                            }
+                        );
                     }
                 },
-                error => {
+                // Callback de erro
+                (error) => {
                     clearInterval(this.pollingInterval);
-                    if (onError) onError(error);
+                    onError(error);
                 }
             );
-        }, 500); // Verificar a cada 500ms
+        }, this.pollingDelay);
     }
-    
+
     /**
      * Para o polling de status
      */
@@ -114,57 +136,63 @@ class WidgetApiClient {
             this.pollingInterval = null;
         }
     }
-    
+
     /**
      * Verifica o status de uma busca
      */
     checkStatus(onSuccess, onError) {
-        if (!this.activeSearchId) {
-            if (onError) onError('Nenhuma busca ativa');
+        if (!this.searchId) {
+            onError('ID de busca não disponível');
             return;
         }
         
-        fetch(`${this.baseUrl}/api/widget/status/${this.activeSearchId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'error') {
-                    if (onError) onError(data.message);
-                    return;
+        fetch(`${this.baseUrl}/status/${this.searchId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ao verificar status: ${response.statusText}`);
                 }
-                
-                if (onSuccess) onSuccess(data.status, data);
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                onSuccess(data);
             })
             .catch(error => {
                 console.error('Erro ao verificar status:', error);
-                if (onError) onError('Falha ao verificar status: ' + error.message);
+                onError(error.message || 'Erro desconhecido ao verificar status');
             });
     }
-    
+
     /**
      * Busca os resultados de uma busca
      */
     fetchResults(onSuccess, onError) {
-        if (!this.activeSearchId) {
-            if (onError) onError('Nenhuma busca ativa');
+        if (!this.searchId) {
+            onError('ID de busca não disponível');
             return;
         }
         
-        fetch(`${this.baseUrl}/api/widget/results/${this.activeSearchId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'error') {
-                    if (onError) onError(data.message);
-                    return;
+        fetch(`${this.baseUrl}/results/${this.searchId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro ao buscar resultados: ${response.statusText}`);
                 }
-                
-                if (onSuccess) onSuccess(data.results, data);
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                onSuccess(data.flights || []);
             })
             .catch(error => {
                 console.error('Erro ao buscar resultados:', error);
-                if (onError) onError('Falha ao buscar resultados: ' + error.message);
+                onError(error.message || 'Erro desconhecido ao buscar resultados');
             });
     }
 }
 
-// Exportar cliente para uso global
+// Criar e exportar instância global
 window.widgetApiClient = new WidgetApiClient();
