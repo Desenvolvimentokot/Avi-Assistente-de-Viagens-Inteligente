@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca de Voos - Flai</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .search-container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .btn-search {
+            background-color: #FF5A5F;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-search:hover {
+            background-color: #FF3A3F;
+        }
+        
+        .error-message {
+            color: #e53935;
+            background-color: #ffebee;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #e53935;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <img src="/static/img/avi-avatar.png" alt="Flai" height="50">
+            <h1>Flai - Sua Assistente de Viagens</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="/">Início</a></li>
+                <li><a href="/travelpayouts/search" class="active">Buscar Voos</a></li>
+                <li><a href="/roteiro_personalizado">Roteiro Personalizado</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="search-container">
+            <h2>Busca de Voos</h2>
+            
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form action="/travelpayouts/search" method="post">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="origin">Origem (Código IATA)</label>
+                        <input type="text" id="origin" name="origin" placeholder="Ex: GRU" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="destination">Destino (Código IATA)</label>
+                        <input type="text" id="destination" name="destination" placeholder="Ex: GIG" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departure_date">Data de Ida</label>
+                        <input type="date" id="departure_date" name="departure_date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="return_date">Data de Volta (opcional)</label>
+                        <input type="date" id="return_date" name="return_date">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn-search">Buscar Voos</button>
+                    <a href="/travelpayouts/widget" style="margin-left: 10px;">Usar Widget de Busca</a>
+                </div>
+            </form>
+            
+            <div style="margin-top: 30px;">
+                <h3>Códigos IATA populares no Brasil:</h3>
+                <ul>
+                    <li><strong>GRU</strong>: Aeroporto Internacional de São Paulo (Guarulhos)</li>
+                    <li><strong>CGH</strong>: Aeroporto de Congonhas (São Paulo)</li>
+                    <li><strong>SDU</strong>: Aeroporto Santos Dumont (Rio de Janeiro)</li>
+                    <li><strong>GIG</strong>: Aeroporto Internacional do Rio de Janeiro (Galeão)</li>
+                    <li><strong>BSB</strong>: Aeroporto Internacional de Brasília</li>
+                    <li><strong>CNF</strong>: Aeroporto Internacional de Belo Horizonte (Confins)</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Flai - Assistente de Viagens Inteligente</p>
+    </footer>
+
+    <script>
+        // Definir as datas mínimas como hoje
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('departure_date').min = today;
+        document.getElementById('return_date').min = today;
+        
+        // Ajustar a data de ida para daqui a 30 dias como padrão
+        const thirtyDaysLater = new Date();
+        thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+        const defaultDepartureDate = thirtyDaysLater.toISOString().split('T')[0];
+        document.getElementById('departure_date').value = defaultDepartureDate;
+        
+        // Ajustar a data de retorno para 7 dias após a ida como padrão
+        document.getElementById('departure_date').addEventListener('change', function() {
+            const departureDate = new Date(this.value);
+            const returnDate = new Date(departureDate);
+            returnDate.setDate(returnDate.getDate() + 7);
+            document.getElementById('return_date').value = returnDate.toISOString().split('T')[0];
+        });
+        
+        // Disparar o evento de mudança para configurar a data de retorno inicialmente
+        const event = new Event('change');
+        document.getElementById('departure_date').dispatchEvent(event);
+    </script>
+</body>
+</html>

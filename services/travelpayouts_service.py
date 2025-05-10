@@ -101,19 +101,39 @@ class TravelPayoutsService:
         try:
             # Buscar no endpoint de calendário - este endpoint é mais estável e fornece mais dados
             logger.info(f"Buscando voos de {origin} para {destination} no mês {departure_month}")
+            logger.info(f"URL: {self.calendar_prices_endpoint} com params: {request_params}")
+            
             response = requests.get(self.calendar_prices_endpoint, params=request_params)
             
             if response.status_code != 200:
                 logger.error(f"Erro na API do TravelPayouts (calendário): {response.status_code} - {response.text}")
                 # Tentar alternativa com endpoint de preços baratos
                 return self._search_flights_cheap_alternative(origin, destination, departure_date, params.get('returnDate'))
+            
+            # Verificar se a resposta é válida
+            try:
+                content_type = response.headers.get('Content-Type', '')
+                if 'application/json' not in content_type.lower():
+                    logger.warning(f"Resposta não é JSON. Content-Type: {content_type}")
                 
-            raw_data = response.json()
+                raw_data = response.json()
+                logger.info(f"Resposta recebida com sucesso. Tipo: {type(raw_data)}")
+            except Exception as json_error:
+                logger.error(f"Erro ao processar JSON da resposta: {str(json_error)}")
+                logger.error(f"Conteúdo da resposta: {response.text[:200]}...")
+                # Tentar alternativa
+                return self._search_flights_cheap_alternative(origin, destination, departure_date, params.get('returnDate'))
             
             if not raw_data.get('success', False):
                 logger.error(f"API retornou sucesso=false: {raw_data.get('error', 'Erro desconhecido')}")
                 return self._search_flights_cheap_alternative(origin, destination, departure_date, params.get('returnDate'))
             
+            # Verificar o formato da resposta para debug
+            logger.info(f"Tipo de resposta: {type(raw_data)}")
+            if isinstance(raw_data, str):
+                logger.error(f"Resposta retornou string em vez de objeto JSON: {raw_data[:100]}...")
+                return self._search_flights_cheap_alternative(origin, destination, departure_date, params.get('returnDate'))
+                
             # Processar e formatar os resultados do calendário
             formatted_results = self._format_calendar_results(raw_data, origin, destination, departure_date)
             
@@ -334,47 +354,130 @@ class TravelPayoutsService:
         """
         formatted_results = []
         
+        # Detalhes de debug para entender o formato da resposta
+        logger.info(f"Formatando resultados de calendário. Tipo resposta: {type(api_response)}")
+        
+        # Garantir que api_response é um dicionário
+        if not isinstance(api_response, dict):
+            logger.error(f"API calendário retornou formato inválido: {type(api_response)}")
+            return []
+            
         # Verificar se temos dados válidos
-        if not api_response.get('success'):
+        if not api_response.get('success', False):
             logger.error(f"API calendário retornou sucesso=false: {api_response.get('error', 'Erro desconhecido')}")
             return []
         
-        # Extrair dados
-        data = api_response.get('data', [])
-        if not data:
-            logger.error("API calendário retornou dados vazios")
+        # Extrair dados - pode ser uma lista ou um dicionário, dependendo do endpoint
+        data = api_response.get('data', None)
+        if data is None:
+            logger.error("API calendário não retornou dados")
             return []
+            
+        # Converter os dados para um formato de lista processável
+        data_entries = []
+        if isinstance(data, list):
+            # Já é uma lista, usar diretamente
+            data_entries = data
+        elif isinstance(data, dict):
+            # É um dicionário, precisamos extrair os valores
+            # O formato pode variar entre diferentes endpoints
+            try:
+                # Tentar extrair as entradas como uma lista plana
+                for date_key, date_data in data.items():
+                    if isinstance(date_data, dict):
+                        # Pode ser um dicionário aninhado
+                        for subkey, flight_data in date_data.items():
+                            if isinstance(flight_data, dict):
+                                # Adicionar informações da data no objeto
+                                entry = flight_data.copy()
+                                entry['departure_at'] = date_key
+                                data_entries.append(entry)
+                    else:
+                        # Ou pode ser um valor direto
+                        entry = {
+                            'departure_at': date_key,
+                            'value': date_data,
+                            'airline': 'TP',  # Placeholder
+                            'flight_number': '123'  # Placeholder
+                        }
+                        data_entries.append(entry)
+            except Exception as e:
+                logger.error(f"Erro ao extrair dados do dicionário: {str(e)}")
+                logger.error(f"Estrutura de dados: {str(data)[:200]}...")
+                return []
+        else:
+            logger.error(f"Formato de dados desconhecido: {type(data)}")
+            return []
+            
+        # Verificar se temos dados válidos após a conversão
+        if not data_entries:
+            logger.error("Nenhuma entrada de dados válida encontrada")
+            return []
+        
+        # Log para debug
+        logger.info(f"Dados processados: {len(data_entries)} entradas")
             
         # ID para os voos
         flight_id_counter = 1
         
         # Filtrar resultados pela data alvo, se fornecida
-        filtered_data = data
+        filtered_data = data_entries
         if target_date:
-            filtered_data = [entry for entry in data if entry.get('departure_at', '').startswith(target_date)]
-            
-            # Se não encontrar nada para a data específica, usar todas as datas
-            if not filtered_data:
-                filtered_data = data
+            try:
+                filtered_data = [entry for entry in data_entries 
+                                if isinstance(entry.get('departure_at', ''), str) and 
+                                entry.get('departure_at', '').startswith(target_date)]
+                
+                # Se não encontrar nada para a data específica, usar todas as datas
+                if not filtered_data:
+                    filtered_data = data_entries
+            except Exception as e:
+                logger.error(f"Erro ao filtrar por data alvo: {str(e)}")
+                filtered_data = data_entries
         
         # Ordenar por preço (mais barato primeiro)
-        sorted_data = sorted(filtered_data, key=lambda x: float(x.get('value', 9999999)))
+        try:
+            sorted_data = sorted(filtered_data, key=lambda x: float(x.get('value', 9999999)))
+        except Exception as e:
+            logger.error(f"Erro ao ordenar por preço: {str(e)}")
+            sorted_data = filtered_data
         
         # Limitar a 5 resultados para não sobrecarregar
         limited_data = sorted_data[:5]
         
         # Processar cada entrada
         for entry in limited_data:
-            # Extrair informações básicas
-            price = entry.get('value')
-            airline = entry.get('airline')
-            flight_number = f"{airline}{entry.get('flight_number', '')}"
+            # Extrair informações básicas com tratamento de erro
+            try:
+                price = entry.get('value')
+                if price is None:
+                    continue
+                    
+                airline = entry.get('airline')
+                if not airline:
+                    airline = 'TP'  # Placeholder para Airlines indefinidas
+                    
+                flight_number = entry.get('flight_number', '')
+                if not flight_number:
+                    flight_number = ''.join([str(random.randint(1, 9)) for _ in range(4)])
+                    
+                # Combinar código da companhia e número do voo
+                if not flight_number.startswith(airline):
+                    flight_number = f"{airline}{flight_number}"
+                
+                # Datas e horários
+                departure_at = entry.get('departure_at')
+                return_at = entry.get('return_at')
+                
+                # Verificar se temos o mínimo necessário
+                if not departure_at:
+                    continue
+                    
+            except Exception as e:
+                logger.error(f"Erro ao processar entrada: {str(e)}")
+                continue
             
-            # Datas e horários
-            departure_at = entry.get('departure_at')
-            return_at = entry.get('return_at')
-            
-            # Verificar se temos o mínimo necessário
+            # Verificar novamente se temos todos os dados necessários
             if not price or not airline or not departure_at:
                 continue
                 
