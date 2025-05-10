@@ -176,7 +176,7 @@ class FlightServiceConnector:
 
     def _search_best_prices(self, travel_info, session_id):
         """
-        Busca melhores preços para um período flexível
+        Busca melhores preços para um período flexível usando a API TravelPayouts
 
         Args:
             travel_info: Informações da viagem
@@ -186,91 +186,38 @@ class FlightServiceConnector:
             dict: Resultados da busca
         """
         try:
-            # Preparar dados para a requisição no formato V2 da API Amadeus
+            # Preparar dados para a requisição no formato da API TravelPayouts
             search_data = {
-                "currencyCode": travel_info.get('currency', 'BRL'),
-                "originDestinations": [
-                    {
-                        "id": "1",
-                        "originLocationCode": travel_info.get('origin'),
-                        "destinationLocationCode": travel_info.get('destination'),
-                        "departureDateTimeRange": {
-                            "date": travel_info.get('date_range_start')
-                        }
-                    }
-                ],
-                "travelers": [
-                    {
-                        "id": "1",
-                        "travelerType": "ADULT"
-                    }
-                ],
-                "sources": ["GDS"],
-                "searchCriteria": {
-                    "maxFlightOffers": 20,
-                    "flightFilters": {
-                        "cabinRestrictions": [
-                            {
-                                "cabin": "ECONOMY",
-                                "coverage": "MOST_SEGMENTS",
-                                "originDestinationIds": ["1"]
-                            }
-                        ]
-                    }
-                }
+                "origin": travel_info.get('origin').upper(),
+                "destination": travel_info.get('destination').upper(),
+                "departure_date": travel_info.get('date_range_start'),
+                "return_date": travel_info.get('date_range_end'),
+                "adults": travel_info.get('adults', 1),
+                "currency": travel_info.get('currency', 'BRL'),
+                "flexible_dates": True,
+                "session_id": session_id
             }
             
-            # Adicionar origem/destino de retorno se houver data de retorno
-            if travel_info.get('date_range_end'):
-                search_data["originDestinations"].append({
-                    "id": "2",
-                    "originLocationCode": travel_info.get('destination'),
-                    "destinationLocationCode": travel_info.get('origin'),
-                    "departureDateTimeRange": {
-                        "date": travel_info.get('date_range_end')
-                    }
-                })
-                # Atualizar restrições de cabine para incluir o retorno
-                search_data["searchCriteria"]["flightFilters"]["cabinRestrictions"][0]["originDestinationIds"].append("2")
-            
-            # Adicionar passageiros adicionais se houver
-            if travel_info.get('adults', 1) > 1:
-                # Adicionar adultos adicionais
-                for i in range(2, travel_info.get('adults', 1) + 1):
-                    search_data["travelers"].append({
-                        "id": str(i),
-                        "travelerType": "ADULT"
-                    })
-                    
-            # Adicionar período flexível
-            search_data["searchCriteria"]["additionalProperties"] = {
-                "flexibleDates": True
-            }
+            # Adicionar o session_id para rastreamento
+            search_data["session_id"] = session_id
 
-            # Fazer a requisição para o nosso endpoint de melhores preços do Amadeus
-            logger.info(f"Fazendo requisição para API de melhores preços com {search_data}")
+            # Fazer a requisição para o endpoint da API TravelPayouts
+            logger.info(f"Fazendo requisição para API de melhores preços TravelPayouts: {json.dumps(search_data)}")
 
-            # Obter token de autenticação do Amadeus
-            from services.amadeus_sdk_service import AmadeusSDKService
-            amadeus_service = AmadeusSDKService()
-            auth_token = amadeus_service.get_auth_token()
-            
-            if not auth_token:
-                logger.error("❌ Falha ao obter token de autenticação da API Amadeus")
-                return {
-                    "error": "Falha de autenticação com a API Amadeus",
-                    "data": []
-                }
-            
             # URL relativa para evitar problemas com portas
-            url = "/api/amadeus/best-prices"
+            url = "/api/travelpayouts/best-prices"
             logger.info(f"URL de conexão para melhores preços: {url}")
             
-            # Incluir cabeçalhos de autenticação
+            # Incluir cabeçalhos para a requisição
             headers = {
-                "Authorization": f"Bearer {auth_token}",
+                "X-Session-ID": session_id,
+                "X-Request-Source": "flight_service_connector",
                 "Content-Type": "application/json"
             }
+            
+            # Registrar tempo de início para medição
+            import time
+            start_time = time.time()
             
             response = requests.post(
                 url,
@@ -278,11 +225,19 @@ class FlightServiceConnector:
                 json=search_data,
                 timeout=30
             )
+            
+            # Calcular tempo de resposta
+            elapsed_time = time.time() - start_time
+            logger.warning(f"⏱️ Tempo de resposta da API: {elapsed_time:.2f} segundos")
 
             # Processar resposta
             if response.status_code == 200:
                 result = response.json()
                 logger.info(f"Resultados de melhores preços obtidos com sucesso!")
+                
+                # Adicionar session_id aos resultados
+                result['session_id'] = session_id
+                
                 return result
             else:
                 logger.error(f"Erro na requisição de melhores preços: {response.status_code} - {response.text}")
@@ -293,6 +248,8 @@ class FlightServiceConnector:
 
         except Exception as e:
             logger.error(f"Erro ao buscar melhores preços: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {
                 "error": f"Falha na busca de melhores preços: {str(e)}",
                 "data": []

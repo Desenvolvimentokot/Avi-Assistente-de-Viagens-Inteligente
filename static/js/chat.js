@@ -188,12 +188,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Verificar se estamos recebendo resposta de fallback do OpenAI
-            if (data.response && data.response.includes("BUSCANDO_DADOS_REAIS_NA_API_AMADEUS")) {
-                console.error("ATENÇÃO: Detectada resposta de fallback do OpenAI. O sistema deve usar APENAS dados reais da API Amadeus.");
+            if (data.response && data.response.includes("BUSCANDO_DADOS_REAIS_NA_API_TRAVELPAYOUTS")) {
+                console.error("ATENÇÃO: Detectada resposta de fallback do OpenAI. O sistema deve usar APENAS dados reais da API TravelPayouts.");
                 console.log("Requisitando dados reais em vez de usar respostas OpenAI...");
 
                 // Substituir a mensagem por algo mais informativo
-                data.response = "Estou consultando a API da Amadeus para encontrar as melhores opções de voos. Por favor, aguarde um momento...";
+                data.response = "Estou consultando a API da TravelPayouts para encontrar as melhores opções de voos. Por favor, aguarde um momento...";
             }
 
             // Adicionar resposta ao chat
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const validSessionId = data.session_id || sessionId;
 
                     // Adicionar uma pequena mensagem de direcionamento na conversa
-                    addMessage("✈️ Resultados reais da API Amadeus carregados! Confira o painel lateral →", false);
+                    addMessage("✈️ Resultados reais da API TravelPayouts carregados! Confira o painel lateral →", false);
 
                     // SOLUÇÃO DEFINITIVA: Acionar diretamente a biblioteca de interface
                     console.log("Salvando flags para garantir exibição do painel");
@@ -347,15 +347,15 @@ document.addEventListener('DOMContentLoaded', function() {
             text = convertMarkdownItalic(text);
             text = convertMarkdownLists(text);
             
-            // Processa os botões da amadeus-results-btn
-            if (text.includes('amadeus-results-btn')) {
+            // Processa os botões da travelpayouts-results-btn
+            if (text.includes('travelpayouts-results-btn')) {
                 console.log("Detectado botão de resultados na mensagem");
             }
             
             contentElement.innerHTML = text;
             
-            // Detecta e inicializa botões de resultados da Amadeus
-            const resultButtons = contentElement.querySelectorAll('.amadeus-results-btn');
+            // Detecta e inicializa botões de resultados da TravelPayouts
+            const resultButtons = contentElement.querySelectorAll('.travelpayouts-results-btn');
             if (resultButtons.length > 0) {
                 console.log(`Encontrados ${resultButtons.length} botões de resultados na mensagem`);
                 resultButtons.forEach(button => {
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Construir a URL para a página de resultados (somente para exibição)
                         // Os parâmetros serão usados apenas como fallback se o cookie não estiver disponível
-                        let url = `/amadeus-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+                        let url = `/travelpayouts-results?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
                         
                         if (departureDate) {
                             url += `&departure_date=${encodeURIComponent(departureDate)}`;

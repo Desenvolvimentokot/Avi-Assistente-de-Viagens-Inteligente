@@ -1,6 +1,6 @@
 /**
  * Manipulador do painel de resultados de voos
- * Este componente é responsável por mostrar dados REAIS da API Amadeus
+ * Este componente é responsável por mostrar dados REAIS da API TravelPayouts
  * em um painel lateral durante a interação do chat
  */
 class FlightResultsPanel {
@@ -158,7 +158,7 @@ class FlightResultsPanel {
                     <i class="fas fa-plane-departure fa-bounce"></i>
                 </div>
                 <h3>Buscando voos reais para você</h3>
-                <p>A Avi está consultando a API Amadeus para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
+                <p>A Avi está consultando a API TravelPayouts para encontrar as melhores opções de voos disponíveis para sua viagem. Os resultados serão exibidos em instantes.</p>
             </div>
         `;
 
@@ -251,8 +251,8 @@ class FlightResultsPanel {
                 </div>
             </div>
             <div class="flight-results-footer">
-                <div>Dados fornecidos pela API oficial Amadeus</div>
-                <div class="amadeus-badge">AMADEUS TRAVEL API</div>
+                <div>Dados fornecidos pela API oficial TravelPayouts</div>
+                <div class="travelpayouts-badge">TRAVELPAYOUTS API</div>
             </div>
         `;
 
