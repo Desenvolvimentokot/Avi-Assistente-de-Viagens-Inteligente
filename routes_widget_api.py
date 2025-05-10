@@ -212,3 +212,10 @@ def demo_search():
     Renderiza uma interface de demonstração para testar a API de busca.
     """
     return render_template('widget_api_demo.html')
+
+@widget_api.route('/chat_search', methods=['GET'])
+def chat_search():
+    """
+    Renderiza a interface de chat com integração de busca de voos.
+    """
+    return render_template('chat_flight_search.html')

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}AVI - Assistente de Viagens Inteligente{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flight-widget.css') }}">
+<style>
+  .split-screen {
+    display: flex;
+    height: calc(100vh - 60px);
+  }
+  
+  .chat-panel {
+    flex: 0 0 40%;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    position: relative;
+  }
+  
+  .results-panel {
+    flex: 0 0 60%;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+  }
+  
+  @media (max-width: 768px) {
+    .split-screen {
+      flex-direction: column;
+    }
+    
+    .chat-panel, .results-panel {
+      flex: none;
+      width: 100%;
+      height: 50%;
+    }
+    
+    .chat-panel {
+      border-right: none;
+      border-bottom: 1px solid #e0e0e0;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="split-screen">
+  <div class="chat-panel">
+    <div class="chat-container">
+      <div id="chat-messages" class="chat-messages">
+        <!-- Mensagens do chat serão inseridas aqui -->
+        <div class="message assistant-message">
+          <div class="message-content">
+            <p>Olá! 👋 Sou a AVI, sua assistente de viagens. Como posso ajudar você hoje?</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chat-input-container">
+        <textarea id="user-input" class="chat-input" placeholder="Digite sua mensagem..."></textarea>
+        <button id="send-button" class="send-button">Enviar</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="results-panel" id="flight-results-panel">
+    <div class="panel-header">
+      <h2>Resultados de Voo</h2>
+      <p class="panel-description">Quando você buscar voos, os resultados aparecerão aqui.</p>
+    </div>
+    
+    <div id="flight-results-container" class="flight-results-container"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Script para o chat -->
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+
+<!-- Scripts para a integração do widget de voos -->
+<script src="{{ url_for('static', filename='js/widget-api-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chat-widget-integration.js') }}"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Inicialização do chat e da integração com widget
+    const flightResultsPanel = document.getElementById('flight-results-panel');
+    const flightResultsContainer = document.getElementById('flight-results-container');
+    
+    // Função para mostrar voos no painel lateral
+    window.displayFlightsInPanel = function(flights) {
+      if (!flights || !flights.length) {
+        flightResultsContainer.innerHTML = '<div class="no-results">Não encontramos voos para esta rota.</div>';
+        return;
+      }
+      
+      let html = '';
+      
+      flights.forEach(flight => {
+        const price = typeof flight.price === 'number' 
+          ? flight.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+          : flight.price;
+        
+        html += `
+          <div class="flight-card">
+            <div class="flight-card-header">
+              <div class="flight-airline">${flight.airline || 'Companhia Aérea'}</div>
+              <div class="flight-price">${flight.currency || 'R$'} ${price}</div>
+            </div>
+            <div class="flight-card-body">
+              <div class="flight-info">
+                <div class="flight-times">
+                  <span class="departure-time">${flight.departure || 'Partida'}</span>
+                  <span class="flight-arrow">→</span>
+                  <span class="arrival-time">${flight.arrival || 'Chegada'}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flight-card-footer">
+              ${flight.bookingUrl ? 
+                `<a href="${flight.bookingUrl}" target="_blank" class="flight-book-btn">Ver oferta</a>` :
+                '<span class="flight-notice">Oferta indisponível</span>'}
+            </div>
+          </div>
+        `;
+      });
+      
+      flightResultsContainer.innerHTML = html;
+    };
+    
+    // Sobrescrever função do chat-widget-integration.js para mostrar tanto no chat quanto no painel
+    const originalDisplayFlightCardsInChat = window.displayFlightCardsInChat;
+    window.displayFlightCardsInChat = function(flights) {
+      // Chamar implementação original para mostrar no chat
+      originalDisplayFlightCardsInChat(flights);
+      
+      // Mostrar também no painel lateral
+      window.displayFlightsInPanel(flights);
+    };
+  });
+</script>
+{% endblock %}

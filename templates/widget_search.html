@@ -217,56 +217,37 @@
                 
                 // Aqui normalmente faria uma requisição AJAX
                 // Mas como esse arquivo será manipulado pelo Playwright,
-                // apenas simulamos para poder visualizar resultados
+                // vamos simular um processo de busca real
                 
-                // Simular uma busca (para testes visuais)
-                setTimeout(function() {
-                    // Ocultar loading
+                // Simular conexão com API (essa parte será manipulada pelo Playwright)
+                fetch(`https://api.travelpayouts.com/v1/prices/cheap?origin=${origin}&destination=${destination}&depart_date=${departureDate}&return_date=${returnDate}&token=dummy-token`)
+                .then(response => {
+                    // Esta resposta será interceptada e modificada pelo Playwright
+                    // Por isso não verificamos erros aqui, apenas sinalizamos progresso
+                    
+                    // Após 3 segundos, simulamos que os resultados foram carregados
+                    setTimeout(function() {
+                        // Ocultar loading
+                        loading.classList.remove('active');
+                        
+                        // Criar estrutura para resultados reais
+                        // O Playwright preencherá esta estrutura com dados reais
+                        resultsContainer.innerHTML = '<div class="real-results"></div>';
+                        
+                        // Sinalizar que a busca está completa
+                        // Isso será detectado pelo Playwright
+                        document.body.setAttribute('data-search-complete', 'true');
+                    }, 3000);
+                })
+                .catch(error => {
+                    // Exibir mensagem de erro genérica
                     loading.classList.remove('active');
-                    
-                    // Exibir alguns resultados de exemplo
-                    displaySampleResults(origin, destination, departureDate);
-                    
-                    // Sinalizar que a busca está completa
-                    // Isso será detectado pelo Playwright
-                    document.body.setAttribute('data-search-complete', 'true');
-                }, 3000);
+                    resultsContainer.innerHTML = '<div class="error-message">Não foi possível completar a busca. Tente novamente.</div>';
+                });
             });
             
-            function displaySampleResults(origin, destination, date) {
-                const airlines = ["LATAM", "GOL", "Azul", "Avianca", "American Airlines"];
-                const prices = [1250.99, 1450.50, 1850.00, 2100.75, 1999.99];
-                const departureTimes = ["08:00", "10:30", "13:45", "15:20", "19:10"];
-                const arrivalTimes = ["10:00", "12:45", "16:15", "17:50", "21:40"];
-                
-                let html = '';
-                
-                for (let i = 0; i < 5; i++) {
-                    html += `
-                        <div class="flight-card" data-flight-index="${i}">
-                            <div class="flight-header">
-                                <div class="flight-airline">${airlines[i % airlines.length]}</div>
-                                <div class="flight-price">R$ ${prices[i % prices.length].toFixed(2)}</div>
-                            </div>
-                            <div class="flight-details">
-                                <div class="flight-times">
-                                    <span>${departureTimes[i % departureTimes.length]}</span>
-                                    <span class="flight-arrow">→</span>
-                                    <span>${arrivalTimes[i % arrivalTimes.length]}</span>
-                                </div>
-                                <div class="flight-duration">
-                                    ${i % 3 === 0 ? 'Direto' : '1 parada'}
-                                </div>
-                            </div>
-                            <div class="flight-book">
-                                <a href="#" class="flight-book-btn" onclick="return false;">Ver oferta</a>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                resultsContainer.innerHTML = html;
-            }
+            // Esta função foi removida pois agora vamos usar apenas dados reais
+            // O Playwright irá injetar os resultados reais na página
         });
     </script>
 </body>
